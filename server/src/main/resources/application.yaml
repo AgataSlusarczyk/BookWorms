@@ -5,3 +5,9 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+bookworms:
+  jwt:
+    # Local development only. Set the JWT_SECRET environment variable on a real server.
+    secret: ${JWT_SECRET:dev-secret-do-not-use-in-production-0123456789}
+    expiration: 7d
