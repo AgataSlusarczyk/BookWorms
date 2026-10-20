@@ -1,8 +1,11 @@
 package com.bookworms.server.auth
 
+import com.bookworms.server.auth.dto.LoginRequest
+import com.bookworms.server.auth.dto.LoginResponse
 import com.bookworms.server.auth.dto.RegisterRequest
 import com.bookworms.server.users.User
 import com.bookworms.server.users.UserRepository
+import com.bookworms.server.users.dto.toResponse
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 class AuthService(
 	private val userRepository: UserRepository,
 	private val passwordEncoder: PasswordEncoder,
+	private val tokenService: TokenService,
 ) {
 
 	@Transactional
@@ -28,7 +32,22 @@ class AuthService(
 		)
 		return userRepository.save(user)
 	}
+
+	@Transactional(readOnly = true)
+	fun login(request: LoginRequest): LoginResponse {
+		val user = userRepository.findByEmail(request.email.lowercase())
+		if (user == null || !passwordEncoder.matches(request.password, user.passwordHash)) {
+			throw InvalidCredentialsException()
+		}
+		return LoginResponse(
+			token = tokenService.createToken(user),
+			user = user.toResponse(),
+		)
+	}
 }
 
 @ResponseStatus(HttpStatus.CONFLICT, reason = "Email is already taken")
 class EmailAlreadyTakenException : RuntimeException()
+
+@ResponseStatus(HttpStatus.UNAUTHORIZED, reason = "Invalid email or password")
+class InvalidCredentialsException : RuntimeException()

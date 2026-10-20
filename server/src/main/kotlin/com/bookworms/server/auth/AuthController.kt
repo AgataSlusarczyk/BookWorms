@@ -1,5 +1,7 @@
 package com.bookworms.server.auth
 
+import com.bookworms.server.auth.dto.LoginRequest
+import com.bookworms.server.auth.dto.LoginResponse
 import com.bookworms.server.auth.dto.RegisterRequest
 import com.bookworms.server.users.dto.UserResponse
 import com.bookworms.server.users.dto.toResponse
@@ -21,4 +23,8 @@ class AuthController(
 	@ResponseStatus(HttpStatus.CREATED)
 	fun register(@Valid @RequestBody request: RegisterRequest): UserResponse =
 		authService.register(request).toResponse()
+
+	@PostMapping("/login")
+	fun login(@Valid @RequestBody request: LoginRequest): LoginResponse =
+		authService.login(request)
 }
