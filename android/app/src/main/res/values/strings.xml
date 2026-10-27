@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">BookWorms</string>
+
+    <string name="login_title">Log in</string>
+    <string name="login_subtitle">Borrow books from friends in your groups.</string>
+    <string name="email_label">Email</string>
+    <string name="password_label">Password</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
+    <string name="login_button">Log in</string>
+    <string name="forgot_password">Forgot password?</string>
+    <string name="no_account">Don\'t have an account?</string>
+    <string name="sign_up">Sign up</string>
+    <string name="browse_without_account">Browse without an account</string>
 </resources>
