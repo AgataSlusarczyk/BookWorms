@@ -12,14 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,9 +43,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.ui.components.AppHeader
 import com.bookworms.app.ui.theme.BookWormsTheme
-
-private val FieldShape = RoundedCornerShape(8.dp)
 
 @Composable
 fun LoginScreen(
@@ -157,12 +152,10 @@ private fun LoginForm(
                     colors = fieldColors(),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                painter = painterResource(if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility),
-                                contentDescription = stringResource(if (passwordVisible) R.string.hide_password else R.string.show_password),
-                            )
-                        }
+                        PasswordVisibilityButton(
+                            visible = passwordVisible,
+                            onToggle = { passwordVisible = !passwordVisible },
+                        )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -222,37 +215,6 @@ private fun LoginForm(
                 Text(stringResource(R.string.browse_without_account))
             }
         }
-    }
-}
-
-@Composable
-private fun AppHeader(modifier: Modifier = Modifier) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        // TODO: replace with the real logo.
-        Icon(
-            painter = painterResource(R.drawable.ic_logo_placeholder),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(28.dp),
-        )
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun LabeledField(label: String, field: @Composable () -> Unit) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 4.dp),
-        )
-        field()
     }
 }
 
