@@ -1,6 +1,7 @@
 package com.bookworms.app.ui.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,12 +12,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -29,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +56,10 @@ fun RegisterScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onRepeatPasswordChange: (String) -> Unit,
+    termsAccepted: Boolean,
+    onTermsAcceptedChange: (Boolean) -> Unit,
+    onCreateAccountClick: () -> Unit,
+    onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -159,6 +169,59 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        // The whole row is clickable, not just the small box, so it's easier to tap.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                // Lines the box up with the fields, same as the back arrow.
+                .offset(x = (-12).dp)
+                .toggleable(
+                    value = termsAccepted,
+                    onValueChange = onTermsAcceptedChange,
+                    role = Role.Checkbox,
+                ),
+        ) {
+            // null, because the row above already handles the click.
+            Checkbox(checked = termsAccepted, onCheckedChange = null, modifier = Modifier.padding(12.dp))
+            Text(
+                text = stringResource(R.string.accept_terms),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onCreateAccountClick,
+            // You can't create an account until you accept the terms.
+            enabled = termsAccepted,
+            shape = FieldShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+        ) {
+            Text(stringResource(R.string.create_account_button))
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(R.string.have_account),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onLoginClick) {
+                Text(stringResource(R.string.login_button))
+            }
+        }
     }
 }
 
@@ -184,6 +247,10 @@ private fun RegisterScreenPreview() {
             onEmailChange = {},
             onPasswordChange = {},
             onRepeatPasswordChange = {},
+            termsAccepted = true,
+            onTermsAcceptedChange = {},
+            onCreateAccountClick = {},
+            onLoginClick = {},
             onBackClick = {},
         )
     }
