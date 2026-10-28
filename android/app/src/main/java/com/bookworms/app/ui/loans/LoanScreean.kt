@@ -27,8 +27,8 @@ fun LoansScreen() {
     val tabs = listOf(R.string.tab_borrowing, R.string.tab_lent, R.string.tab_requests)
 
     Scaffold(
-        modifier = Modifier, 
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) }

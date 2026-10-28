@@ -25,6 +25,8 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 @Composable
 fun NotificationsScreen(onBackClick: () -> Unit = {}) {
     Scaffold(
+        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 

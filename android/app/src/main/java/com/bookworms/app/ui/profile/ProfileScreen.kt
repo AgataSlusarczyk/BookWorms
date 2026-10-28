@@ -25,8 +25,8 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 @Composable
 fun ProfileScreen() {
     Scaffold(
-        modifier = Modifier,
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        containerColor = Color.Transparent,
         topBar = { 
             TopAppBar(
                 title = { Text(stringResource(R.string.profile_title), fontWeight = FontWeight.Bold) }

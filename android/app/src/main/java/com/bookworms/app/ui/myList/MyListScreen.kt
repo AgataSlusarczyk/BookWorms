@@ -47,9 +47,9 @@ fun MyListsScreen() {
     val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
 
     Scaffold(
-        // Transparent, so the misted picture behind the whole screen shows through.
+        
+        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
         containerColor = Color.Transparent,
-        modifier = Modifier.mistedBackground(),
         topBar = {
             Column {
                 TopAppBar(
