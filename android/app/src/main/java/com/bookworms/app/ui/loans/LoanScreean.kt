@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,7 +62,7 @@ fun LoansScreen() {
                         subtitle = stringResource(R.string.loan_subtitle, "Marek W.", "12.11"),
                         statusText = stringResource(R.string.status_return_by, "20.11"), 
                         statusDotColor = MaterialTheme.colorScheme.primary, 
-                        extraText = stringResource(R.string.in_x_days, "6")
+                        extraText = pluralStringResource(R.plurals.in_x_days, 6, 6)
                     )
                 }
                 item {
@@ -70,7 +71,7 @@ fun LoansScreen() {
                         subtitle = stringResource(R.string.loan_subtitle, "Ola N.", "03.10"),
                         statusText = stringResource(R.string.status_overdue), 
                         statusDotColor = MaterialTheme.colorScheme.error, 
-                        extraText = stringResource(R.string.x_days_overdue, "4"),
+                        extraText = pluralStringResource(R.plurals.x_days_overdue, 4, 4),
                         isOverdue = true
                     )
                 }
