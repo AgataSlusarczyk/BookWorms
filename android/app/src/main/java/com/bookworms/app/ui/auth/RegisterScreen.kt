@@ -1,6 +1,5 @@
 ﻿package com.bookworms.app.ui.auth
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,8 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,12 +27,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.paint
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -43,6 +36,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppHeader
+import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
@@ -68,14 +63,7 @@ fun RegisterScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            // The same picture as on the login screen...
-            .paint(
-                painter = painterResource(R.drawable.bg_login),
-                contentScale = ContentScale.Crop,
-                sizeToIntrinsics = false,
-            )
-            // ...covered with thick paper-colored mist, so only a hint of it shows through.
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.89f))
+            .mistedBackground()
             .safeDrawingPadding()
             // The form is long, so it scrolls on small phones and when the keyboard is open.
             .verticalScroll(rememberScrollState())
@@ -85,25 +73,7 @@ fun RegisterScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                onClick = onBackClick,
-                // The button is bigger than the arrow (easier to tap), so we move it left
-                // to line the arrow up with the rest of the screen.
-                modifier = Modifier.offset(x = (-12).dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_back),
-                    contentDescription = stringResource(R.string.back),
-                )
-            }
-            Text(
-                text = stringResource(R.string.register_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.offset(x = (-8).dp),
-            )
-        }
+        BackTitle(title = stringResource(R.string.register_title), onBackClick = onBackClick)
 
         Spacer(Modifier.height(24.dp))
 
