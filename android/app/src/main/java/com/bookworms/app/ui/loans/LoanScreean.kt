@@ -6,91 +6,88 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.*
+import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoansScreen() {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(R.string.tab_borrowing, R.string.tab_lent, R.string.tab_requests)
 
-    AppBackground {
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
+    Scaffold(
+        modifier = Modifier, 
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) }
+            )
+        },
+        bottomBar = { AppBottomBar("loans") }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            PrimaryTabRow(
+                selectedTabIndex = selectedTabIndex,
+            ) {
+                tabs.forEachIndexed { index, titleResId ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = { Text(stringResource(titleResId)) }
                     )
-                )
-            },
-            bottomBar = { AppBottomBar("loans") }
-        ) { padding ->
-            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                TabRow(
-                    selectedTabIndex = selectedTabIndex, 
-                    containerColor = Color.Transparent
-                ) {
-                    tabs.forEachIndexed { index, titleResId ->
-                        Tab(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
-                            text = { Text(stringResource(titleResId)) }
-                        )
-                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item { SectionHeader(stringResource(R.string.section_we_have, "2")) }
+                
+                item {
+                    LoanCard(
+                        title = "Problem trzech ciał", 
+                        subtitle = stringResource(R.string.loan_subtitle, "Marek W.", "12.11"),
+                        statusText = stringResource(R.string.status_return_by, "20.11"), 
+                        statusDotColor = MaterialTheme.colorScheme.primary, 
+                        extraText = stringResource(R.string.in_x_days, "6")
+                    )
+                }
+                item {
+                    LoanCard(
+                        title = "Pachnidło", 
+                        subtitle = stringResource(R.string.loan_subtitle, "Ola N.", "03.10"),
+                        statusText = stringResource(R.string.status_overdue), 
+                        statusDotColor = MaterialTheme.colorScheme.error, 
+                        extraText = stringResource(R.string.x_days_overdue, "4"),
+                        isOverdue = true
+                    )
                 }
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item { SectionHeader(stringResource(R.string.section_we_have), "2") }
-                    
-                    item {
-                        LoanCard(
-                            title = "Problem trzech ciał", 
-                            subtitle = "od Marka W. • od 12.11",
-                            statusText = stringResource(R.string.status_return_by) + " 20.11", 
-                            statusDotColor = Color.Blue, 
-                            extraText = "za 6 dni"
-                        )
-                    }
-                    item {
-                        LoanCard(
-                            title = "Pachnidło", 
-                            subtitle = "od Oli N. • od 03.10",
-                            statusText = stringResource(R.string.status_overdue), 
-                            statusDotColor = Color.Red, 
-                            extraText = "4 dni zwłoki",
-                            isOverdue = true
-                        )
-                    }
-
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
-                    item { SectionHeader(stringResource(R.string.section_pending_confirmation), "2") }
-                    
-                    item {
-                        ActionCard(
-                            title = "Solaris", 
-                            subtitle = "Krzysiek P. prosi o wypożyczenie",
-                            statusText = stringResource(R.string.status_pending), 
-                            statusDotColor = Color(0xFFE6B800), 
-                            extraText = "2 h temu",
-                            primaryAction = stringResource(R.string.action_accept), 
-                            secondaryAction = stringResource(R.string.action_reject)
-                        )
-                    }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+                item { SectionHeader(stringResource(R.string.section_pending_confirmation, "2")) }
+                
+                item {
+                    ActionCard(
+                        title = "Solaris", 
+                        subtitle = stringResource(R.string.asks_to_borrow, "Krzysiek P."),
+                        statusText = stringResource(R.string.status_pending), 
+                        statusDotColor = MaterialTheme.colorScheme.tertiary, 
+                        extraText = stringResource(R.string.x_hours_ago, "2"),
+                        primaryAction = stringResource(R.string.action_accept), 
+                        secondaryAction = stringResource(R.string.action_reject)
+                    )
                 }
             }
         }
@@ -98,22 +95,20 @@ fun LoansScreen() {
 }
 
 @Composable
-fun SectionHeader(title: String, count: String) {
-    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(4.dp)) {
-        Text(
-            text = "$title$count",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 4.dp)
+    )
 }
 
 @Composable
 fun LoanCard(title: String, subtitle: String, statusText: String, statusDotColor: Color, extraText: String, isOverdue: Boolean = false) {
-    val borderColor = if (isOverdue) Color.Red else MaterialTheme.colorScheme.outlineVariant
-    val tagBg = if (isOverdue) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
-    val tagText = if (isOverdue) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
+    val tagBg = if (isOverdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+    val tagText = if (isOverdue) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     OutlinedCard(
         border = BorderStroke(1.dp, borderColor),
@@ -151,7 +146,7 @@ fun ActionCard(title: String, subtitle: String, statusText: String, statusDotCol
                     Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        StatusTag(statusText, statusDotColor, Color(0xFFFFF8E1), Color(0xFFB8860B))
+                        StatusTag(statusText, statusDotColor, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                         if (extraText.isNotEmpty()) Text(extraText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -168,5 +163,13 @@ fun ActionCard(title: String, subtitle: String, statusText: String, statusDotCol
                 }
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun LoansScreenPreview() {
+    BookWormsTheme {
+        LoansScreen()
     }
 }

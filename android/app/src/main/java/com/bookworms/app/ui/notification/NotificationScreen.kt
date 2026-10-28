@@ -14,80 +14,61 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
-import com.bookworms.app.ui.components.AppBackground
+import com.bookworms.app.ui.components.BackTitle 
+import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen() {
-    AppBackground {
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.notifications_title), fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = { }) { 
-                            Icon(
-                                painter = painterResource(R.drawable.ic_arrow_back), 
-                                contentDescription = stringResource(R.string.content_desc_back)
-                            ) 
-                        }
-                    },
-                    actions = {
-                        TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
-                    )
+fun NotificationsScreen(onBackClick: () -> Unit = {}) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    BackTitle(title = stringResource(R.string.notifications_title), onBackClick = onBackClick) 
+                },
+                actions = {
+                    TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.padding(padding).fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { Text(stringResource(R.string.date_today), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+            
+            item {
+                NotificationActionCard(
+                    title = stringResource(R.string.asks_to_borrow_book, "Krzysiek P.", "Solaris"), 
+                    time = stringResource(R.string.x_hours_ago, "2"), 
+                    isUnread = true
                 )
             }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier.padding(padding).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { 
-                    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(4.dp)) {
-                        Text(stringResource(R.string.date_today), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp) 
-                    }
-                }
-                
-                item {
-                    NotificationActionCard(
-                        title = "Krzysiek P. prosi o Solaris", 
-                        time = "2 h temu", 
-                        isUnread = true
-                    )
-                }
-                item {
-                    NotificationSimpleCard(
-                        title = "Pachnidło – 4 dni po terminie zwrotu", 
-                        time = "dziś, 8:00 • automatyczne przypomnienie",
-                        iconResId = R.drawable.ic_schedule, 
-                        iconColor = Color(0xFFB8860B)
-                    )
-                }
+            item {
+                NotificationSimpleCard(
+                    title = stringResource(R.string.book_days_overdue, "Pachnidło", "4"), 
+                    time = stringResource(R.string.automatic_reminder, stringResource(R.string.today_at_time, "8:00")),
+                    iconResId = R.drawable.ic_schedule, 
+                    iconColor = MaterialTheme.colorScheme.tertiary
+                )
+            }
 
-                item { Spacer(modifier = Modifier.height(8.dp)) }
-                item { 
-                    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(4.dp)) {
-                        Text(stringResource(R.string.date_yesterday), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp) 
-                    }
-                }
-                
-                item {
-                    NotificationSimpleCard(
-                        title = "Problem trzech ciał z Twojej listy jest znów dostępna", 
-                        time = "wczoraj, 19:12",
-                        iconResId = R.drawable.ic_book, 
-                        iconColor = Color.Blue
-                    )
-                }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { Text(stringResource(R.string.date_yesterday), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+            
+            item {
+                NotificationSimpleCard(
+                    title = stringResource(R.string.book_available_again, "Problem trzech ciał"), 
+                    time = stringResource(R.string.yesterday_at_time, "19:12"),
+                    iconResId = R.drawable.ic_book, 
+                    iconColor = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -95,15 +76,18 @@ fun NotificationsScreen() {
 
 @Composable
 fun NotificationActionCard(title: String, time: String, isUnread: Boolean) {
+    val borderColor = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    val borderWidth = if (isUnread) 2.dp else 1.dp
+
     OutlinedCard(
-        border = BorderStroke(if (isUnread) 2.dp else 1.dp, if (isUnread) Color.Blue else MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(borderWidth, borderColor),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 if (isUnread) {
-                    Box(modifier = Modifier.padding(top = 6.dp).size(8.dp).background(Color.Blue, CircleShape))
+                    Box(modifier = Modifier.padding(top = 6.dp).size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                     Spacer(modifier = Modifier.width(12.dp))
                 }
                 Column {
@@ -134,5 +118,13 @@ fun NotificationSimpleCard(title: String, time: String, iconResId: Int, iconColo
                 Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun NotificationsScreenPreview() {
+    BookWormsTheme {
+        NotificationsScreen()
     }
 }
