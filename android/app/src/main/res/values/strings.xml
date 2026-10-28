@@ -37,5 +37,6 @@
         <item quantity="other">available in %d groups</item>
     </plurals>
     <string name="no_copies">no copies</string>
+    <string name="no_results">No books found. Try a different title, author or ISBN.</string>
     <string name="login_to_borrow">Log in to borrow</string>
 </resources>
