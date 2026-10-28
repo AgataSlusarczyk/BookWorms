@@ -1,4 +1,4 @@
-package com.bookworms.app.ui.auth
+﻿package com.bookworms.app.ui.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +30,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.paint
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppHeader
 import com.bookworms.app.ui.theme.BookWormsTheme
-import com.bookworms.app.ui.theme.FieldGray
 
 @Composable
 fun RegisterScreen(
@@ -69,7 +68,14 @@ fun RegisterScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // The same picture as on the login screen...
+            .paint(
+                painter = painterResource(R.drawable.bg_login),
+                contentScale = ContentScale.Crop,
+                sizeToIntrinsics = false,
+            )
+            // ...covered with thick paper-colored mist, so only a hint of it shows through.
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.89f))
             .safeDrawingPadding()
             // The form is long, so it scrolls on small phones and when the keyboard is open.
             .verticalScroll(rememberScrollState())
@@ -102,12 +108,12 @@ fun RegisterScreen(
         Spacer(Modifier.height(24.dp))
 
         LabeledField(label = stringResource(R.string.name_label)) {
-            TextField(
+            OutlinedTextField(
                 value = name,
                 onValueChange = onNameChange,
                 singleLine = true,
                 shape = FieldShape,
-                colors = filledFieldColors(),
+                colors = authFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -115,12 +121,12 @@ fun RegisterScreen(
         Spacer(Modifier.height(16.dp))
 
         LabeledField(label = stringResource(R.string.email_label)) {
-            TextField(
+            OutlinedTextField(
                 value = email,
                 onValueChange = onEmailChange,
                 singleLine = true,
                 shape = FieldShape,
-                colors = filledFieldColors(),
+                colors = authFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -129,12 +135,12 @@ fun RegisterScreen(
         Spacer(Modifier.height(16.dp))
 
         LabeledField(label = stringResource(R.string.password_label)) {
-            TextField(
+            OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
                 singleLine = true,
                 shape = FieldShape,
-                colors = filledFieldColors(),
+                colors = authFieldColors(),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     PasswordVisibilityButton(
@@ -152,12 +158,12 @@ fun RegisterScreen(
         Spacer(Modifier.height(8.dp))
 
         LabeledField(label = stringResource(R.string.repeat_password_label)) {
-            TextField(
+            OutlinedTextField(
                 value = repeatPassword,
                 onValueChange = onRepeatPasswordChange,
                 singleLine = true,
                 shape = FieldShape,
-                colors = filledFieldColors(),
+                colors = authFieldColors(),
                 visualTransformation = if (repeatPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     PasswordVisibilityButton(
@@ -224,15 +230,6 @@ fun RegisterScreen(
         }
     }
 }
-
-// Gray fields without a border or the line at the bottom, like in the design.
-@Composable
-private fun filledFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = FieldGray,
-    unfocusedContainerColor = FieldGray,
-    focusedIndicatorColor = Color.Transparent,
-    unfocusedIndicatorColor = Color.Transparent,
-)
 
 @Preview(device = "id:pixel_8")
 @Composable

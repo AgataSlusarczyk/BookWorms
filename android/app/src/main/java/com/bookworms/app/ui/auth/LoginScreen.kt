@@ -1,4 +1,4 @@
-package com.bookworms.app.ui.auth
+﻿package com.bookworms.app.ui.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,7 +18,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,19 +64,16 @@ fun LoginScreen(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        // The background is light, so the form always uses light colors, even in dark mode.
-        BookWormsTheme(darkTheme = false) {
-            LoginForm(
-                email = email,
-                password = password,
-                onEmailChange = onEmailChange,
-                onPasswordChange = onPasswordChange,
-                onLoginClick = onLoginClick,
-                onForgotPasswordClick = onForgotPasswordClick,
-                onRegisterClick = onRegisterClick,
-                onBrowseWithoutAccountClick = onBrowseWithoutAccountClick,
-            )
-        }
+        LoginForm(
+            email = email,
+            password = password,
+            onEmailChange = onEmailChange,
+            onPasswordChange = onPasswordChange,
+            onLoginClick = onLoginClick,
+            onForgotPasswordClick = onForgotPasswordClick,
+            onRegisterClick = onRegisterClick,
+            onBrowseWithoutAccountClick = onBrowseWithoutAccountClick,
+        )
     }
 }
 
@@ -104,12 +99,7 @@ private fun LoginForm(
             .safeDrawingPadding()
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
     ) {
-        // offset moves only the header; the rest of the layout stays where it was.
-        AppHeader(
-            modifier = Modifier
-                .offset(y = (-4).dp)
-                .mist(),
-        )
+        AppHeader(modifier = Modifier.mist())
 
         // The free space is split between this spacer and the one below the form,
         // so the form sits a bit above the middle of the screen.
@@ -135,7 +125,7 @@ private fun LoginForm(
                     onValueChange = onEmailChange,
                     singleLine = true,
                     shape = FieldShape,
-                    colors = fieldColors(),
+                    colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -149,7 +139,7 @@ private fun LoginForm(
                     onValueChange = onPasswordChange,
                     singleLine = true,
                     shape = FieldShape,
-                    colors = fieldColors(),
+                    colors = authFieldColors(),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         PasswordVisibilityButton(
@@ -239,12 +229,6 @@ private fun Modifier.mist(): Modifier {
         }
     }
 }
-
-@Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = MaterialTheme.colorScheme.surface,
-    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-)
 
 @Preview(device = "id:pixel_8")
 @Composable

@@ -6,9 +6,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,16 @@ internal fun LabeledField(label: String, field: @Composable () -> Unit) {
         field()
     }
 }
+
+// White, a bit see-through, so the background shows through the fields slightly.
+private val FieldFill = Color.White.copy(alpha = 0.8f)
+
+// Colors for all text fields on the login and register screens.
+@Composable
+internal fun authFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = FieldFill,
+    unfocusedContainerColor = FieldFill,
+)
 
 // The eye icon at the end of a password field.
 @Composable
