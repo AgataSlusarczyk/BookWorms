@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +48,7 @@ fun BrowseScreen(
     query: String,
     results: List<Book>,
     onQueryChange: (String) -> Unit,
+    onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -115,6 +117,18 @@ fun BrowseScreen(
             items(results, key = { it.isbn }) { book ->
                 BookCard(book)
             }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Button(
+            onClick = onLoginClick,
+            shape = FieldShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+        ) {
+            Text(stringResource(R.string.login_to_borrow))
         }
     }
 }
@@ -206,6 +220,7 @@ private fun BrowseScreenPreview() {
             query = query,
             results = filterBooks(sampleBooks, query),
             onQueryChange = {},
+            onLoginClick = {},
             onBackClick = {},
         )
     }
