@@ -1,7 +1,6 @@
 package com.bookworms.app.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -27,7 +26,8 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun BookWormsTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Always light, even when the phone is in dark mode. The design only has light colors.
+    darkTheme: Boolean = false,
     // Off, so the app uses our brand colors instead of colors from the phone's wallpaper.
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
