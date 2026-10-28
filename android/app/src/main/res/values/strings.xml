@@ -1,6 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BookWorms</string>
 
+    <!-- Login & Register -->
     <string name="login_title">Log in</string>
     <string name="login_subtitle">Borrow books from friends in your groups.</string>
     <string name="email_label">Email</string>
@@ -12,8 +14,31 @@
     <string name="no_account">Don\'t have an account?</string>
     <string name="sign_up">Sign up</string>
     <string name="browse_without_account">Browse without an account</string>
-    
-    <string name="app_name">BookWorms</string>
+    <string name="register_title">Sign up</string>
+    <string name="back">Back</string>
+    <string name="name_label">Name</string>
+    <string name="password_hint">At least 10 characters, a digit and a special character</string>
+    <string name="repeat_password_label">Repeat password</string>
+    <string name="accept_terms">I accept the terms of service</string>
+    <string name="create_account_button">Create account</string>
+    <string name="have_account">Already have an account?</string>
+
+    <!-- Browse -->
+    <string name="browse_title">Browse</string>
+    <string name="search_placeholder">Title, author or ISBN</string>
+    <string name="guest_notice">You\'re browsing as a guest. Log in to see owners and borrow books.</string>
+    <plurals name="search_results">
+        <item quantity="one">Results for “%1$s” · %2$d book</item>
+        <item quantity="other">Results for “%1$s” · %2$d books</item>
+    </plurals>
+    <string name="book_author_year">%1$s · %2$d</string>
+    <plurals name="available_in_groups">
+        <item quantity="one">available in %d group</item>
+        <item quantity="other">available in %d groups</item>
+    </plurals>
+    <string name="no_copies">no copies</string>
+    <string name="no_results">No books found. Try a different title, author or ISBN.</string>
+    <string name="login_to_borrow">Log in to borrow</string>
 
     <!-- Navigation -->
     <string name="nav_library">Library</string>
@@ -54,8 +79,14 @@
 
     <!-- Interface phrases (Mock data formats) -->
     <string name="loan_subtitle">from %1$s • since %2$s</string>
-    <string name="in_x_days">in %1$s days</string>
-    <string name="x_days_overdue">%1$s days overdue</string>
+    <plurals name="in_x_days">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
+    <plurals name="x_days_overdue">
+        <item quantity="one">%1$d day overdue</item>
+        <item quantity="other">%1$d days overdue</item>
+    </plurals>
     <string name="x_hours_ago">%1$s h ago</string>
     <string name="asks_to_borrow">%1$s asks to borrow</string>
     <string name="asks_to_borrow_book">%1$s asks to borrow %2$s</string>
@@ -65,7 +96,7 @@
     <string name="today_at_time">today, %1$s</string>
     <string name="yesterday_at_time">yesterday, %1$s</string>
 
-    <!-- Plurals (English only needs one/other) -->
+    <!-- Plurals (Members) -->
     <plurals name="members">
         <item quantity="one">%1$d member</item>
         <item quantity="other">%1$d members</item>
