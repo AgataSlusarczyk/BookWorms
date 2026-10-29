@@ -17,6 +17,7 @@ import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.scan.ScanIsbnScreen
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -25,6 +26,7 @@ private object Routes {
     const val BROWSE = "browse"
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
     const val BOOK_DETAILS = "book_details/{isbn}"
+    const val SCAN_ISBN = "scan_isbn"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
 }
@@ -114,6 +116,17 @@ fun AppNavigation() {
                 onJoinQueueClick = {},
                 onAddCommentClick = {},
                 onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        // Nothing opens this screen yet – it gets linked when the library is added.
+        composable(Routes.SCAN_ISBN) {
+            ScanIsbnScreen(
+                // Temporary – a sample code until the camera can read barcodes.
+                recognizedIsbn = "978-83-08-04815-3",
+                onEnterIsbnManuallyClick = {},
+                onAddWithoutIsbnClick = {},
+                onCloseClick = { navController.popBackStack() },
             )
         }
     }
