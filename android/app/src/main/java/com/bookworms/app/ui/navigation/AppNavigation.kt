@@ -12,6 +12,9 @@ import androidx.navigation.compose.rememberNavController
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.book.BookDetailsScreen
+import com.bookworms.app.ui.book.ReadingStatus
+import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
@@ -29,6 +32,8 @@ private object Routes {
     const val REGISTER = "register"
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
+    // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
+    const val BOOK_DETAILS = "book_details/{isbn}"
 
     // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
@@ -40,6 +45,8 @@ private object Routes {
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
+
+    fun bookDetails(isbn: String) = "book_details/$isbn"
 }
 
 @Composable
@@ -89,6 +96,7 @@ fun AppNavigation() {
                 query = query,
                 results = results,
                 onQueryChange = { query = it },
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
@@ -182,6 +190,29 @@ fun AppNavigation() {
 
         composable(Routes.ADD_BOOK_MANUAL) {
             AddBookManualScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.BOOK_DETAILS) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
+            // Temporary – looks the book up in the sample list until books come from the server.
+            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
+
+            // Temporary state – moves to a ViewModel when book details come from the server.
+            var isFavorite by rememberSaveable { mutableStateOf(false) }
+            var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
+
+            BookDetailsScreen(
+                book = sampleBookDetailsFor(book),
+                isFavorite = isFavorite,
+                readingStatus = readingStatus,
+                onFavoriteClick = { isFavorite = !isFavorite },
+                onMoreClick = {},
+                onReadingStatusChange = { readingStatus = it },
+                onRequestLoanClick = {},
+                onJoinQueueClick = {},
+                onAddCommentClick = {},
+                onBackClick = { navController.popBackStack() },
+            )
         }
     }
 }

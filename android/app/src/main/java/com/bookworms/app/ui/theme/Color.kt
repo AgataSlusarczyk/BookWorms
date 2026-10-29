@@ -19,3 +19,8 @@ val StatusGreenBg = Color(0xFFE2F3E8)
 val StatusBlueBg = Color(0xFFE3ECFD)
 val StatusAmber = Color(0xFF8A6A16)
 val StatusAmberBg = Color(0xFFFBEED0)
+
+// Colors taken from the book details design.
+val AvailableGreen = Color(0xFF17825A)
+val AvailableGreenLight = Color(0xFFE1F3EB)
+val FavoriteRed = Color(0xFFC03B36)
