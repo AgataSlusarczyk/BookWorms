@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -28,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -40,8 +38,10 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppHeader
 import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
 fun BrowseScreen(
@@ -175,17 +175,8 @@ private fun AvailabilityChip(groupsAvailable: Int) {
     } else {
         stringResource(R.string.no_copies)
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .background(PlaceholderGray, CircleShape)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
+    Pill(text = text)
 }
-
-private val PlaceholderGray = Color(0xFFE6E8EC)
 
 // Light blue box telling a guest what they can't do without an account.
 @Composable
