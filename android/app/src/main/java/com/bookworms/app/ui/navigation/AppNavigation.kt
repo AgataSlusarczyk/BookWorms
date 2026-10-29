@@ -9,36 +9,32 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
-// Importy widoków autoryzacji i przeglądania
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
-
-// Importy nowych widoków aplikacji (upewnij się, że ścieżki pakietów się zgadzają)
+import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
-import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 
-// Rozszerzona lista ścieżek
+// The names of the screens the app can go to.
 private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val BROWSE = "browse"
-    
-    // Nowe ścieżki głównej aplikacji
+
+    // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
     const val LOANS = "loans"
     const val LISTS = "lists"
     const val PROFILE = "profile"
-    
-    // Ścieżki podrzędne
+
+    // Screens opened from a tab, without the bottom bar.
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
@@ -46,9 +42,11 @@ private object Routes {
 
 @Composable
 fun AppNavigation() {
+    // Remembers which screen is open and which ones are behind it.
     val navController = rememberNavController()
 
-    // Pomocnicza funkcja do nawigacji dolnym paskiem - zapobiega budowaniu nieskończonego stosu ekranów
+    // Switching tabs in the bottom bar: no growing pile of screens, and each tab keeps
+    // its state (scroll position, selected tab) when you come back to it.
     val navigateBottomBar: (String) -> Unit = { route ->
         navController.navigate(route) {
             popUpTo(Routes.LIBRARY) { saveState = true }
@@ -58,10 +56,8 @@ fun AppNavigation() {
     }
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
-        
-        // --- SEKCJA LOGOWANIA I REJESTRACJI ---
-
         composable(Routes.LOGIN) {
+            // Temporary state – moves to a ViewModel when we add the real login.
             var email by rememberSaveable { mutableStateOf("") }
             var password by rememberSaveable { mutableStateOf("") }
 
@@ -70,9 +66,10 @@ fun AppNavigation() {
                 password = password,
                 onEmailChange = { email = it },
                 onPasswordChange = { password = it },
-                onLoginClick = { 
-                    // Po zalogowaniu przechodzimy do biblioteki i usuwamy ekran logowania z historii
+                // TODO: check the email and password on the server first. For now any input lets you in.
+                onLoginClick = {
                     navController.navigate(Routes.LIBRARY) {
+                        // Removes login from the pile, so "back" doesn't return to it.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -84,18 +81,21 @@ fun AppNavigation() {
 
         composable(Routes.BROWSE) {
             var query by rememberSaveable { mutableStateOf("") }
+            // Filters again only when the query changes, not on every redraw of the screen.
             val results = remember(query) { filterBooks(sampleBooks, query) }
 
             BrowseScreen(
                 query = query,
                 results = results,
                 onQueryChange = { query = it },
+                // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.REGISTER) {
+            // Temporary state – moves to a ViewModel when we add the real sign-up.
             var name by rememberSaveable { mutableStateOf("") }
             var email by rememberSaveable { mutableStateOf("") }
             var password by rememberSaveable { mutableStateOf("") }
@@ -113,18 +113,17 @@ fun AppNavigation() {
                 onRepeatPasswordChange = { repeatPassword = it },
                 termsAccepted = termsAccepted,
                 onTermsAcceptedChange = { termsAccepted = it },
+                // TODO: create the account on the server first. For now it goes straight into the app.
                 onCreateAccountClick = {
-                    // Po utworzeniu konta również przechodzimy od razu do aplikacji
                     navController.navigate(Routes.LIBRARY) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
+                // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
-
-        // --- GŁÓWNA APLIKACJA (DOLNY PASEK NAWIGACJI) ---
 
         composable(Routes.LIBRARY) {
             LibraryScreen(onNavigate = navigateBottomBar)
@@ -144,15 +143,13 @@ fun AppNavigation() {
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
                 onLogoutClick = {
-                    // Wylogowanie - powrót do logowania i całkowite wyczyszczenie stosu ekranów
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) { inclusive = true }
+                        // Clears every screen, so after logging out "back" can't open the app's inside.
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
-                }
+                },
             )
         }
-
-        // --- POD-EKRANY (BEZ DOLNEGO PASKA) ---
 
         composable(Routes.NOTIFICATIONS) {
             NotificationsScreen(onBackClick = { navController.popBackStack() })
@@ -161,7 +158,7 @@ fun AppNavigation() {
         composable(Routes.MY_BOOKS) {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) }
+                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
             )
         }
 

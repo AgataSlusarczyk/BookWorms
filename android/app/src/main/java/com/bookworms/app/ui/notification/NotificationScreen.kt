@@ -1,11 +1,9 @@
 package com.bookworms.app.ui.notifications
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,122 +15,141 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
-import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.AppCard
+import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.ButtonShape
+import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import com.bookworms.app.ui.theme.BrandBlue
+import com.bookworms.app.ui.theme.CardBorder
+import com.bookworms.app.ui.theme.StatusAmber
+import com.bookworms.app.ui.theme.StatusAmberBg
+import com.bookworms.app.ui.theme.StatusBlueBg
 
 @Composable
 fun NotificationsScreen(onBackClick: () -> Unit = {}) {
     Scaffold(
+        // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
         topBar = {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BackTitle(
-                        title = stringResource(R.string.notifications_title),
-                        onBackClick = onBackClick
-                    )
-                    TextButton(onClick = { }) {
-                        Text(stringResource(R.string.action_mark_read))
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-        }
+            AppTopBar(
+                title = stringResource(R.string.notifications_title),
+                onBackClick = onBackClick,
+                actions = {
+                    TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
+                },
+            )
+        },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
         ) {
-            item { Text(stringResource(R.string.date_today), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            
+            item { SectionHeader(stringResource(R.string.date_today)) }
             item {
                 NotificationActionCard(
-                    title = stringResource(R.string.asks_to_borrow_book, "Krzysiek P.", "Solaris"), 
-                    time = stringResource(R.string.x_hours_ago, "2"), 
-                    isUnread = true
+                    title = stringResource(R.string.asks_to_borrow_book, "Krzysiek P.", "Solaris"),
+                    time = stringResource(R.string.x_hours_ago, "2"),
+                    isUnread = true,
                 )
             }
             item {
                 NotificationSimpleCard(
-                    title = stringResource(R.string.book_days_overdue, "Pachnidło", "4"), 
+                    title = stringResource(R.string.book_days_overdue, "Pachnidło", "4"),
                     time = stringResource(R.string.automatic_reminder, stringResource(R.string.today_at_time, "8:00")),
-                    iconResId = R.drawable.ic_schedule, 
-                    iconColor = MaterialTheme.colorScheme.tertiary
+                    iconResId = R.drawable.ic_schedule,
+                    iconColor = StatusAmber,
+                    iconBackground = StatusAmberBg,
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item { Text(stringResource(R.string.date_yesterday), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            
+            item { Spacer(Modifier.height(4.dp)) }
+            item { SectionHeader(stringResource(R.string.date_yesterday)) }
             item {
                 NotificationSimpleCard(
-                    title = stringResource(R.string.book_available_again, "Problem trzech ciał"), 
+                    title = stringResource(R.string.book_available_again, "Problem trzech ciał"),
                     time = stringResource(R.string.yesterday_at_time, "19:12"),
-                    iconResId = R.drawable.ic_book, 
-                    iconColor = MaterialTheme.colorScheme.primary
+                    iconResId = R.drawable.ic_book,
+                    iconColor = BrandBlue,
+                    iconBackground = StatusBlueBg,
                 )
             }
         }
     }
+}
+
+// The shared white card; an unread notification gets a blue border instead of the gray one.
+@Composable
+private fun NotificationCard(isUnread: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    AppCard(borderColor = if (isUnread) MaterialTheme.colorScheme.primary else CardBorder, content = content)
 }
 
 @Composable
 fun NotificationActionCard(title: String, time: String, isUnread: Boolean) {
-    val borderColor = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-    val borderWidth = if (isUnread) 2.dp else 1.dp
-
-    OutlinedCard(
-        border = BorderStroke(borderWidth, borderColor),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    NotificationCard(isUnread = isUnread) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.Top) {
+                // Blue dot = you haven't seen this one yet.
                 if (isUnread) {
-                    Box(modifier = Modifier.padding(top = 6.dp).size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .size(8.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    )
+                    Spacer(Modifier.width(12.dp))
                 }
                 Column {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(start = if (isUnread) 20.dp else 0.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text(stringResource(R.string.action_reject)) }
-                Button(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text(stringResource(R.string.action_accept)) }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { }, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_reject))
+                }
+                Button(onClick = { }, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_accept))
+                }
             }
         }
     }
 }
 
 @Composable
-fun NotificationSimpleCard(title: String, time: String, iconResId: Int, iconColor: Color) {
-    OutlinedCard(
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Icon(painter = painterResource(id = iconResId), contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(12.dp))
+fun NotificationSimpleCard(title: String, time: String, iconResId: Int, iconColor: Color, iconBackground: Color) {
+    NotificationCard {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+            // Icon in a soft colored circle – the same colors as the status chips.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(iconBackground, CircleShape),
+            ) {
+                Icon(
+                    painter = painterResource(iconResId),
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
             Column {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-@Preview
+@Preview(device = "id:pixel_8")
 @Composable
 private fun NotificationsScreenPreview() {
     BookWormsTheme {

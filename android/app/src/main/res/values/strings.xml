@@ -121,4 +121,28 @@
     
     <string name="content_desc_back">Back</string>
     <string name="content_desc_favorite">Favorite</string>
+    <string name="content_desc_search">Search</string>
+    <string name="content_desc_add">Add book</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="search_books">Search books</string>
+    <string name="recently_added">Recently added</string>
+
+    <!-- My books -->
+    <string name="my_books_title">My books</string>
+    <plurals name="books_count">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
+    <string name="status_lent_to">Lent to %1$s</string>
+
+    <!-- Add book -->
+    <string name="add_book_title">Add book</string>
+    <string name="title_label">Title</string>
+    <string name="author_label">Author</string>
+    <string name="isbn_label">ISBN</string>
+    <string name="publisher_label">Publisher</string>
+    <string name="year_label">Year</string>
+    <string name="save_action">Save</string>
 </resources>

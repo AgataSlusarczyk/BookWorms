@@ -31,8 +31,6 @@ import com.bookworms.app.ui.theme.StatusBlueBg
 import com.bookworms.app.ui.theme.StatusGreen
 import com.bookworms.app.ui.theme.StatusGreenBg
 
-private val CardShape = RoundedCornerShape(12.dp)
-
 // What can happen to a book on the user's list, with the chip colors for each case.
 private enum class ListStatus(@StringRes val label: Int, val color: Color, val background: Color) {
     Available(R.string.status_available, StatusGreen, StatusGreenBg),
@@ -42,24 +40,16 @@ private enum class ListStatus(@StringRes val label: Int, val color: Color, val b
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyListsScreen() {
+fun MyListsScreen(onNavigate: (String) -> Unit = {}) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
 
     Scaffold(
-        
-        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        // Transparent, so the misted picture behind the whole screen shows through.
+        modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.my_lists_title)) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                )
-                HorizontalDivider(color = CardBorder)
-            }
-        },
-        bottomBar = { AppBottomBar("lists") }
+        topBar = { AppTopBar(title = stringResource(R.string.my_lists_title)) },
+        bottomBar = { AppBottomBar(currentRoute = "lists", onNavigate = onNavigate) }
     ) { padding ->
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
@@ -94,64 +84,40 @@ fun MyListsScreen() {
     }
 }
 
-// White card with a thin light border – the base for every card on this screen.
+// The cards on this screen use the shared white card with a thin border.
 @Composable
-private fun ListCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    OutlinedCard(
-        shape = CardShape,
-        border = BorderStroke(1.dp, CardBorder),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier.fillMaxWidth(),
-        content = content,
-    )
-}
+private fun ListCard(content: @Composable ColumnScope.() -> Unit) = AppCard(content = content)
 
 @Composable
 private fun ListBookCard(title: String, author: String, status: ListStatus, extraBadge: String? = null) {
     ListCard {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 48.dp, height = 64.dp)
-                    .background(PlaceholderGray, RoundedCornerShape(6.dp))
-            )
-            Spacer(Modifier.width(12.dp))
-            // weight(1f) takes the free space, so the heart is pushed to the right edge.
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    author,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        BookRow(
+            title = title,
+            subtitle = author,
+            trailing = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_favorite_border),
+                    contentDescription = stringResource(R.string.content_desc_favorite),
+                    tint = MaterialTheme.colorScheme.error,
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusTag(
-                        text = stringResource(status.label),
-                        dotColor = status.color,
-                        backgroundColor = status.background,
-                        textColor = status.color,
-                    )
-                    if (extraBadge != null) {
-                        Text(
-                            text = extraBadge,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .background(PlaceholderGray, CircleShape)
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-            }
-            Icon(
-                painter = painterResource(R.drawable.ic_favorite_border),
-                contentDescription = stringResource(R.string.content_desc_favorite),
-                tint = MaterialTheme.colorScheme.error,
+            },
+        ) {
+            StatusTag(
+                text = stringResource(status.label),
+                dotColor = status.color,
+                backgroundColor = status.background,
+                textColor = status.color,
             )
+            if (extraBadge != null) {
+                Text(
+                    text = extraBadge,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .background(PlaceholderGray, CircleShape)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
         }
     }
 }
