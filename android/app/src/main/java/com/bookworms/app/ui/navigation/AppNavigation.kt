@@ -19,6 +19,8 @@ import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.sampleInvite
@@ -54,6 +56,7 @@ private object Routes {
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
+    const val CREATE_GROUP = "create_group"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
 }
@@ -177,6 +180,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                onAddGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
@@ -199,6 +203,29 @@ fun AppNavigation() {
 
         composable(Routes.ADD_BOOK_MANUAL) {
             AddBookManualScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.CREATE_GROUP) {
+            // Temporary state – moves to a ViewModel when groups come from the server.
+            var name by rememberSaveable { mutableStateOf("") }
+            var description by rememberSaveable { mutableStateOf("") }
+            var visibility by rememberSaveable { mutableStateOf(GroupVisibility.Private) }
+            var invitedUsernames by rememberSaveable { mutableStateOf(listOf<String>()) }
+
+            CreateGroupScreen(
+                name = name,
+                description = description,
+                onNameChange = { name = it },
+                onDescriptionChange = { description = it },
+                visibility = visibility,
+                onVisibilityChange = { visibility = it },
+                invitedUsernames = invitedUsernames,
+                onAddInvite = { invitedUsernames = invitedUsernames + it },
+                onRemoveInvite = { invitedUsernames = invitedUsernames - it },
+                // TODO: create the group on the server first. For now it just goes back to Profile.
+                onCreateGroupClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.BOOK_DETAILS) { entry ->

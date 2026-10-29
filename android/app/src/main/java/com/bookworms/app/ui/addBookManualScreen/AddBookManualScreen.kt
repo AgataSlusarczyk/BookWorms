@@ -41,6 +41,8 @@ fun AddBookManualScreen(onBackClick: () -> Unit) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                // imePadding makes room for the keyboard, so the field you type in moves up above it.
+                .imePadding()
                 // Scrolls on small phones and when the keyboard is open.
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),

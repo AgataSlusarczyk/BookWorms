@@ -219,4 +219,23 @@
     <string name="publisher_label">Publisher</string>
     <string name="year_label">Year</string>
     <string name="save_action">Save</string>
+
+    <!-- Create group -->
+    <string name="create_group_title">Create group</string>
+    <string name="group_name_label">Group name</string>
+    <string name="group_name_placeholder">e.g. Book club 23</string>
+    <string name="group_description_label">Description (optional)</string>
+    <string name="group_description_placeholder">What\'s this group about? e.g. Sci-fi fans from work</string>
+    <string name="invite_friends_label">Invite friends (optional)</string>
+    <string name="invite_friends_placeholder">Friend\'s username</string>
+    <string name="add_invite">Add</string>
+    <string name="remove_invite">Remove %1$s</string>
+    <string name="create_group_button">Create group</string>
+    <string name="group_visibility_label">Who can join</string>
+    <string name="visibility_private">Private</string>
+    <string name="visibility_private_description">Only people you invite or approve. Hidden from search.</string>
+    <string name="visibility_public">Public</string>
+    <string name="visibility_public_description">Anyone can find the group and join it.</string>
+    <string name="private_group_hint">Invited friends get a notification. Others can join with the invite code – you approve them first.</string>
+    <string name="public_group_hint">Invited friends get a notification. Anyone else can find the group in search and join right away.</string>
 </resources>
