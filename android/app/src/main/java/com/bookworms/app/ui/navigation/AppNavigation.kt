@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
@@ -31,6 +32,7 @@ private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val BROWSE = "browse"
+    const val FORGOT_PASSWORD = "forgot_password"
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
     const val BOOK_DETAILS = "book_details/{isbn}"
     const val SCAN_ISBN = "scan_isbn"
@@ -75,14 +77,13 @@ fun AppNavigation() {
                 password = password,
                 onEmailChange = { email = it },
                 onPasswordChange = { password = it },
-                // TODO: check the email and password on the server first. For now any input lets you in.
                 onLoginClick = {
                     navController.navigate(Routes.LIBRARY) {
                         // Removes login from the pile, so "back" doesn't return to it.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
-                onForgotPasswordClick = {},
+                onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onBrowseWithoutAccountClick = { navController.navigate(Routes.BROWSE) },
             )
@@ -135,6 +136,23 @@ fun AppNavigation() {
             )
         }
 
+        composable(Routes.FORGOT_PASSWORD) {
+            // Temporary state – moves to a ViewModel when we add the real password reset.
+            var email by rememberSaveable { mutableStateOf("") }
+            var linkSent by rememberSaveable { mutableStateOf(false) }
+
+            ForgotPasswordScreen(
+                email = email,
+                onEmailChange = { email = it },
+                linkSent = linkSent,
+                // TODO: ask the server to send the email once it can do that.
+                onSendLinkClick = { linkSent = true },
+                onUseDifferentEmailClick = { linkSent = false },
+                // Login is already under this screen, so we just go back to it.
+                onLoginClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
         composable(Routes.LIBRARY) {
             LibraryScreen(onNavigate = navigateBottomBar)
         }
