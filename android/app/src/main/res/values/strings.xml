@@ -43,8 +43,12 @@
     <string name="add_to_favorites">Add to favorites</string>
     <string name="remove_from_favorites">Remove from favorites</string>
     <string name="more_options">More options</string>
-    <!-- %1$d = year, %2$d = number of pages, %3$s = ISBN -->
-    <string name="book_meta">%1$d · %2$d pages · ISBN %3$s</string>
+    <!-- %1$d = year, %2$s = number of pages (book_pages), %3$s = ISBN -->
+    <string name="book_meta">%1$d · %2$s · ISBN %3$s</string>
+    <plurals name="book_pages">
+        <item quantity="one">%d page</item>
+        <item quantity="other">%d pages</item>
+    </plurals>
     <plurals name="book_copies">
         <item quantity="one">%d copy</item>
         <item quantity="other">%d copies</item>

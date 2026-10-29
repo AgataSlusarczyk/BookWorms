@@ -195,7 +195,12 @@ private fun BookHeader(book: BookDetails) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.book_meta, book.year, book.pages, book.isbn),
+                text = stringResource(
+                    R.string.book_meta,
+                    book.year,
+                    pluralStringResource(R.plurals.book_pages, book.pages, book.pages),
+                    book.isbn,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
