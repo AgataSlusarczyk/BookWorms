@@ -17,7 +17,6 @@ import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
-import com.bookworms.app.ui.scan.ScanIsbnScreen
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
@@ -25,6 +24,7 @@ import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ProfileScreen
+import com.bookworms.app.ui.scan.ScanIsbnScreen
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -34,8 +34,6 @@ private object Routes {
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
     const val BOOK_DETAILS = "book_details/{isbn}"
     const val SCAN_ISBN = "scan_isbn"
-
-    fun bookDetails(isbn: String) = "book_details/$isbn"
 
     // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
@@ -47,6 +45,8 @@ private object Routes {
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
+
+    fun bookDetails(isbn: String) = "book_details/$isbn"
 }
 
 @Composable
@@ -133,6 +133,47 @@ fun AppNavigation() {
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
+        }
+
+        composable(Routes.LIBRARY) {
+            LibraryScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.LOANS) {
+            LoansScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.LISTS) {
+            MyListsScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onNavigate = navigateBottomBar,
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                onLogoutClick = {
+                    navController.navigate(Routes.LOGIN) {
+                        // Clears every screen, so after logging out "back" can't open the app's inside.
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.MY_BOOKS) {
+            MyBooksScreen(
+                onBackClick = { navController.popBackStack() },
+                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+            )
+        }
+
+        composable(Routes.ADD_BOOK_MANUAL) {
+            AddBookManualScreen(onBackClick = { navController.popBackStack() })
         }
 
         composable(Routes.BOOK_DETAILS) { entry ->

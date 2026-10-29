@@ -82,7 +82,7 @@
     <string name="fetching_book_details">Fetching book details…</string>
     <string name="enter_isbn_manually">Enter ISBN manually</string>
     <string name="add_book_without_isbn">Book without ISBN — add it manually</string>
-</resources>
+
     <!-- Navigation -->
     <string name="nav_library">Library</string>
     <string name="nav_loans">Loans</string>

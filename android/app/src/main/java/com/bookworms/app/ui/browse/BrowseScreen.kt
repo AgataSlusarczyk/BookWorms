@@ -2,7 +2,6 @@ package com.bookworms.app.ui.browse
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,13 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +39,6 @@ import com.bookworms.app.ui.components.BackTitle
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
-import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
 fun BrowseScreen(
@@ -138,35 +133,10 @@ fun BrowseScreen(
 
 @Composable
 private fun BookCard(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedCard(
-        onClick = onClick,
-        shape = FieldShape,
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(modifier = Modifier.padding(12.dp)) {
-            // TODO: show the real cover when books come from the server.
-            Box(
-                modifier = Modifier
-                    .size(width = 48.dp, height = 64.dp)
-                    .background(PlaceholderGray, RoundedCornerShape(4.dp)),
-            )
-
-            Spacer(Modifier.width(12.dp))
-
-            Column {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.book_author_year, book.author, book.year),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                AvailabilityChip(book.groupsAvailable)
-            }
+    // The same card as on the other screens. TODO: show the real cover when books come from the server.
+    AppCard(modifier = modifier, onClick = onClick) {
+        BookRow(title = book.title, subtitle = stringResource(R.string.book_author_year, book.author, book.year)) {
+            AvailabilityChip(book.groupsAvailable)
         }
     }
 }
