@@ -11,6 +11,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.book.BookDetailsScreen
+import com.bookworms.app.ui.book.ReadingStatus
+import com.bookworms.app.ui.book.sampleBookDetails
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
@@ -20,6 +23,7 @@ private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val BROWSE = "browse"
+    const val BOOK_DETAILS = "book_details"
 }
 
 @Composable
@@ -82,6 +86,26 @@ fun AppNavigation() {
                 onCreateAccountClick = {},
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        // Nothing opens this screen yet – it gets linked when the library and groups are added.
+        composable(Routes.BOOK_DETAILS) {
+            // Temporary state – moves to a ViewModel when book details come from the server.
+            var isFavorite by rememberSaveable { mutableStateOf(false) }
+            var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
+
+            BookDetailsScreen(
+                book = sampleBookDetails,
+                isFavorite = isFavorite,
+                readingStatus = readingStatus,
+                onFavoriteClick = { isFavorite = !isFavorite },
+                onMoreClick = {},
+                onReadingStatusChange = { readingStatus = it },
+                onRequestLoanClick = {},
+                onJoinQueueClick = {},
+                onAddCommentClick = {},
                 onBackClick = { navController.popBackStack() },
             )
         }
