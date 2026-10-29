@@ -12,3 +12,7 @@ val InkMuted = Color(0xFF6B6B6B)
 // Gray boxes in place of covers and pictures we don't have yet, and gray labels.
 val PlaceholderGray = Color(0xFFE6E8EC)
 
+// Colors taken from the book details design.
+val AvailableGreen = Color(0xFF17825A)
+val AvailableGreenLight = Color(0xFFE1F3EB)
+val FavoriteRed = Color(0xFFC03B36)

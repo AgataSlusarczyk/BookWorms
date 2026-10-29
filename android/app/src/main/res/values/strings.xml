@@ -39,4 +39,35 @@
     <string name="no_copies">no copies</string>
     <string name="no_results">No books found. Try a different title, author or ISBN.</string>
     <string name="login_to_borrow">Log in to borrow</string>
+
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="more_options">More options</string>
+    <!-- %1$d = year, %2$d = number of pages, %3$s = ISBN -->
+    <string name="book_meta">%1$d · %2$d pages · ISBN %3$s</string>
+    <plurals name="book_copies">
+        <item quantity="one">%d copy</item>
+        <item quantity="other">%d copies</item>
+    </plurals>
+    <string name="reading_status_label">Your reading status</string>
+    <string name="reading_status_to_read">To read</string>
+    <string name="reading_status_in_progress">In progress</string>
+    <string name="reading_status_finished">Finished</string>
+    <!-- %d = how many copies people in the group have -->
+    <string name="copies_in_group">Copies in the group · %d</string>
+    <!-- %s = date -->
+    <string name="copy_added_on">added %s</string>
+    <string name="copy_return_by">due back %s</string>
+    <string name="copy_available">Available</string>
+    <string name="copy_borrowed">Borrowed</string>
+    <string name="request_loan">Request to borrow</string>
+    <!-- %d = the user's place in the queue after joining it -->
+    <string name="join_queue">Join the queue — you\'ll be #%d</string>
+    <!-- %d = how many comments -->
+    <string name="comments_title">Comments · %d</string>
+    <string name="add_comment">Add</string>
+    <plurals name="days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
 </resources>
