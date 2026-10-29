@@ -1,7 +1,6 @@
 package com.bookworms.app.ui.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -10,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -19,18 +19,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppBottomBar
+import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen() {
     Scaffold(
-        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
         topBar = { 
-            TopAppBar(
-                title = { Text(stringResource(R.string.profile_title), fontWeight = FontWeight.Bold) }
-            ) 
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.profile_title), fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+                HorizontalDivider()
+            }
         },
         bottomBar = { AppBottomBar("profile") }
     ) { padding ->
@@ -132,8 +139,9 @@ fun GroupCard(name: String, members: String, role: String) {
 @Composable
 fun ProfileMenuItem(iconResId: Int, title: String, subText: String? = null, trailingText: String? = null) {
     OutlinedCard(
+        onClick = { },
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface), 
-        modifier = Modifier.fillMaxWidth().clickable { }
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(), 
@@ -144,12 +152,16 @@ fun ProfileMenuItem(iconResId: Int, title: String, subText: String? = null, trai
                 Icon(painterResource(id = iconResId), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    if (subText != null) Text(subText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    if (subText != null) {
+                        Text(subText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (trailingText != null) Text(trailingText, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
+                if (trailingText != null) {
+                    Text(trailingText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
+                }
                 Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

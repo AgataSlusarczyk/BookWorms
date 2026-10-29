@@ -27,12 +27,18 @@ fun LoansScreen() {
     val tabs = listOf(R.string.tab_borrowing, R.string.tab_lent, R.string.tab_requests)
 
     Scaffold(
-        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        modifier = Modifier.mistedBackground(), 
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) }
-            )
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+                HorizontalDivider()
+            }
         },
         bottomBar = { AppBottomBar("loans") }
     ) { padding ->
@@ -120,12 +126,12 @@ fun LoanCard(title: String, subtitle: String, statusText: String, statusDotColor
             BookCoverPlaceholder()
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusTag(statusText, statusDotColor, tagBg, tagText)
-                    Text(extraText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(extraText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -143,12 +149,12 @@ fun ActionCard(title: String, subtitle: String, statusText: String, statusDotCol
                 BookCoverPlaceholder()
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         StatusTag(statusText, statusDotColor, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
-                        if (extraText.isNotEmpty()) Text(extraText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (extraText.isNotEmpty()) Text(extraText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

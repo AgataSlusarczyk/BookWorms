@@ -18,24 +18,36 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
-import com.bookworms.app.ui.components.BackTitle 
+import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(onBackClick: () -> Unit = {}) {
     Scaffold(
-        modifier = Modifier.mistedBackground(), // Zamiast pustego Modifier
+        modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { 
-                    BackTitle(title = stringResource(R.string.notifications_title), onBackClick = onBackClick) 
-                },
-                actions = {
-                    TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.notifications_title), fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_arrow_back),
+                                contentDescription = stringResource(R.string.content_desc_back)
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+                HorizontalDivider()
+            }
         }
     ) { padding ->
         LazyColumn(
