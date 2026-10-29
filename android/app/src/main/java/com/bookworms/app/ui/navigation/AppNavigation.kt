@@ -1,5 +1,5 @@
 package com.bookworms.app.ui.navigation
-
+package com.bookworms.app.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,6 +14,64 @@ import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.lists.MyListsScreen
+import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.notifications.NotificationsScreen
+import com.bookworms.app.ui.profile.ProfileScreen
+
+@Composable
+fun BookWormsApp() {
+    val navController = rememberNavController()
+
+    // NavHost zarządza tym, co jest wyświetlane w zależności od "ścieżki" (route)
+    NavHost(navController = navController, startDestination = "loans") {
+        
+        composable("loans") {
+            LoansScreen(
+                onNavigate = { route -> 
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
+        
+        composable("lists") {
+            MyListsScreen(
+                onNavigate = { route -> 
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
+        
+        composable("profile") {
+            ProfileScreen(
+                onNavigate = { route -> 
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToNotifications = {
+                    navController.navigate("notifications")
+                }
+            )
+        }
+        
+        composable("notifications") {
+            NotificationsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+    }
+}
 
 // The names of the screens the app can go to.
 private object Routes {

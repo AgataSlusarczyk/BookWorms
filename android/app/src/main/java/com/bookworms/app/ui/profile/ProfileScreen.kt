@@ -16,7 +16,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.mistedBackground
@@ -24,7 +23,10 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    onNavigate: (String) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {}
+) {
     Scaffold(
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
@@ -32,14 +34,12 @@ fun ProfileScreen() {
             Column {
                 TopAppBar(
                     title = { Text(stringResource(R.string.profile_title), fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
         },
-        bottomBar = { AppBottomBar("profile") }
+        bottomBar = { AppBottomBar(currentRoute = "profile", onNavigate = onNavigate) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding).fillMaxSize(),
@@ -51,14 +51,14 @@ fun ProfileScreen() {
                     Box(modifier = Modifier.size(64.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape))
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Anna Kowalska", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("anna.kowalska@mail.com", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                        Text("Anna Kowalska", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("anna.kowalska@mail.com", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             
             item { 
-                Text(stringResource(R.string.profile_my_groups_count, 2), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) 
+                Text(stringResource(R.string.profile_my_groups_count, 2), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) 
             }
             
             item { 
@@ -91,7 +91,13 @@ fun ProfileScreen() {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             
             item { ProfileMenuItem(R.drawable.ic_book, stringResource(R.string.menu_my_books), trailingText = "24") }
-            item { ProfileMenuItem(R.drawable.ic_notifications, stringResource(R.string.notifications_title)) }
+            item { 
+                ProfileMenuItem(
+                    iconResId = R.drawable.ic_notifications, 
+                    title = stringResource(R.string.notifications_title),
+                    onClick = onNavigateToNotifications
+                ) 
+            }
             item { ProfileMenuItem(R.drawable.ic_lock, stringResource(R.string.menu_change_password)) }
             item { ProfileMenuItem(R.drawable.ic_download, stringResource(R.string.menu_export_data), subText = "JSON/CSV") }
 
@@ -125,21 +131,27 @@ fun GroupCard(name: String, members: String, role: String) {
                 Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape))
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text(members, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                    Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(members, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                Text(role, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(role, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
 
 @Composable
-fun ProfileMenuItem(iconResId: Int, title: String, subText: String? = null, trailingText: String? = null) {
+fun ProfileMenuItem(
+    iconResId: Int, 
+    title: String, 
+    subText: String? = null, 
+    trailingText: String? = null,
+    onClick: () -> Unit = {}
+) {
     OutlinedCard(
-        onClick = { },
+        onClick = onClick,
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface), 
         modifier = Modifier.fillMaxWidth()
     ) {

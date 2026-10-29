@@ -1,135 +1,170 @@
-package com.bookworms.app.ui.notifications
+package com.bookworms.app.ui.loans
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
-import com.bookworms.app.ui.components.mistedBackground
+import com.bookworms.app.ui.components.*
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(onBackClick: () -> Unit = {}) {
+fun LoansScreen(onNavigate: (String) -> Unit = {}) {
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = listOf(
+        stringResource(R.string.tab_borrowing), 
+        stringResource(R.string.tab_lent), 
+        stringResource(R.string.tab_requests)
+    )
+
     Scaffold(
-        modifier = Modifier.mistedBackground(),
+        modifier = Modifier.mistedBackground(), 
         containerColor = Color.Transparent,
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.notifications_title), fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_arrow_back),
-                                contentDescription = stringResource(R.string.content_desc_back)
-                            )
-                        }
-                    },
-                    actions = {
-                        TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                    title = { Text(stringResource(R.string.loans_title), fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
-        }
+        },
+        bottomBar = { AppBottomBar(currentRoute = "loans", onNavigate = onNavigate) }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item { Text(stringResource(R.string.date_today), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
-            
-            item {
-                NotificationActionCard(
-                    title = stringResource(R.string.asks_to_borrow_book, "Krzysiek P.", "Solaris"), 
-                    time = stringResource(R.string.x_hours_ago, "2"), 
-                    isUnread = true
-                )
-            }
-            item {
-                NotificationSimpleCard(
-                    title = stringResource(R.string.book_days_overdue, "Pachnidło", "4"), 
-                    time = stringResource(R.string.automatic_reminder, stringResource(R.string.today_at_time, "8:00")),
-                    iconResId = R.drawable.ic_schedule, 
-                    iconColor = MaterialTheme.colorScheme.tertiary
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                SegmentedTabs(
+                    tabs = tabs,
+                    selectedIndex = selectedTabIndex,
+                    onTabSelected = { selectedTabIndex = it }
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item { Text(stringResource(R.string.date_yesterday), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
-            
-            item {
-                NotificationSimpleCard(
-                    title = stringResource(R.string.book_available_again, "Problem trzech ciał"), 
-                    time = stringResource(R.string.yesterday_at_time, "19:12"),
-                    iconResId = R.drawable.ic_book, 
-                    iconColor = MaterialTheme.colorScheme.primary
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item { SectionHeader(stringResource(R.string.section_we_have, "2")) }
+                
+                item {
+                    LoanCard(
+                        title = "Problem trzech ciał", 
+                        subtitle = stringResource(R.string.loan_subtitle, "Marek W.", "12.11"),
+                        statusText = stringResource(R.string.status_return_by, "20.11"), 
+                        statusDotColor = MaterialTheme.colorScheme.primary, 
+                        extraText = pluralStringResource(R.plurals.in_x_days, 6, 6)
+                    )
+                }
+                item {
+                    LoanCard(
+                        title = "Pachnidło", 
+                        subtitle = stringResource(R.string.loan_subtitle, "Ola N.", "03.10"),
+                        statusText = stringResource(R.string.status_overdue), 
+                        statusDotColor = MaterialTheme.colorScheme.error, 
+                        extraText = pluralStringResource(R.plurals.x_days_overdue, 4, 4),
+                        isOverdue = true
+                    )
+                }
+
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+                item { SectionHeader(stringResource(R.string.section_pending_confirmation, "2")) }
+                
+                item {
+                    ActionCard(
+                        title = "Solaris", 
+                        subtitle = stringResource(R.string.asks_to_borrow, "Krzysiek P."),
+                        statusText = stringResource(R.string.status_pending), 
+                        statusDotColor = MaterialTheme.colorScheme.tertiary, 
+                        extraText = stringResource(R.string.x_hours_ago, "2"),
+                        primaryAction = stringResource(R.string.action_accept), 
+                        secondaryAction = stringResource(R.string.action_reject)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun NotificationActionCard(title: String, time: String, isUnread: Boolean) {
-    val borderColor = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-    val borderWidth = if (isUnread) 2.dp else 1.dp
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 4.dp)
+    )
+}
+
+@Composable
+fun LoanCard(title: String, subtitle: String, statusText: String, statusDotColor: Color, extraText: String, isOverdue: Boolean = false) {
+    val borderColor = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
+    val tagBg = if (isOverdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+    val tagText = if (isOverdue) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     OutlinedCard(
-        border = BorderStroke(borderWidth, borderColor),
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            BookCoverPlaceholder()
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusTag(statusText, statusDotColor, tagBg, tagText)
+                    Text(extraText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionCard(title: String, subtitle: String, statusText: String, statusDotColor: Color, extraText: String = "", primaryAction: String, secondaryAction: String? = null) {
+    OutlinedCard(
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                if (isUnread) {
-                    Box(modifier = Modifier.padding(top = 6.dp).size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
+            Row {
+                BookCoverPlaceholder()
+                Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StatusTag(statusText, statusDotColor, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+                        if (extraText.isNotEmpty()) Text(extraText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(start = if (isUnread) 20.dp else 0.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text(stringResource(R.string.action_reject)) }
-                Button(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text(stringResource(R.string.action_accept)) }
-            }
-        }
-    }
-}
-
-@Composable
-fun NotificationSimpleCard(title: String, time: String, iconResId: Int, iconColor: Color) {
-    OutlinedCard(
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Icon(painter = painterResource(id = iconResId), contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(title, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-                Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (secondaryAction != null) {
+                    OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) {
+                        Text(secondaryAction)
+                    }
+                }
+                Button(onClick = { }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) {
+                    Text(primaryAction)
+                }
             }
         }
     }
@@ -137,8 +172,8 @@ fun NotificationSimpleCard(title: String, time: String, iconResId: Int, iconColo
 
 @Preview
 @Composable
-private fun NotificationsScreenPreview() {
+private fun LoansScreenPreview() {
     BookWormsTheme {
-        NotificationsScreen()
+        LoansScreen()
     }
 }
