@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.browse.BrowseScreen
@@ -20,6 +21,7 @@ private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val BROWSE = "browse"
+    const val FORGOT_PASSWORD = "forgot_password"
 }
 
 @Composable
@@ -39,7 +41,7 @@ fun AppNavigation() {
                 onEmailChange = { email = it },
                 onPasswordChange = { password = it },
                 onLoginClick = {},
-                onForgotPasswordClick = {},
+                onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onBrowseWithoutAccountClick = { navController.navigate(Routes.BROWSE) },
             )
@@ -80,6 +82,24 @@ fun AppNavigation() {
                 termsAccepted = termsAccepted,
                 onTermsAcceptedChange = { termsAccepted = it },
                 onCreateAccountClick = {},
+                // Login is already under this screen, so we just go back to it.
+                onLoginClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.FORGOT_PASSWORD) {
+            // Temporary state – moves to a ViewModel when we add the real password reset.
+            var email by rememberSaveable { mutableStateOf("") }
+            var linkSent by rememberSaveable { mutableStateOf(false) }
+
+            ForgotPasswordScreen(
+                email = email,
+                onEmailChange = { email = it },
+                linkSent = linkSent,
+                // TODO: ask the server to send the email once it can do that.
+                onSendLinkClick = { linkSent = true },
+                onUseDifferentEmailClick = { linkSent = false },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
