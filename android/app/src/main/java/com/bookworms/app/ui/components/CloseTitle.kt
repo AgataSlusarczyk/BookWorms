@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,7 +35,8 @@ fun CloseTitle(
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium,
+            // Same size as BackTitle and the app's top bars.
+            fontSize = ScreenTitleSize,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.offset(x = (-8).dp),
         )
