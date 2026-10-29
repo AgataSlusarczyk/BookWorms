@@ -1,6 +1,6 @@
 # OS
 .DS_Store
 Thumbs.db
-
+.idea/
 # Secrets (API keys, passwords)
 .env
