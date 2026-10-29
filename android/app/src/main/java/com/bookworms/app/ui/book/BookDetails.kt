@@ -1,5 +1,7 @@
 package com.bookworms.app.ui.book
 
+import com.bookworms.app.ui.browse.Book
+
 // Everything the book details screen shows about one book.
 data class BookDetails(
     val isbn: String,
@@ -55,4 +57,13 @@ val sampleBookDetails = BookDetails(
         BookComment("Marek W.", "Pierwsze 50 stron się wlecze, potem nie da się odłożyć.", daysAgo = 3),
         BookComment("Anna K.", "Lepsze niż film. Zakończenie zostaje w głowie na długo.", daysAgo = 8),
     ),
+)
+
+// Temporary: the sample details above, but with the title, author, year and ISBN
+// of the book the user tapped, so each book in the list opens its own page.
+fun sampleBookDetailsFor(book: Book) = sampleBookDetails.copy(
+    isbn = book.isbn,
+    title = book.title,
+    author = book.author,
+    year = book.year,
 )

@@ -48,6 +48,7 @@ fun BrowseScreen(
     query: String,
     results: List<Book>,
     onQueryChange: (String) -> Unit,
+    onBookClick: (Book) -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -115,7 +116,7 @@ fun BrowseScreen(
             modifier = Modifier.weight(1f),
         ) {
             items(results, key = { it.isbn }) { book ->
-                BookCard(book)
+                BookCard(book, onClick = { onBookClick(book) })
             }
         }
 
@@ -134,8 +135,9 @@ fun BrowseScreen(
 }
 
 @Composable
-private fun BookCard(book: Book, modifier: Modifier = Modifier) {
+private fun BookCard(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedCard(
+        onClick = onClick,
         shape = FieldShape,
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth(),
@@ -211,6 +213,7 @@ private fun BrowseScreenPreview() {
             query = query,
             results = filterBooks(sampleBooks, query),
             onQueryChange = {},
+            onBookClick = {},
             onLoginClick = {},
             onBackClick = {},
         )
