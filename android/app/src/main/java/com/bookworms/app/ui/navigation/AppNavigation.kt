@@ -15,6 +15,13 @@ import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.library.AddBookManualScreen
+import com.bookworms.app.ui.library.LibraryScreen
+import com.bookworms.app.ui.library.MyBooksScreen
+import com.bookworms.app.ui.lists.MyListsScreen
+import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.notifications.NotificationsScreen
+import com.bookworms.app.ui.profile.ProfileScreen
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -22,12 +29,33 @@ private object Routes {
     const val REGISTER = "register"
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
+
+    // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
+    const val LIBRARY = "library"
+    const val LOANS = "loans"
+    const val LISTS = "lists"
+    const val PROFILE = "profile"
+
+    // Screens opened from a tab, without the bottom bar.
+    const val NOTIFICATIONS = "notifications"
+    const val MY_BOOKS = "my_books"
+    const val ADD_BOOK_MANUAL = "add_book_manual"
 }
 
 @Composable
 fun AppNavigation() {
     // Remembers which screen is open and which ones are behind it.
     val navController = rememberNavController()
+
+    // Switching tabs in the bottom bar: no growing pile of screens, and each tab keeps
+    // its state (scroll position, selected tab) when you come back to it.
+    val navigateBottomBar: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(Routes.LIBRARY) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) {
@@ -40,7 +68,12 @@ fun AppNavigation() {
                 password = password,
                 onEmailChange = { email = it },
                 onPasswordChange = { password = it },
-                onLoginClick = {},
+                onLoginClick = {
+                    navController.navigate(Routes.LIBRARY) {
+                        // Removes login from the pile, so "back" doesn't return to it.
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
                 onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onBrowseWithoutAccountClick = { navController.navigate(Routes.BROWSE) },
@@ -81,7 +114,12 @@ fun AppNavigation() {
                 onRepeatPasswordChange = { repeatPassword = it },
                 termsAccepted = termsAccepted,
                 onTermsAcceptedChange = { termsAccepted = it },
-                onCreateAccountClick = {},
+                // TODO: create the account on the server first. For now it goes straight into the app.
+                onCreateAccountClick = {
+                    navController.navigate(Routes.LIBRARY) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
@@ -104,6 +142,46 @@ fun AppNavigation() {
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
+        }
+        composable(Routes.LIBRARY) {
+            LibraryScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.LOANS) {
+            LoansScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.LISTS) {
+            MyListsScreen(onNavigate = navigateBottomBar)
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onNavigate = navigateBottomBar,
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                onLogoutClick = {
+                    navController.navigate(Routes.LOGIN) {
+                        // Clears every screen, so after logging out "back" can't open the app's inside.
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.MY_BOOKS) {
+            MyBooksScreen(
+                onBackClick = { navController.popBackStack() },
+                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+            )
+        }
+
+        composable(Routes.ADD_BOOK_MANUAL) {
+            AddBookManualScreen(onBackClick = { navController.popBackStack() })
         }
     }
 }

@@ -36,7 +36,8 @@ fun BackTitle(
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium,
+            // Same size as the titles in the app's top bars.
+            fontSize = ScreenTitleSize,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.offset(x = (-8).dp),
         )

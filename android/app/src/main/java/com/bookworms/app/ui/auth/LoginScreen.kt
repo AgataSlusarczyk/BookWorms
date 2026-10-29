@@ -1,4 +1,4 @@
-﻿package com.bookworms.app.ui.auth
+package com.bookworms.app.ui.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppHeader
+import com.bookworms.app.ui.components.ScreenTitleSize
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
@@ -108,7 +109,7 @@ private fun LoginForm(
         Column(modifier = Modifier.mist()) {
             Text(
                 text = stringResource(R.string.login_title),
-                style = MaterialTheme.typography.headlineMedium,
+                fontSize = ScreenTitleSize,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(8.dp))
