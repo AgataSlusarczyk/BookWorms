@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -18,6 +19,11 @@ import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.group.InviteToGroupScreen
+import com.bookworms.app.ui.group.copyInviteCode
+import com.bookworms.app.ui.group.sampleInvite
+import com.bookworms.app.ui.group.sampleRecentMembers
+import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
@@ -36,6 +42,7 @@ private object Routes {
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
     const val BOOK_DETAILS = "book_details/{isbn}"
     const val SCAN_ISBN = "scan_isbn"
+    const val INVITE_TO_GROUP = "invite_to_group"
 
     // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
@@ -224,6 +231,21 @@ fun AppNavigation() {
                 recognizedIsbn = "978-83-08-04815-3",
                 onEnterIsbnManuallyClick = {},
                 onAddWithoutIsbnClick = {},
+                onCloseClick = { navController.popBackStack() },
+            )
+        }
+
+        // Nothing opens this screen yet – it gets linked when groups are added.
+        composable(Routes.INVITE_TO_GROUP) {
+            // Needed for the clipboard and the share menu.
+            val context = LocalContext.current
+
+            InviteToGroupScreen(
+                invite = sampleInvite,
+                recentMembers = sampleRecentMembers,
+                onCopyCodeClick = { copyInviteCode(context, sampleInvite.code) },
+                onShareLinkClick = { shareInviteLink(context, sampleInvite) },
+                onGenerateNewCodeClick = {},
                 onCloseClick = { navController.popBackStack() },
             )
         }
