@@ -25,7 +25,9 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 @Composable
 fun ProfileScreen(
     onNavigate: (String) -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToMyBooks: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = Modifier.mistedBackground(),
@@ -90,7 +92,14 @@ fun ProfileScreen(
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
             
-            item { ProfileMenuItem(R.drawable.ic_book, stringResource(R.string.menu_my_books), trailingText = "24") }
+            item { 
+                ProfileMenuItem(
+                    iconResId = R.drawable.ic_book, 
+                    title = stringResource(R.string.menu_my_books), 
+                    trailingText = "24",
+                    onClick = onNavigateToMyBooks
+                ) 
+            }
             item { 
                 ProfileMenuItem(
                     iconResId = R.drawable.ic_notifications, 
@@ -104,7 +113,7 @@ fun ProfileScreen(
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item {
                 TextButton(
-                    onClick = { }, 
+                    onClick = onLogoutClick, 
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(painterResource(R.drawable.ic_logout), contentDescription = null, tint = MaterialTheme.colorScheme.error)
