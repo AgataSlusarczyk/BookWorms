@@ -16,3 +16,13 @@ val PlaceholderGray = Color(0xFFE6E8EC)
 val AvailableGreen = Color(0xFF17825A)
 val AvailableGreenLight = Color(0xFFE1F3EB)
 val FavoriteRed = Color(0xFFC03B36)
+// Neutral grays for cards, cover placeholders, chips and tab tracks.
+val PlaceholderGray = Color(0xFFE6E8EC)
+val CardBorder = Color(0xFFE3E5E8)
+
+// Book status chips: a strong color for the dot and text, a pale one for the background.
+val StatusGreen = Color(0xFF2E7D4F)
+val StatusGreenBg = Color(0xFFE2F3E8)
+val StatusBlueBg = Color(0xFFE3ECFD)
+val StatusAmber = Color(0xFF8A6A16)
+val StatusAmberBg = Color(0xFFFBEED0)

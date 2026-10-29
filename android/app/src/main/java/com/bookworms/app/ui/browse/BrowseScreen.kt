@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
+import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppHeader
+import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.BackTitle
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
@@ -111,7 +113,7 @@ fun BrowseScreen(
 
         // LazyColumn draws only the cards that fit on the screen, so it stays fast with long lists.
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             // weight(1f) = take the space that's left, so the button below stays at the bottom.
             modifier = Modifier.weight(1f),
         ) {
