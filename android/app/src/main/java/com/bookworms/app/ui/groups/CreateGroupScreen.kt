@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -33,6 +33,7 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -52,10 +53,11 @@ import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
-import com.bookworms.app.ui.components.AppHeader
-import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.CardShape
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import com.bookworms.app.ui.theme.CardBorder
 
 private const val MinNameLength = 3
 private const val MaxNameLength = 40
@@ -89,125 +91,126 @@ fun CreateGroupScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .mistedBackground()
-            .safeDrawingPadding()
-            // Scrolls on small phones and when the keyboard is open.
-            .verticalScroll(rememberScrollState())
-            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
-    ) {
-        AppHeader()
+    Scaffold(
+        // Transparent, so the misted picture behind the whole screen shows through.
+        modifier = modifier.mistedBackground(),
+        containerColor = Color.Transparent,
+        // The same top bar as the other screens opened from a tab (My books, Add book…).
+        topBar = { AppTopBar(title = stringResource(R.string.create_group_title), onBackClick = onBackClick) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                // imePadding makes room for the keyboard, so the field you type in moves up above it.
+                .imePadding()
+                // Scrolls on small phones and when the keyboard is open.
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+        ) {
+            LabeledField(label = stringResource(R.string.group_name_label)) {
+                OutlinedTextField(
+                    value = name,
+                    // Stops typing at the limit instead of showing an error.
+                    onValueChange = { onNameChange(it.take(MaxNameLength)) },
+                    singleLine = true,
+                    shape = FieldShape,
+                    colors = authFieldColors(),
+                    placeholder = { Text(stringResource(R.string.group_name_placeholder)) },
+                    // Counter on the right, under the field, e.g. "12/40".
+                    supportingText = {
+                        Text(
+                            text = "${name.length}/$MaxNameLength",
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
 
-        BackTitle(title = stringResource(R.string.create_group_title), onBackClick = onBackClick)
+            LabeledField(label = stringResource(R.string.group_description_label)) {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = onDescriptionChange,
+                    shape = FieldShape,
+                    colors = authFieldColors(),
+                    placeholder = { Text(stringResource(R.string.group_description_placeholder)) },
+                    // A few lines high from the start, so it's clear you can write more here.
+                    minLines = 3,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 160.dp),
+                )
+            }
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-        LabeledField(label = stringResource(R.string.group_name_label)) {
-            OutlinedTextField(
-                value = name,
-                // Stops typing at the limit instead of showing an error.
-                onValueChange = { onNameChange(it.take(MaxNameLength)) },
-                singleLine = true,
+            LabeledField(label = stringResource(R.string.group_visibility_label)) {
+                // selectableGroup tells screen readers these options belong together – you pick one.
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.selectableGroup(),
+                ) {
+                    GroupVisibility.entries.forEach { option ->
+                        VisibilityOption(
+                            option = option,
+                            selected = option == visibility,
+                            onSelect = { onVisibilityChange(option) },
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            InviteFriendsField(
+                invitedUsernames = invitedUsernames,
+                onAddInvite = onAddInvite,
+                onRemoveInvite = onRemoveInvite,
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = onCreateGroupClick,
+                // Spaces alone don't count as a name.
+                enabled = name.trim().length >= MinNameLength,
                 shape = FieldShape,
-                colors = authFieldColors(),
-                placeholder = { Text(stringResource(R.string.group_name_placeholder)) },
-                // Counter on the right, under the field, e.g. "12/40".
-                supportingText = {
-                    Text(
-                        text = "${name.length}/$MaxNameLength",
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+            ) {
+                Text(stringResource(R.string.create_group_button))
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(visibility.hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-
-        Spacer(Modifier.height(8.dp))
-
-        LabeledField(label = stringResource(R.string.group_description_label)) {
-            OutlinedTextField(
-                value = description,
-                onValueChange = onDescriptionChange,
-                shape = FieldShape,
-                colors = authFieldColors(),
-                placeholder = { Text(stringResource(R.string.group_description_placeholder)) },
-                // A few lines high from the start, so it's clear you can write more here.
-                minLines = 3,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 160.dp),
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        LabeledField(label = stringResource(R.string.group_visibility_label)) {
-            // selectableGroup tells screen readers these options belong together – you pick one.
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.selectableGroup(),
-            ) {
-                GroupVisibility.entries.forEach { option ->
-                    VisibilityOption(
-                        option = option,
-                        selected = option == visibility,
-                        onSelect = { onVisibilityChange(option) },
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        InviteFriendsField(
-            invitedUsernames = invitedUsernames,
-            onAddInvite = onAddInvite,
-            onRemoveInvite = onRemoveInvite,
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = onCreateGroupClick,
-            // Spaces alone don't count as a name.
-            enabled = name.trim().length >= MinNameLength,
-            shape = FieldShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-        ) {
-            Text(stringResource(R.string.create_group_button))
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = stringResource(visibility.hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
 // One option card: radio button, title and a short description. The whole card is clickable.
 @Composable
 private fun VisibilityOption(option: GroupVisibility, selected: Boolean, onSelect: () -> Unit) {
-    // The chosen card gets a blue border, the other one a light gray one.
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    // The chosen card gets a blue border, the other one the light gray border of all cards.
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else CardBorder
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(FieldShape)
-            .background(Color.White.copy(alpha = 0.8f))
-            .border(if (selected) 2.dp else 1.dp, borderColor, FieldShape)
+            .clip(CardShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(if (selected) 2.dp else 1.dp, borderColor, CardShape)
             .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
             .padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
     ) {

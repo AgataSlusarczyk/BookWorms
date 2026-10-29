@@ -32,6 +32,7 @@ fun ProfileScreen(
     onNavigate: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMyBooks: () -> Unit = {},
+    onAddGroupClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Scaffold(
@@ -81,7 +82,7 @@ fun ProfileScreen(
             item {
                 // Same white look and border as the cards, so it reads as part of the list.
                 OutlinedButton(
-                    onClick = { },
+                    onClick = onAddGroupClick,
                     shape = ButtonShape,
                     border = BorderStroke(1.dp, CardBorder),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface),
