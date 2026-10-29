@@ -23,6 +23,16 @@
     <string name="create_account_button">Create account</string>
     <string name="have_account">Already have an account?</string>
 
+    <string name="reset_password_title">Reset password</string>
+    <string name="reset_password_subtitle">Enter the email you signed up with and we\'ll send you a link to set a new password.</string>
+    <string name="send_reset_link">Send reset link</string>
+    <string name="remember_password">Remember your password?</string>
+    <string name="check_inbox_title">Check your inbox</string>
+    <!-- %s = the email the user typed -->
+    <string name="reset_link_sent">We sent a link to %s. It can take a few minutes to arrive.</string>
+    <string name="back_to_login">Back to login</string>
+    <string name="use_different_email">Use a different email</string>
+
     <!-- Browse -->
     <string name="browse_title">Browse</string>
     <string name="search_placeholder">Title, author or ISBN</string>
@@ -39,6 +49,49 @@
     <string name="no_copies">no copies</string>
     <string name="no_results">No books found. Try a different title, author or ISBN.</string>
     <string name="login_to_borrow">Log in to borrow</string>
+
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="more_options">More options</string>
+    <!-- %1$d = year, %2$s = number of pages (book_pages), %3$s = ISBN -->
+    <string name="book_meta">%1$d · %2$s · ISBN %3$s</string>
+    <plurals name="book_pages">
+        <item quantity="one">%d page</item>
+        <item quantity="other">%d pages</item>
+    </plurals>
+    <plurals name="book_copies">
+        <item quantity="one">%d copy</item>
+        <item quantity="other">%d copies</item>
+    </plurals>
+    <string name="reading_status_label">Your reading status</string>
+    <string name="reading_status_to_read">To read</string>
+    <string name="reading_status_in_progress">In progress</string>
+    <string name="reading_status_finished">Finished</string>
+    <!-- %d = how many copies people in the group have -->
+    <string name="copies_in_group">Copies in the group · %d</string>
+    <!-- %s = date -->
+    <string name="copy_added_on">added %s</string>
+    <string name="copy_return_by">due back %s</string>
+    <string name="copy_available">Available</string>
+    <string name="copy_borrowed">Borrowed</string>
+    <string name="request_loan">Request to borrow</string>
+    <!-- %d = the user's place in the queue after joining it -->
+    <string name="join_queue">Join the queue — you\'ll be #%d</string>
+    <!-- %d = how many comments -->
+    <string name="comments_title">Comments · %d</string>
+    <string name="add_comment">Add</string>
+    <plurals name="days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <string name="close">Close</string>
+    <string name="scan_isbn_title">Scan ISBN</string>
+    <string name="scan_hint">Point the camera at the barcode on the cover</string>
+    <string name="recognized_code">Recognized code</string>
+    <string name="fetching_book_details">Fetching book details…</string>
+    <string name="enter_isbn_manually">Enter ISBN manually</string>
+    <string name="add_book_without_isbn">Book without ISBN — add it manually</string>
 
     <!-- Navigation -->
     <string name="nav_library">Library</string>

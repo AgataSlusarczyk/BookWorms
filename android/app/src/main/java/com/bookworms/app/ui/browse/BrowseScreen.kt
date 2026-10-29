@@ -2,7 +2,6 @@ package com.bookworms.app.ui.browse
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,14 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,15 +36,16 @@ import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppHeader
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
-import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
 fun BrowseScreen(
     query: String,
     results: List<Book>,
     onQueryChange: (String) -> Unit,
+    onBookClick: (Book) -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -117,7 +113,7 @@ fun BrowseScreen(
             modifier = Modifier.weight(1f),
         ) {
             items(results, key = { it.isbn }) { book ->
-                BookCard(book)
+                BookCard(book, onClick = { onBookClick(book) })
             }
         }
 
@@ -136,9 +132,9 @@ fun BrowseScreen(
 }
 
 @Composable
-private fun BookCard(book: Book, modifier: Modifier = Modifier) {
+private fun BookCard(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
     // The same card as on the other screens. TODO: show the real cover when books come from the server.
-    AppCard(modifier = modifier) {
+    AppCard(modifier = modifier, onClick = onClick) {
         BookRow(title = book.title, subtitle = stringResource(R.string.book_author_year, book.author, book.year)) {
             AvailabilityChip(book.groupsAvailable)
         }
@@ -153,14 +149,7 @@ private fun AvailabilityChip(groupsAvailable: Int) {
     } else {
         stringResource(R.string.no_copies)
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .background(PlaceholderGray, CircleShape)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
+    Pill(text = text)
 }
 
 // Light blue box telling a guest what they can't do without an account.
@@ -196,6 +185,7 @@ private fun BrowseScreenPreview() {
             query = query,
             results = filterBooks(sampleBooks, query),
             onQueryChange = {},
+            onBookClick = {},
             onLoginClick = {},
             onBackClick = {},
         )
