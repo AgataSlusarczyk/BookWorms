@@ -1,6 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BookWorms</string>
 
+    <!-- Login & Register -->
     <string name="login_title">Log in</string>
     <string name="login_subtitle">Borrow books from friends in your groups.</string>
     <string name="email_label">Email</string>
@@ -12,7 +14,6 @@
     <string name="no_account">Don\'t have an account?</string>
     <string name="sign_up">Sign up</string>
     <string name="browse_without_account">Browse without an account</string>
-
     <string name="register_title">Sign up</string>
     <string name="back">Back</string>
     <string name="name_label">Name</string>
@@ -22,15 +23,14 @@
     <string name="create_account_button">Create account</string>
     <string name="have_account">Already have an account?</string>
 
+    <!-- Browse -->
     <string name="browse_title">Browse</string>
     <string name="search_placeholder">Title, author or ISBN</string>
     <string name="guest_notice">You\'re browsing as a guest. Log in to see owners and borrow books.</string>
-    <!-- %1$s = what the user typed, %2$d = how many books were found -->
     <plurals name="search_results">
         <item quantity="one">Results for “%1$s” · %2$d book</item>
         <item quantity="other">Results for “%1$s” · %2$d books</item>
     </plurals>
-    <!-- %1$s = author, %2$d = year -->
     <string name="book_author_year">%1$s · %2$d</string>
     <plurals name="available_in_groups">
         <item quantity="one">available in %d group</item>
@@ -103,4 +103,110 @@
     <string name="recently_joined">Recently joined</string>
     <string name="member_role">member</string>
     <string name="generate_new_code">Generate new code</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">Library</string>
+    <string name="nav_loans">Loans</string>
+    <string name="nav_my_lists">My lists</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Screen Titles -->
+    <string name="loans_title">Loans</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="my_lists_title">My lists</string>
+    <string name="profile_title">Profile</string>
+
+    <!-- Tabs -->
+    <string name="tab_borrowing">Borrowing</string>
+    <string name="tab_lent">Lent</string>
+    <string name="tab_requests">Requests</string>
+    <string name="tab_favorites">Favorites</string>
+    <string name="tab_want_to_read">Want to read</string>
+    <string name="tab_read">Read</string>
+
+    <!-- Sections and Headers -->
+    <string name="section_we_have">We have %1$s</string>
+    <string name="section_pending_confirmation">Pending confirmation %1$s</string>
+    <string name="profile_my_groups_count">My groups • %1$d</string>
+
+    <!-- Statuses -->
+    <string name="status_return_by">Return by %1$s</string>
+    <string name="status_overdue">Overdue</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_available">Available</string>
+    <string name="status_borrowed">Borrowed</string>
+    <string name="status_reserved">Reserved</string>
+
+    <!-- Dates & Times -->
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+
+    <!-- Interface phrases (Mock data formats) -->
+    <string name="loan_subtitle">from %1$s • since %2$s</string>
+    <plurals name="in_x_days">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
+    <plurals name="x_days_overdue">
+        <item quantity="one">%1$d day overdue</item>
+        <item quantity="other">%1$d days overdue</item>
+    </plurals>
+    <string name="x_hours_ago">%1$s h ago</string>
+    <string name="asks_to_borrow">%1$s asks to borrow</string>
+    <string name="asks_to_borrow_book">%1$s asks to borrow %2$s</string>
+    <string name="book_days_overdue">%1$s – %2$s days overdue</string>
+    <string name="book_available_again">%1$s from your list is available again</string>
+    <string name="automatic_reminder">%1$s • automatic reminder</string>
+    <string name="today_at_time">today, %1$s</string>
+    <string name="yesterday_at_time">yesterday, %1$s</string>
+
+    <!-- Plurals (Members) -->
+    <plurals name="members">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+
+    <!-- Miscellaneous / Actions -->
+    <string name="badge_notify_me">notify me</string>
+    <string name="stats_books_read_in_year">You read in %1$s</string>
+    <string name="stats_most_borrowed">Most borrowed in group</string>
+    <string name="role_admin">admin</string>
+    <string name="role_member">member</string>
+    
+    <string name="action_accept">Accept</string>
+    <string name="action_reject">Reject</string>
+    <string name="action_mark_read">Mark as read</string>
+    <string name="action_add_group">Add group</string>
+    <string name="action_logout">Log out</string>
+    
+    <string name="menu_my_books">My books</string>
+    <string name="menu_change_password">Change password</string>
+    <string name="menu_export_data">Export data</string>
+    
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_favorite">Favorite</string>
+    <string name="content_desc_search">Search</string>
+    <string name="content_desc_add">Add book</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="search_books">Search books</string>
+    <string name="recently_added">Recently added</string>
+
+    <!-- My books -->
+    <string name="my_books_title">My books</string>
+    <plurals name="books_count">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
+    <string name="status_lent_to">Lent to %1$s</string>
+
+    <!-- Add book -->
+    <string name="add_book_title">Add book</string>
+    <string name="title_label">Title</string>
+    <string name="author_label">Author</string>
+    <string name="isbn_label">ISBN</string>
+    <string name="publisher_label">Publisher</string>
+    <string name="year_label">Year</string>
+    <string name="save_action">Save</string>
 </resources>

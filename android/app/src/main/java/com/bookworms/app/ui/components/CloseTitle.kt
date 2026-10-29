@@ -40,7 +40,8 @@ fun CloseTitle(
         Column(modifier = Modifier.offset(x = (-8).dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineMedium,
+                // Same size as BackTitle and the app's top bars.
+                fontSize = ScreenTitleSize,
                 fontWeight = FontWeight.Bold,
             )
             if (subtitle != null) {
