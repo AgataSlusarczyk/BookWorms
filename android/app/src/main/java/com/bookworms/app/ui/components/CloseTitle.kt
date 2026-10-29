@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Icon
@@ -22,6 +23,8 @@ fun CloseTitle(
     title: String,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Small gray text under the title, e.g. the group name.
+    subtitle: String? = null,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         IconButton(
@@ -34,11 +37,19 @@ fun CloseTitle(
                 contentDescription = stringResource(R.string.close),
             )
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.offset(x = (-8).dp),
-        )
+        Column(modifier = Modifier.offset(x = (-8).dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }

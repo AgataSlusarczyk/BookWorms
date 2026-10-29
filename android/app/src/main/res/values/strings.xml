@@ -82,4 +82,25 @@
     <string name="fetching_book_details">Fetching book details…</string>
     <string name="enter_isbn_manually">Enter ISBN manually</string>
     <string name="add_book_without_isbn">Book without ISBN — add it manually</string>
+
+    <string name="invite_title">Invite to group</string>
+    <string name="invite_code_label">Invite code</string>
+    <!-- %1$s = how long the code works, %2$s = how many more people can use it -->
+    <string name="invite_validity">%1$s · %2$s</string>
+    <plurals name="invite_days_valid">
+        <item quantity="one">Valid for %d day</item>
+        <item quantity="other">Valid for %d days</item>
+    </plurals>
+    <plurals name="invite_uses_left">
+        <item quantity="one">%d use left</item>
+        <item quantity="other">%d uses left</item>
+    </plurals>
+    <string name="copy_code">Copy code</string>
+    <string name="code_copied">Code copied</string>
+    <string name="share_link">Share link</string>
+    <!-- %1$s = group name, %2$s = invite link -->
+    <string name="invite_share_text">Join my group “%1$s” on BookWorms: %2$s</string>
+    <string name="recently_joined">Recently joined</string>
+    <string name="member_role">member</string>
+    <string name="generate_new_code">Generate new code</string>
 </resources>
