@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,7 @@ import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.GroupVisibility
+import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.sampleInvite
@@ -29,13 +31,13 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
-import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.lists.MyListDetailsScreen
+import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
-import com.bookworms.app.ui.profile.ProfileScreen
+import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
-import com.bookworms.app.ui.groups.GroupsScreen
+import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 
 // The names of the screens the app can go to.
@@ -61,10 +63,14 @@ private object Routes {
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
     const val CREATE_GROUP = "create_group"
+    const val CHANGE_PASSWORD = "change_password"
     const val EDIT_PROFILE = "edit_profile"
     const val LIST_DETAILS = "list_details/{listName}"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
+
+    // Uri.encode turns spaces and other special characters into a form that fits in a route.
+    fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
 }
 
 @Composable
@@ -169,7 +175,7 @@ fun AppNavigation() {
                 onBackClick = { navController.popBackStack() },
             )
         }
-        
+
         composable(Routes.LIBRARY) {
             LibraryScreen(onNavigate = navigateBottomBar)
         }
@@ -181,14 +187,16 @@ fun AppNavigation() {
         composable(Routes.GROUPS) {
             GroupsScreen(
                 onNavigate = navigateBottomBar,
-                onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) }
+                onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
+                // TODO: open the join group screen when it exists.
+                onJoinGroupClick = {},
             )
         }
 
         composable(Routes.LISTS) {
             MyListsScreen(
                 onNavigate = navigateBottomBar,
-                onListClick = { listName -> navController.navigate("list_details/$listName") }
+                onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
             )
         }
 
@@ -198,6 +206,7 @@ fun AppNavigation() {
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
+                onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
@@ -206,14 +215,27 @@ fun AppNavigation() {
                 },
             )
         }
-        
+
         composable(Routes.LIST_DETAILS) { backStackEntry ->
-            val listName = backStackEntry.arguments?.getString("listName") ?: ""
+            // The route gives the name back already decoded, e.g. "Holiday reads".
+            val listName = backStackEntry.arguments?.getString("listName").orEmpty()
             MyListDetailsScreen(listName = listName, onBackClick = { navController.popBackStack() })
         }
-        
-        composable(Routes.EDIT_PROFILE) { 
-            EditProfileScreen(onBackClick = { navController.popBackStack() }) 
+
+        composable(Routes.EDIT_PROFILE) {
+            EditProfileScreen(
+                // TODO: save the name on the server first. For now it just goes back to Profile.
+                onSaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.CHANGE_PASSWORD) {
+            ChangePasswordScreen(
+                // TODO: send the passwords to the server first. For now it just goes back to Profile.
+                onSaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.NOTIFICATIONS) {
@@ -248,7 +270,7 @@ fun AppNavigation() {
                 invitedUsernames = invitedUsernames,
                 onAddInvite = { invitedUsernames = invitedUsernames + it },
                 onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it just goes back.
+                // TODO: create the group on the server first. For now it just goes back to Groups.
                 onCreateGroupClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )

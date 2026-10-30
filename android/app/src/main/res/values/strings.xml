@@ -186,7 +186,6 @@
     <string name="action_accept">Accept</string>
     <string name="action_reject">Reject</string>
     <string name="action_mark_read">Mark as read</string>
-    <string name="action_add_group">Add group</string>
     <string name="action_logout">Log out</string>
     
     <string name="menu_my_books">My books</string>
@@ -239,28 +238,36 @@
     <string name="private_group_hint">Invited friends get a notification. Others can join with the invite code – you approve them first.</string>
     <string name="public_group_hint">Invited friends get a notification. Anyone else can find the group in search and join right away.</string>
 
-    <!-- Grupy -->
+    <!-- Change password -->
+    <string name="change_password_title">Change password</string>
+    <string name="change_password_subtitle">Enter your current password, then choose a new one.</string>
+    <string name="current_password_label">Current password</string>
+    <string name="new_password_label">New password</string>
+    <string name="repeat_new_password_label">Repeat new password</string>
+    <string name="change_password_button">Change password</string>
+    <string name="error_password_too_weak">Use at least 10 characters, a digit and a special character</string>
+    <string name="error_password_same_as_current">The new password must be different from the current one</string>
+    <string name="error_passwords_dont_match">Passwords don\'t match</string>
+
+    <!-- Groups -->
     <string name="nav_groups">Groups</string>
-    <string name="groups_title">My Groups</string>
+    <string name="groups_title">Groups</string>
     <string name="join_group">Join group</string>
-    <string name="public_groups">Public (join instantly)</string>
-    <string name="private_groups">Private (ask to join)</string>
-    <string name="join_request_sent">Join request sent to admin</string>
-    
-    <!-- Profil - Rozwijane menu -->
-    <string name="edit_profile_title">Edit Profile</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="change_photo">Change photo</string>
+    <string name="username_label">Username</string>
+    <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
+    <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>
+    <string name="error_email_invalid">Enter a valid email address</string>
+
+    <!-- Export data -->
     <string name="format_json">JSON</string>
     <string name="format_csv">CSV</string>
     <string name="action_download">Download</string>
-    <string name="current_password">Current password</string>
-    <string name="new_password">New password</string>
-    <string name="repeat_new_password">Repeat new password</string>
-    <string name="action_save">Save</string>
-    <string name="content_desc_edit">Edit</string>
 
-    <!-- Moje Listy -->
-    <string name="custom_lists">Custom lists</string>
+    <!-- Custom lists -->
+    <string name="custom_lists">Your lists</string>
     <string name="create_list">Create list</string>
-    <string name="change_photo">Change photo</string>
-    <string name="name_label">Name</string>
 </resources>
