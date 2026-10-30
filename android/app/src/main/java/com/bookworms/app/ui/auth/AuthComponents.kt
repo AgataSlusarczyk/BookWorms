@@ -20,6 +20,9 @@ import com.bookworms.app.R
 
 internal val FieldShape = RoundedCornerShape(8.dp)
 
+// 3–20 letters, digits, dots or underscores, e.g. "ola" or "marek_w".
+internal val UsernamePattern = Regex("[A-Za-z0-9._]{3,20}")
+
 @Composable
 internal fun LabeledField(label: String, field: @Composable () -> Unit) {
     Column {

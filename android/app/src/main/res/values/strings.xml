@@ -186,7 +186,6 @@
     <string name="action_accept">Accept</string>
     <string name="action_reject">Reject</string>
     <string name="action_mark_read">Mark as read</string>
-    <string name="action_add_group">Add group</string>
     <string name="action_logout">Log out</string>
     
     <string name="menu_my_books">My books</string>
@@ -249,4 +248,26 @@
     <string name="error_password_too_weak">Use at least 10 characters, a digit and a special character</string>
     <string name="error_password_same_as_current">The new password must be different from the current one</string>
     <string name="error_passwords_dont_match">Passwords don\'t match</string>
+
+    <!-- Groups -->
+    <string name="nav_groups">Groups</string>
+    <string name="groups_title">Groups</string>
+    <string name="join_group">Join group</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="change_photo">Change photo</string>
+    <string name="username_label">Username</string>
+    <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
+    <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>
+    <string name="error_email_invalid">Enter a valid email address</string>
+
+    <!-- Export data -->
+    <string name="format_json">JSON</string>
+    <string name="format_csv">CSV</string>
+    <string name="action_download">Download</string>
+
+    <!-- Custom lists -->
+    <string name="custom_lists">Your lists</string>
+    <string name="create_list">Create list</string>
 </resources>
