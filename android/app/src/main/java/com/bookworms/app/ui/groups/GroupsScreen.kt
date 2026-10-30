@@ -42,6 +42,7 @@ fun GroupsScreen(
     onNavigate: (String) -> Unit = {},
     onCreateGroupClick: () -> Unit = {},
     onJoinGroupClick: () -> Unit = {},
+    onGroupClick: (String) -> Unit = {},
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -79,6 +80,7 @@ fun GroupsScreen(
                     name = "Czytelnia 23",
                     members = pluralStringResource(R.plurals.members, 14, 14),
                     role = stringResource(R.string.role_admin),
+                    onClick = { onGroupClick("Czytelnia 23") },
                 )
             }
             item {
@@ -86,6 +88,7 @@ fun GroupsScreen(
                     name = "Rodzina",
                     members = pluralStringResource(R.plurals.members, 5, 5),
                     role = stringResource(R.string.role_member),
+                    onClick = { onGroupClick("Rodzina") },
                 )
             }
         }
@@ -94,9 +97,8 @@ fun GroupsScreen(
 
 // Gray circle in place of the group picture, name, member count and the user's role on the right.
 @Composable
-private fun GroupCard(name: String, members: String, role: String) {
-    // TODO: open the group details when that screen exists.
-    AppCard(onClick = {}) {
+private fun GroupCard(name: String, members: String, role: String, onClick: () -> Unit) {
+    AppCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
             Box(modifier = Modifier.size(40.dp).background(PlaceholderGray, CircleShape))
             Spacer(Modifier.width(12.dp))
