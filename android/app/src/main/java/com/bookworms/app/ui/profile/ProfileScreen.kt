@@ -32,6 +32,7 @@ fun ProfileScreen(
     onNavigate: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMyBooks: () -> Unit = {},
+    onChangePasswordClick: () -> Unit = {},
     onAddGroupClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
@@ -113,7 +114,7 @@ fun ProfileScreen(
                     onClick = onNavigateToNotifications,
                 )
             }
-            item { ProfileMenuItem(R.drawable.ic_lock, stringResource(R.string.menu_change_password)) }
+            item { ProfileMenuItem(R.drawable.ic_lock, stringResource(R.string.menu_change_password), onClick = onChangePasswordClick) }
             item { ProfileMenuItem(R.drawable.ic_download, stringResource(R.string.menu_export_data), subText = "JSON/CSV") }
 
             item {
