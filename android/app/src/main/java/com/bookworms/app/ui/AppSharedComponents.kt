@@ -165,31 +165,22 @@ fun SegmentedTabs(
 
 @Composable
 fun AppBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
-    val items = listOf(
-        Triple("library", R.string.nav_library, R.drawable.ic_library),
-        Triple("loans", R.string.nav_loans, R.drawable.ic_loans),
-        Triple("lists", R.string.nav_my_lists, R.drawable.ic_lists),
-        Triple("profile", R.string.nav_profile, R.drawable.ic_profile)
-    )
-
-    Column {
-        // Thin line above the bar, the same as under the top bar.
-        HorizontalDivider(color = CardBorder)
-        NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-            items.forEach { (route, titleResId, iconResId) ->
-                NavigationBarItem(
-                    selected = route == currentRoute,
-                    onClick = { onNavigate(route) },
-                    icon = { Icon(painter = painterResource(iconResId), contentDescription = null) },
-                    label = { Text(stringResource(titleResId)) },
-                    // The chosen tab is just blue – no colored pill behind the icon.
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = Color.Transparent,
-                    ),
-                )
-            }
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+        val items = listOf(
+            Triple("library", R.string.nav_library, R.drawable.ic_library),
+            Triple("loans", R.string.nav_loans, R.drawable.ic_loans),
+            Triple("groups", R.string.nav_groups, R.drawable.ic_group), // NOWY KAFELEK
+            Triple("lists", R.string.nav_my_lists, R.drawable.ic_lists),
+            Triple("profile", R.string.nav_profile, R.drawable.ic_profile)
+        )
+        
+        items.forEach { (route, titleResId, iconResId) ->
+            NavigationBarItem(
+                selected = route == currentRoute,
+                onClick = { onNavigate(route) },
+                icon = { Icon(painterResource(iconResId), contentDescription = stringResource(titleResId)) },
+                label = { Text(stringResource(titleResId)) }
+            )
         }
     }
 }

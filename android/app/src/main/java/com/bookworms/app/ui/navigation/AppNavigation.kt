@@ -30,9 +30,12 @@ import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.lists.MyListsScreen
+import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ProfileScreen
+import com.bookworms.app.ui.profile.EditProfileScreen
+import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 
 // The names of the screens the app can go to.
@@ -50,6 +53,7 @@ private object Routes {
     const val LIBRARY = "library"
     const val LOANS = "loans"
     const val LISTS = "lists"
+    const val GROUPS = "groups"
     const val PROFILE = "profile"
 
     // Screens opened from a tab, without the bottom bar.
@@ -57,6 +61,8 @@ private object Routes {
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
     const val CREATE_GROUP = "create_group"
+    const val EDIT_PROFILE = "edit_profile"
+    const val LIST_DETAILS = "list_details/{listName}"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
 }
@@ -163,6 +169,7 @@ fun AppNavigation() {
                 onBackClick = { navController.popBackStack() },
             )
         }
+        
         composable(Routes.LIBRARY) {
             LibraryScreen(onNavigate = navigateBottomBar)
         }
@@ -171,8 +178,18 @@ fun AppNavigation() {
             LoansScreen(onNavigate = navigateBottomBar)
         }
 
+        composable(Routes.GROUPS) {
+            GroupsScreen(
+                onNavigate = navigateBottomBar,
+                onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) }
+            )
+        }
+
         composable(Routes.LISTS) {
-            MyListsScreen(onNavigate = navigateBottomBar)
+            MyListsScreen(
+                onNavigate = navigateBottomBar,
+                onListClick = { listName -> navController.navigate("list_details/$listName") }
+            )
         }
 
         composable(Routes.PROFILE) {
@@ -180,7 +197,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
-                onAddGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
+                onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
@@ -188,6 +205,15 @@ fun AppNavigation() {
                     }
                 },
             )
+        }
+        
+        composable(Routes.LIST_DETAILS) { backStackEntry ->
+            val listName = backStackEntry.arguments?.getString("listName") ?: ""
+            MyListDetailsScreen(listName = listName, onBackClick = { navController.popBackStack() })
+        }
+        
+        composable(Routes.EDIT_PROFILE) { 
+            EditProfileScreen(onBackClick = { navController.popBackStack() }) 
         }
 
         composable(Routes.NOTIFICATIONS) {
@@ -222,7 +248,7 @@ fun AppNavigation() {
                 invitedUsernames = invitedUsernames,
                 onAddInvite = { invitedUsernames = invitedUsernames + it },
                 onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it just goes back to Profile.
+                // TODO: create the group on the server first. For now it just goes back.
                 onCreateGroupClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )

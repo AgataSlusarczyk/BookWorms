@@ -238,4 +238,27 @@
     <string name="visibility_public_description">Anyone can find the group and join it.</string>
     <string name="private_group_hint">Invited friends get a notification. Others can join with the invite code – you approve them first.</string>
     <string name="public_group_hint">Invited friends get a notification. Anyone else can find the group in search and join right away.</string>
+
+    <!-- Grupy -->
+    <string name="nav_groups">Groups</string>
+    <string name="groups_title">My Groups</string>
+    <string name="join_group">Join group</string>
+    <string name="public_groups">Public (join instantly)</string>
+    <string name="private_groups">Private (ask to join)</string>
+    <string name="join_request_sent">Join request sent to admin</string>
+    
+    <!-- Profil - Rozwijane menu -->
+    <string name="edit_profile_title">Edit Profile</string>
+    <string name="format_json">JSON</string>
+    <string name="format_csv">CSV</string>
+    <string name="action_download">Download</string>
+    <string name="current_password">Current password</string>
+    <string name="new_password">New password</string>
+    <string name="repeat_new_password">Repeat new password</string>
+    <string name="action_save">Save</string>
+    <string name="content_desc_edit">Edit</string>
+
+    <!-- Moje Listy -->
+    <string name="custom_lists">Custom lists</string>
+    <string name="create_list">Create list</string>
 </resources>
