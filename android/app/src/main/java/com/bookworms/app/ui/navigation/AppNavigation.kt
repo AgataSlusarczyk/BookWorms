@@ -21,6 +21,7 @@ import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.group.InviteToGroupScreen
@@ -66,11 +67,13 @@ private object Routes {
     const val CHANGE_PASSWORD = "change_password"
     const val EDIT_PROFILE = "edit_profile"
     const val LIST_DETAILS = "list_details/{listName}"
+    const val GROUP_DETAILS = "group_details/{groupName}"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
 
     // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
+    fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
 }
 
 @Composable
@@ -190,6 +193,7 @@ fun AppNavigation() {
                 onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
                 // TODO: open the join group screen when it exists.
                 onJoinGroupClick = {},
+                onGroupClick = { groupName -> navController.navigate(Routes.groupDetails(groupName)) },
             )
         }
 
@@ -220,6 +224,23 @@ fun AppNavigation() {
             // The route gives the name back already decoded, e.g. "Holiday reads".
             val listName = backStackEntry.arguments?.getString("listName").orEmpty()
             MyListDetailsScreen(listName = listName, onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.GROUP_DETAILS) { backStackEntry ->
+            // TODO: look the group up on the server. For now only the name comes from the list.
+            val groupName = backStackEntry.arguments?.getString("groupName").orEmpty()
+            GroupDetailsScreen(
+                groupName = groupName,
+                // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
+                isAdmin = groupName == "Czytelnia 23",
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                // TODO: open the group chat when that screen exists.
+                onChatClick = {},
+                onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
+                // TODO: leave the group on the server first. For now it just goes back to Groups.
+                onLeaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.EDIT_PROFILE) {

@@ -254,6 +254,20 @@
     <string name="groups_title">Groups</string>
     <string name="join_group">Join group</string>
 
+    <!-- Group details -->
+    <string name="invite_action">Invite</string>
+    <!-- %1$s = number of members (members), %2$s = Private or Public -->
+    <string name="group_members_visibility">%1$s · %2$s</string>
+    <string name="group_chat">Group chat</string>
+    <!-- %1$d = how many people wait for the admin's answer -->
+    <string name="join_requests_count">Join requests · %1$d</string>
+    <string name="tab_group_books">Books</string>
+    <string name="tab_group_members">Members</string>
+    <!-- %1$s = author, %2$s = who owns the copy -->
+    <string name="book_by_owner">%1$s · from %2$s</string>
+    <string name="status_borrowed_by">Borrowed by %1$s</string>
+    <string name="leave_group">Leave group</string>
+
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="change_photo">Change photo</string>
