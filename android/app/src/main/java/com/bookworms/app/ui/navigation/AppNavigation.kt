@@ -32,6 +32,7 @@ import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
+import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 
@@ -57,6 +58,7 @@ private object Routes {
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
     const val CREATE_GROUP = "create_group"
+    const val CHANGE_PASSWORD = "change_password"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
 }
@@ -180,6 +182,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onAddGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
@@ -187,6 +190,14 @@ fun AppNavigation() {
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
+            )
+        }
+
+        composable(Routes.CHANGE_PASSWORD) {
+            ChangePasswordScreen(
+                // TODO: send the passwords to the server first. For now it just goes back to Profile.
+                onSaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
             )
         }
 
