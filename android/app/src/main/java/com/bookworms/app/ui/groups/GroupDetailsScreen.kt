@@ -1,4 +1,4 @@
-package com.bookworms.app.ui.groups
+    package com.bookworms.app.ui.groups
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
