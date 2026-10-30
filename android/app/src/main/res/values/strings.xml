@@ -261,4 +261,6 @@
     <!-- Moje Listy -->
     <string name="custom_lists">Custom lists</string>
     <string name="create_list">Create list</string>
+    <string name="change_photo">Change photo</string>
+    <string name="name_label">Name</string>
 </resources>

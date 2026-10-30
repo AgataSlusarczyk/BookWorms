@@ -1,23 +1,101 @@
 package com.bookworms.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bookworms.app.R
 import com.bookworms.app.ui.theme.CardBorder
+
+val CardShape = RoundedCornerShape(12.dp)
+val ButtonShape = RoundedCornerShape(8.dp)
+val ScreenTitleSize = 24.sp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppTopBar(
+    title: String,
+    onBackClick: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Column {
+        TopAppBar(
+            title = { Text(title, fontSize = ScreenTitleSize, fontWeight = FontWeight.Bold) },
+            navigationIcon = {
+                if (onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
+                    }
+                }
+            },
+            actions = actions,
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        )
+        HorizontalDivider(color = CardBorder)
+    }
+}
+
+@Composable
+fun AppCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (onClick != null) {
+        OutlinedCard(
+            onClick = onClick,
+            shape = CardShape,
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, CardBorder),
+            modifier = modifier.fillMaxWidth(),
+            content = content
+        )
+    } else {
+        OutlinedCard(
+            shape = CardShape,
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, CardBorder),
+            modifier = modifier.fillMaxWidth(),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun BookRow(title: String, author: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        BookCoverPlaceholder()
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(author, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier.padding(vertical = 8.dp)
+    )
+}
 
 @Composable
 fun AppBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
@@ -97,7 +175,10 @@ fun SegmentedTabs(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth().height(40.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth().selectableGroup(), 
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             tabs.forEachIndexed { index, title ->
                 val selected = index == selectedIndex
                 Box(
@@ -109,10 +190,10 @@ fun SegmentedTabs(
                             color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onSelect(index) }
+                        .selectable(
+                            selected = selected,
+                            onClick = { onSelect(index) },
+                            role = Role.Tab
                         ),
                     contentAlignment = Alignment.Center
                 ) {

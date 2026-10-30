@@ -32,7 +32,7 @@ fun MyListDetailsScreen(listName: String, onBackClick: () -> Unit) {
                     title = "Solaris", 
                     author = "Stanisław Lem", 
                     status = stringResource(R.string.status_available), 
-                    dotColor = MaterialTheme.colorScheme.primary
+                    dotColor = Color(0xFF2E7D32) // Zielony
                 )
             }
             item {
@@ -40,7 +40,7 @@ fun MyListDetailsScreen(listName: String, onBackClick: () -> Unit) {
                     title = "Pachnidło", 
                     author = "Patrick Süskind", 
                     status = stringResource(R.string.status_borrowed), 
-                    dotColor = MaterialTheme.colorScheme.secondary, 
+                    dotColor = Color.Blue, // Niebieski
                     extraBadge = stringResource(R.string.badge_notify_me)
                 )
             }
@@ -49,7 +49,7 @@ fun MyListDetailsScreen(listName: String, onBackClick: () -> Unit) {
                     title = "Czarna Ziemia", 
                     author = "Timothy Snyder", 
                     status = stringResource(R.string.status_reserved), 
-                    dotColor = MaterialTheme.colorScheme.tertiary
+                    dotColor = Color(0xFFE6B800) // Bursztynowy
                 )
             }
         }

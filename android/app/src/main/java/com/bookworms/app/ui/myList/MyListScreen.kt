@@ -7,26 +7,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.BookCoverPlaceholder
+import com.bookworms.app.ui.components.SegmentedTabs
 import com.bookworms.app.ui.components.StatusTag
 import com.bookworms.app.ui.components.mistedBackground
-import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
 fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Unit = {}) {
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = listOf(
+        stringResource(R.string.tab_favorites), 
+        stringResource(R.string.tab_want_to_read), 
+        stringResource(R.string.tab_read)
+    )
+
     Scaffold(
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
@@ -39,16 +46,33 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
             modifier = Modifier.padding(padding).fillMaxSize()
         ) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val favTitle = stringResource(R.string.tab_favorites)
-                    val wantTitle = stringResource(R.string.tab_want_to_read)
-                    val readTitle = stringResource(R.string.tab_read)
-                    
-                    ListEntryCard(favTitle, onClick = { onListClick(Uri.encode(favTitle)) })
-                    ListEntryCard(wantTitle, onClick = { onListClick(Uri.encode(wantTitle)) })
-                    ListEntryCard(readTitle, onClick = { onListClick(Uri.encode(readTitle)) })
-                }
+                SegmentedTabs(
+                    tabs = tabs,
+                    selectedIndex = selectedTabIndex,
+                    onSelect = { selectedTabIndex = it }
+                )
             }
+
+            // Zawartość domyślnych zakładek
+            item {
+                ListBookCard(
+                    title = "Solaris", 
+                    author = "Stanisław Lem", 
+                    status = stringResource(R.string.status_available), 
+                    dotColor = MaterialTheme.colorScheme.primary
+                )
+            }
+            item {
+                ListBookCard(
+                    title = "Pachnidło", 
+                    author = "Patrick Süskind", 
+                    status = stringResource(R.string.status_borrowed), 
+                    dotColor = MaterialTheme.colorScheme.secondary, 
+                    extraBadge = stringResource(R.string.badge_notify_me)
+                )
+            }
+            
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
                 Text(stringResource(R.string.custom_lists), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -57,7 +81,7 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
-                        AppCard(onClick = { /* TODO: Otwórz dialog z nazwą nowej listy */ }) {
+                        AppCard(onClick = { /* TODO: Otwórz dialog tworzenia listy */ }) {
                             Column(modifier = Modifier.size(120.dp, 80.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 Icon(painterResource(R.drawable.ic_add), null)
                                 Text(stringResource(R.string.create_list), style = MaterialTheme.typography.labelMedium)
@@ -76,6 +100,8 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
             }
             
             item { Spacer(modifier = Modifier.height(16.dp)) }
+            
+            // Statystyki - AppCard domyślnie używa OutlinedCard bez onClick (jeśli nie podano), więc nie są klikalne
             item { ReadingStatsCard() }
             item { MostBorrowedCard() }
         }
@@ -83,18 +109,8 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
 }
 
 @Composable
-fun ListEntryCard(title: String, onClick: () -> Unit) {
-    AppCard(onClick = onClick) {
-        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Icon(painterResource(R.drawable.ic_chevron_right), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 fun ListBookCard(title: String, author: String, status: String, dotColor: Color, extraBadge: String? = null) {
-    AppCard(onClick = { }) {
+    AppCard(onClick = { /* TODO: Nawigacja do szczegółów książki */ }) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(), 
             horizontalArrangement = Arrangement.SpaceBetween, 
@@ -128,7 +144,7 @@ fun ListBookCard(title: String, author: String, status: String, dotColor: Color,
 
 @Composable
 fun ReadingStatsCard() {
-    AppCard(onClick = { }) {
+    AppCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.stats_books_read_in_year, "2026"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -164,7 +180,7 @@ fun ReadingStatsCard() {
 
 @Composable
 fun MostBorrowedCard() {
-    AppCard(onClick = { }) {
+    AppCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.stats_most_borrowed), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(12.dp))
@@ -177,13 +193,5 @@ fun MostBorrowedCard() {
                 }
             }
         }
-    }
-}
-
-@Preview
-@Composable
-private fun MyListsScreenPreview() {
-    BookWormsTheme {
-        MyListsScreen()
     }
 }

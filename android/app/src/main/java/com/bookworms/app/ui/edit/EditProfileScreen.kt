@@ -31,12 +31,14 @@ fun EditProfileScreen(onBackClick: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(100.dp)) {}
             
-            TextButton(onClick = { }) { Text("Change Photo") }
+            TextButton(onClick = { /* TODO: Wybierz nowe zdjęcie */ }) { 
+                Text(stringResource(R.string.change_photo)) 
+            }
             
             OutlinedTextField(
                 value = name, 
                 onValueChange = { name = it }, 
-                label = { Text("Name") }, 
+                label = { Text(stringResource(R.string.name_label)) }, 
                 shape = FieldShape,
                 modifier = Modifier.fillMaxWidth(), 
                 singleLine = true
