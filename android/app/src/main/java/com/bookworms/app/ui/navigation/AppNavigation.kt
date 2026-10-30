@@ -271,7 +271,10 @@ fun AppNavigation() {
         }
 
         composable(Routes.ADD_BOOK_MANUAL) {
-            AddBookManualScreen(onBackClick = { navController.popBackStack() })
+            AddBookManualScreen(
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.CREATE_GROUP) {
@@ -320,13 +323,14 @@ fun AppNavigation() {
             )
         }
 
-        // Nothing opens this screen yet – it gets linked when the library is added.
+        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
+        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
         composable(Routes.SCAN_ISBN) {
             ScanIsbnScreen(
                 // Temporary – a sample code until the camera can read barcodes.
                 recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = {},
-                onAddWithoutIsbnClick = {},
+                onEnterIsbnManuallyClick = { navController.popBackStack() },
+                onAddWithoutIsbnClick = { navController.popBackStack() },
                 onCloseClick = { navController.popBackStack() },
             )
         }

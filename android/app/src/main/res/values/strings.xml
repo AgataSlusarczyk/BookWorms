@@ -218,6 +218,8 @@
     <string name="publisher_label">Publisher</string>
     <string name="year_label">Year</string>
     <string name="save_action">Save</string>
+    <string name="scan_isbn_subtitle">Point the camera at the barcode – the details fill in themselves</string>
+    <string name="or_fill_in_yourself">or fill in yourself</string>
 
     <!-- Create group -->
     <string name="create_group_title">Create group</string>
