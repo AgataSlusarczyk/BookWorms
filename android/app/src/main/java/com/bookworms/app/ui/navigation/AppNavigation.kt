@@ -164,7 +164,11 @@ fun AppNavigation() {
             )
         }
         composable(Routes.LIBRARY) {
-            LibraryScreen(onNavigate = navigateBottomBar)
+            LibraryScreen(
+                onNavigate = navigateBottomBar,
+                // Temporary – these books have no ISBN yet, so it opens a sample book.
+                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
+            )
         }
 
         composable(Routes.LOANS) {
@@ -197,7 +201,9 @@ fun AppNavigation() {
         composable(Routes.MY_BOOKS) {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+                onAddBookClick = { navController.navigate(Routes.SCAN_ISBN) },
+                // Temporary – these books have no ISBN yet, so it opens a sample book.
+                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
             )
         }
 
@@ -222,8 +228,13 @@ fun AppNavigation() {
                 invitedUsernames = invitedUsernames,
                 onAddInvite = { invitedUsernames = invitedUsernames + it },
                 onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it just goes back to Profile.
-                onCreateGroupClick = { navController.popBackStack() },
+                // TODO: create the group on the server first. For now it goes straight to inviting friends.
+                onCreateGroupClick = {
+                    navController.navigate(Routes.INVITE_TO_GROUP) {
+                        // Removes the form from the pile, so closing the invite goes back to Profile.
+                        popUpTo(Routes.CREATE_GROUP) { inclusive = true }
+                    }
+                },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -251,18 +262,16 @@ fun AppNavigation() {
             )
         }
 
-        // Nothing opens this screen yet – it gets linked when the library is added.
         composable(Routes.SCAN_ISBN) {
             ScanIsbnScreen(
                 // Temporary – a sample code until the camera can read barcodes.
                 recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = {},
-                onAddWithoutIsbnClick = {},
+                onEnterIsbnManuallyClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+                onAddWithoutIsbnClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
                 onCloseClick = { navController.popBackStack() },
             )
         }
 
-        // Nothing opens this screen yet – it gets linked when groups are added.
         composable(Routes.INVITE_TO_GROUP) {
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
