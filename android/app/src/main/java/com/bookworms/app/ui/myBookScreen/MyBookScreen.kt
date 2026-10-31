@@ -41,6 +41,7 @@ private val sampleOwnBooks = listOf(
 fun MyBooksScreen(
     onBackClick: () -> Unit,
     onAddBookClick: () -> Unit,
+    onBookClick: () -> Unit,
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -66,7 +67,7 @@ fun MyBooksScreen(
         ) {
             item { SectionHeader(pluralStringResource(R.plurals.books_count, sampleOwnBooks.size, sampleOwnBooks.size)) }
             items(sampleOwnBooks, key = { it.title }) { book ->
-                OwnBookCard(book)
+                OwnBookCard(book, onClick = onBookClick)
             }
         }
     }
@@ -74,8 +75,8 @@ fun MyBooksScreen(
 
 // Same look as the book cards on the other screens, with a chip that says where the book is.
 @Composable
-private fun OwnBookCard(book: OwnBook) {
-    AppCard {
+private fun OwnBookCard(book: OwnBook, onClick: () -> Unit) {
+    AppCard(onClick = onClick) {
         BookRow(title = book.title, subtitle = stringResource(R.string.book_author_year, book.author, book.year)) {
             if (book.lentTo == null) {
                 StatusTag(
@@ -100,6 +101,6 @@ private fun OwnBookCard(book: OwnBook) {
 @Composable
 private fun MyBooksScreenPreview() {
     BookWormsTheme {
-        MyBooksScreen(onBackClick = {}, onAddBookClick = {})
+        MyBooksScreen(onBackClick = {}, onAddBookClick = {}, onBookClick = {})
     }
 }
