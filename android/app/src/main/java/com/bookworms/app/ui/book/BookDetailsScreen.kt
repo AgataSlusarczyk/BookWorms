@@ -49,6 +49,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
@@ -293,6 +294,23 @@ private fun BookHeader(book: BookDetails) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Average of the public ratings, e.g. "★★★★☆ 4.5 · 2 ratings". Hidden until someone rates the book.
+            book.averageRating()?.let { average ->
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StarRow(rating = average.roundToInt())
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.average_rating,
+                            "%.1f".format(average),
+                            pluralStringResource(R.plurals.ratings_count, book.ratingCount(), book.ratingCount()),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill(text = book.genre)
@@ -436,6 +454,7 @@ private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
                     text = comment.authorName,
                     style = MaterialTheme.typography.titleSmall,
                 )
+                comment.rating?.let { StarRow(rating = it, modifier = Modifier.padding(vertical = 2.dp)) }
                 if (hidden) {
                     Text(
                         text = stringResource(R.string.spoiler_hidden),

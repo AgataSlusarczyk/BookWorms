@@ -396,7 +396,7 @@ fun AppNavigation() {
                 groups = book.groupDiscussions.map { it.groupName },
                 initialGroup = group,
                 // TODO: show the new comment in Book details once comments come from the server.
-                onPostClick = { _, _, _ -> navController.popBackStack() },
+                onPostClick = { _, _, _, _ -> navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
                 replyingTo = replyTo?.let { book.findGroupComment(it) },
             )

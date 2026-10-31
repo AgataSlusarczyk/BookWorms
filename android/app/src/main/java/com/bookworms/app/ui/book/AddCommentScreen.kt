@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
@@ -58,7 +59,8 @@ fun AddCommentScreen(
     // Where the comment goes at the start: null = Public, otherwise a group's name.
     initialGroup: String?,
     // groupName is null for a public comment.
-    onPostClick: (text: String, hasSpoilers: Boolean, groupName: String?) -> Unit,
+    // rating is null when the user didn't pick any stars, and always null in a group.
+    onPostClick: (text: String, hasSpoilers: Boolean, groupName: String?, rating: Int?) -> Unit,
     onBackClick: () -> Unit,
     // Set when answering someone. A reply always stays in initialGroup, so there's nothing to pick.
     replyingTo: BookComment? = null,
@@ -66,7 +68,10 @@ fun AddCommentScreen(
     var text by rememberSaveable { mutableStateOf("") }
     var hasSpoilers by rememberSaveable { mutableStateOf(false) }
     var groupName by rememberSaveable { mutableStateOf(initialGroup) }
+    var rating by rememberSaveable { mutableStateOf<Int?>(null) }
     val isReply = replyingTo != null
+    // Stars are only for public comments – in a group it's a conversation, not a review.
+    val canRate = !isReply && groupName == null
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -139,6 +144,16 @@ fun AddCommentScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            if (canRate) {
+                LabeledField(label = stringResource(R.string.your_rating_label)) {
+                    // offset lines the first star up with the fields, because each star button has a bit of space around it.
+                    Row(modifier = Modifier.offset(x = (-12).dp)) {
+                        StarRatingPicker(rating = rating, onRatingChange = { rating = it })
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
             LabeledField(label = stringResource(if (isReply) R.string.your_reply_label else R.string.your_comment_label)) {
                 OutlinedTextField(
                     value = text,
@@ -195,7 +210,7 @@ fun AddCommentScreen(
 
             Button(
                 // TODO: send the comment to the server first.
-                onClick = { onPostClick(text.trim(), hasSpoilers, groupName) },
+                onClick = { onPostClick(text.trim(), hasSpoilers, groupName, if (canRate) rating else null) },
                 // Spaces alone don't count as a comment.
                 enabled = text.isNotBlank(),
                 shape = FieldShape,
@@ -218,7 +233,7 @@ private fun AddCommentScreenPreview() {
             bookAuthor = "Stanisław Lem",
             groups = listOf("Czytelnia 23", "Rodzina"),
             initialGroup = null,
-            onPostClick = { _, _, _ -> },
+            onPostClick = { _, _, _, _ -> },
             onBackClick = {},
         )
     }

@@ -39,6 +39,8 @@ data class BookComment(
     val daysAgo: Int,
     // The text stays hidden until someone taps it.
     val hasSpoilers: Boolean = false,
+    // 1–5 stars, or null when the author didn't rate the book. Only public comments have it.
+    val rating: Int? = null,
     // Answers under the comment. Only group discussions have them – public comments don't.
     val replies: List<BookComment> = emptyList(),
 )
@@ -48,6 +50,12 @@ data class GroupDiscussion(
     val groupName: String,
     val comments: List<BookComment>,
 )
+
+// The average of the public ratings, e.g. 4.5, or null when nobody rated the book yet.
+fun BookDetails.averageRating(): Double? =
+    publicComments.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average()
+
+fun BookDetails.ratingCount(): Int = publicComments.count { it.rating != null }
 
 // Looks for a comment or a reply with this id in all the group discussions.
 fun BookDetails.findGroupComment(id: String): BookComment? =
@@ -72,8 +80,8 @@ val sampleBookDetails = BookDetails(
         BookCopy("Marek W.", CopyStatus.Borrowed(returnBy = "20.11", queuePosition = 2)),
     ),
     publicComments = listOf(
-        BookComment("p1", "Marek W.", "Pierwsze 50 stron się wlecze, potem nie da się odłożyć.", daysAgo = 3),
-        BookComment("p2", "Anna K.", "Lepsze niż film. Zakończenie zostaje w głowie na długo.", daysAgo = 8),
+        BookComment("p1", "Marek W.", "Pierwsze 50 stron się wlecze, potem nie da się odłożyć.", daysAgo = 3, rating = 4),
+        BookComment("p2", "Anna K.", "Lepsze niż film. Zakończenie zostaje w głowie na długo.", daysAgo = 8, rating = 5),
         BookComment("p3", "Tomek L.", "Kelvin w końcu zostaje na stacji, bo nie potrafi zostawić Harey.", daysAgo = 12, hasSpoilers = true),
     ),
     groupDiscussions = listOf(
