@@ -186,7 +186,6 @@
     <string name="action_accept">Accept</string>
     <string name="action_reject">Reject</string>
     <string name="action_mark_read">Mark as read</string>
-    <string name="action_add_group">Add group</string>
     <string name="action_logout">Log out</string>
     
     <string name="menu_my_books">My books</string>
@@ -219,6 +218,8 @@
     <string name="publisher_label">Publisher</string>
     <string name="year_label">Year</string>
     <string name="save_action">Save</string>
+    <string name="scan_isbn_subtitle">Point the camera at the barcode – the details fill in themselves</string>
+    <string name="or_fill_in_yourself">or fill in yourself</string>
 
     <!-- Create group -->
     <string name="create_group_title">Create group</string>
@@ -238,4 +239,75 @@
     <string name="visibility_public_description">Anyone can find the group and join it.</string>
     <string name="private_group_hint">Invited friends get a notification. Others can join with the invite code – you approve them first.</string>
     <string name="public_group_hint">Invited friends get a notification. Anyone else can find the group in search and join right away.</string>
+
+    <!-- Change password -->
+    <string name="change_password_title">Change password</string>
+    <string name="change_password_subtitle">Enter your current password, then choose a new one.</string>
+    <string name="current_password_label">Current password</string>
+    <string name="new_password_label">New password</string>
+    <string name="repeat_new_password_label">Repeat new password</string>
+    <string name="change_password_button">Change password</string>
+    <string name="error_password_too_weak">Use at least 10 characters, a digit and a special character</string>
+    <string name="error_password_same_as_current">The new password must be different from the current one</string>
+    <string name="error_passwords_dont_match">Passwords don\'t match</string>
+
+    <!-- Groups -->
+    <string name="nav_groups">Groups</string>
+    <string name="groups_title">Groups</string>
+    <string name="join_group">Join group</string>
+
+    <!-- Join group -->
+    <string name="invite_code_hint">Ask someone in the group for the code</string>
+    <string name="error_invite_code_not_found">No group has this code. Check it and try again.</string>
+    <string name="find_group">Find group</string>
+    <string name="ask_to_join">Ask to join</string>
+    <string name="join_request_sent">Request sent</string>
+    <string name="join_request_sent_hint">The admin will get a notification. You\'ll see the group once they accept you.</string>
+    <string name="public_groups">Public groups</string>
+    <string name="search_groups">Search groups</string>
+    <string name="no_groups_found">No groups found</string>
+    <string name="action_join">Join</string>
+
+    <!-- Group details -->
+    <string name="invite_action">Invite</string>
+    <!-- %1$s = number of members (members), %2$s = Private or Public -->
+    <string name="group_members_visibility">%1$s · %2$s</string>
+    <string name="group_chat">Group chat</string>
+    <!-- %1$d = how many people wait for the admin's answer -->
+    <string name="join_requests_count">Join requests · %1$d</string>
+    <string name="tab_group_books">Books</string>
+    <string name="tab_group_members">Members</string>
+    <!-- %1$s = author, %2$s = who owns the copy -->
+    <string name="book_by_owner">%1$s · from %2$s</string>
+    <string name="status_borrowed_by">Borrowed by %1$s</string>
+    <string name="leave_group">Leave group</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="change_photo">Change photo</string>
+    <string name="username_label">Username</string>
+    <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
+    <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>
+    <string name="error_email_invalid">Enter a valid email address</string>
+
+    <!-- Export data -->
+    <string name="format_json">JSON</string>
+    <string name="format_csv">CSV</string>
+    <string name="action_download">Download</string>
+
+    <!-- Custom lists -->
+    <string name="custom_lists">Your lists</string>
+    <string name="create_list">Create list</string>
+
+    <!-- Create list -->
+    <string name="list_name_label">List name</string>
+    <string name="list_name_placeholder">e.g. Summer reads</string>
+    <string name="error_list_name_taken">You already have a list with this name</string>
+    <string name="list_description_placeholder">What\'s on this list? e.g. Books to take on holiday</string>
+    <string name="list_books_label">Add books (optional)</string>
+    <string name="list_books_search_placeholder">Search by title, author or ISBN</string>
+    <!-- %1$d = how many books are on the new list -->
+    <string name="list_books_added">Added · %1$d</string>
+    <string name="add_book_to_list">Add %1$s</string>
+    <string name="remove_book_from_list">Remove %1$s</string>
 </resources>

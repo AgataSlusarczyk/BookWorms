@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +21,10 @@ import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupVisibility
+import com.bookworms.app.ui.groups.GroupsScreen
+import com.bookworms.app.ui.groups.JoinGroupScreen
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.sampleInvite
@@ -29,9 +33,13 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
+import com.bookworms.app.ui.lists.CreateListScreen
+import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
+import com.bookworms.app.ui.profile.ChangePasswordScreen
+import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 
@@ -50,6 +58,7 @@ private object Routes {
     const val LIBRARY = "library"
     const val LOANS = "loans"
     const val LISTS = "lists"
+    const val GROUPS = "groups"
     const val PROFILE = "profile"
 
     // Screens opened from a tab, without the bottom bar.
@@ -57,8 +66,18 @@ private object Routes {
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
     const val CREATE_GROUP = "create_group"
+    const val JOIN_GROUP = "join_group"
+    const val CHANGE_PASSWORD = "change_password"
+    const val EDIT_PROFILE = "edit_profile"
+    const val CREATE_LIST = "create_list"
+    const val LIST_DETAILS = "list_details/{listName}"
+    const val GROUP_DETAILS = "group_details/{groupName}"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
+
+    // Uri.encode turns spaces and other special characters into a form that fits in a route.
+    fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
+    fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
 }
 
 @Composable
@@ -163,6 +182,7 @@ fun AppNavigation() {
                 onBackClick = { navController.popBackStack() },
             )
         }
+
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onNavigate = navigateBottomBar,
@@ -175,8 +195,21 @@ fun AppNavigation() {
             LoansScreen(onNavigate = navigateBottomBar)
         }
 
+        composable(Routes.GROUPS) {
+            GroupsScreen(
+                onNavigate = navigateBottomBar,
+                onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
+                onJoinGroupClick = { navController.navigate(Routes.JOIN_GROUP) },
+                onGroupClick = { groupName -> navController.navigate(Routes.groupDetails(groupName)) },
+            )
+        }
+
         composable(Routes.LISTS) {
-            MyListsScreen(onNavigate = navigateBottomBar)
+            MyListsScreen(
+                onNavigate = navigateBottomBar,
+                onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
+                onCreateListClick = { navController.navigate(Routes.CREATE_LIST) },
+            )
         }
 
         composable(Routes.PROFILE) {
@@ -184,13 +217,65 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
-                onAddGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
+                onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
+                onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
+            )
+        }
+
+        composable(Routes.CREATE_LIST) {
+            CreateListScreen(
+                // Opens the new list. popUpTo takes Create list off the stack, so Back goes to My lists, not here.
+                onCreateClick = { listName ->
+                    navController.navigate(Routes.listDetails(listName)) {
+                        popUpTo(Routes.CREATE_LIST) { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.LIST_DETAILS) { backStackEntry ->
+            // The route gives the name back already decoded, e.g. "Holiday reads".
+            val listName = backStackEntry.arguments?.getString("listName").orEmpty()
+            MyListDetailsScreen(listName = listName, onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.GROUP_DETAILS) { backStackEntry ->
+            // TODO: look the group up on the server. For now only the name comes from the list.
+            val groupName = backStackEntry.arguments?.getString("groupName").orEmpty()
+            GroupDetailsScreen(
+                groupName = groupName,
+                // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
+                isAdmin = groupName == "Czytelnia 23",
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                // TODO: open the group chat when that screen exists.
+                onChatClick = {},
+                onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
+                // TODO: leave the group on the server first. For now it just goes back to Groups.
+                onLeaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.EDIT_PROFILE) {
+            EditProfileScreen(
+                // TODO: save the name on the server first. For now it just goes back to Profile.
+                onSaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.CHANGE_PASSWORD) {
+            ChangePasswordScreen(
+                // TODO: send the passwords to the server first. For now it just goes back to Profile.
+                onSaveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
             )
         }
 
@@ -201,14 +286,29 @@ fun AppNavigation() {
         composable(Routes.MY_BOOKS) {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddBookClick = { navController.navigate(Routes.SCAN_ISBN) },
+                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
                 // Temporary – these books have no ISBN yet, so it opens a sample book.
                 onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
             )
         }
 
         composable(Routes.ADD_BOOK_MANUAL) {
-            AddBookManualScreen(onBackClick = { navController.popBackStack() })
+            AddBookManualScreen(
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.JOIN_GROUP) {
+            JoinGroupScreen(
+                // Opens the new group. popUpTo takes Join group off the stack, so Back goes to Groups, not here.
+                onGroupJoined = { groupName ->
+                    navController.navigate(Routes.groupDetails(groupName)) {
+                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.CREATE_GROUP) {
@@ -228,13 +328,8 @@ fun AppNavigation() {
                 invitedUsernames = invitedUsernames,
                 onAddInvite = { invitedUsernames = invitedUsernames + it },
                 onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it goes straight to inviting friends.
-                onCreateGroupClick = {
-                    navController.navigate(Routes.INVITE_TO_GROUP) {
-                        // Removes the form from the pile, so closing the invite goes back to Profile.
-                        popUpTo(Routes.CREATE_GROUP) { inclusive = true }
-                    }
-                },
+                // TODO: create the group on the server first. For now it just goes back to Groups.
+                onCreateGroupClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -262,12 +357,14 @@ fun AppNavigation() {
             )
         }
 
+        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
+        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
         composable(Routes.SCAN_ISBN) {
             ScanIsbnScreen(
                 // Temporary – a sample code until the camera can read barcodes.
                 recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
-                onAddWithoutIsbnClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+                onEnterIsbnManuallyClick = { navController.popBackStack() },
+                onAddWithoutIsbnClick = { navController.popBackStack() },
                 onCloseClick = { navController.popBackStack() },
             )
         }

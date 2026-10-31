@@ -168,6 +168,7 @@ fun AppBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
     val items = listOf(
         Triple("library", R.string.nav_library, R.drawable.ic_library),
         Triple("loans", R.string.nav_loans, R.drawable.ic_loans),
+        Triple("groups", R.string.nav_groups, R.drawable.ic_group),
         Triple("lists", R.string.nav_my_lists, R.drawable.ic_lists),
         Triple("profile", R.string.nav_profile, R.drawable.ic_profile)
     )

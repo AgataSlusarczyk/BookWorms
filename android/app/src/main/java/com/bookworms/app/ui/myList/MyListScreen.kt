@@ -5,6 +5,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -32,7 +34,7 @@ import com.bookworms.app.ui.theme.StatusGreen
 import com.bookworms.app.ui.theme.StatusGreenBg
 
 // What can happen to a book on the user's list, with the chip colors for each case.
-private enum class ListStatus(@StringRes val label: Int, val color: Color, val background: Color) {
+internal enum class ListStatus(@StringRes val label: Int, val color: Color, val background: Color) {
     Available(R.string.status_available, StatusGreen, StatusGreenBg),
     Borrowed(R.string.status_borrowed, BrandBlue, StatusBlueBg),
     Reserved(R.string.status_reserved, StatusAmber, StatusAmberBg),
@@ -40,7 +42,11 @@ private enum class ListStatus(@StringRes val label: Int, val color: Color, val b
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyListsScreen(onNavigate: (String) -> Unit = {}) {
+fun MyListsScreen(
+    onNavigate: (String) -> Unit = {},
+    onListClick: (String) -> Unit = {},
+    onCreateListClick: () -> Unit = {},
+) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
 
@@ -76,6 +82,9 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}) {
             }
             item { ListBookCard("Czarna Ziemia", "Timothy Snyder", ListStatus.Reserved) }
 
+            item { SectionHeader(stringResource(R.string.custom_lists), Modifier.padding(top = 4.dp)) }
+            item { CustomListsRow(onListClick = onListClick, onCreateListClick = onCreateListClick) }
+
             item { HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 4.dp)) }
 
             item { ReadingStatsCard() }
@@ -88,8 +97,48 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}) {
 @Composable
 private fun ListCard(content: @Composable ColumnScope.() -> Unit) = AppCard(content = content)
 
+// TODO: the user's own lists from the server.
+internal val sampleCustomLists = listOf("Sci-fi", "Holiday reads")
+
+// Lists the user made themselves, side by side, with a "Create list" tile first.
 @Composable
-private fun ListBookCard(title: String, author: String, status: ListStatus, extraBadge: String? = null) {
+private fun CustomListsRow(onListClick: (String) -> Unit, onCreateListClick: () -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            AppCard(onClick = onCreateListClick, modifier = Modifier.width(CustomListTileWidth)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(CustomListTileHeight),
+                ) {
+                    Icon(painterResource(R.drawable.ic_add), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.create_list), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+        items(sampleCustomLists) { name ->
+            AppCard(onClick = { onListClick(name) }, modifier = Modifier.width(CustomListTileWidth)) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(CustomListTileHeight)
+                        .padding(8.dp),
+                ) {
+                    Text(name, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
+                }
+            }
+        }
+    }
+}
+
+private val CustomListTileWidth = 120.dp
+private val CustomListTileHeight = 80.dp
+
+@Composable
+internal fun ListBookCard(title: String, author: String, status: ListStatus, extraBadge: String? = null) {
     ListCard {
         BookRow(
             title = title,

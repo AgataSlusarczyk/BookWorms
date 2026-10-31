@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
+import com.bookworms.app.ui.auth.UsernamePattern
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.CardShape
@@ -61,9 +62,6 @@ import com.bookworms.app.ui.theme.CardBorder
 
 private const val MinNameLength = 3
 private const val MaxNameLength = 40
-
-// 3–20 letters, digits, dots or underscores, e.g. "ola" or "marek_w".
-private val UsernamePattern = Regex("[A-Za-z0-9._]{3,20}")
 
 // Who can see the group and how people get in. Each option has its own title,
 // description, and hint under the "Create group" button.
