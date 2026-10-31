@@ -304,7 +304,7 @@
     <string name="list_name_placeholder">e.g. Summer reads</string>
     <string name="error_list_name_taken">You already have a list with this name</string>
     <string name="list_description_placeholder">What's on this list? e.g. Books to take on holiday</string>
-    <string name="list_books_label">Books (optional)</string>
+    <string name="list_books_label">Add books (optional)</string>
     <string name="list_books_search_placeholder">Search by title, author or ISBN</string>
     <!-- %1$d = how many books are on the new list -->
     <string name="list_books_added">Added · %1$d</string>
