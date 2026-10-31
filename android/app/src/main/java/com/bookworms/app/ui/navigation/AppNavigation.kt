@@ -33,6 +33,7 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
+import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.loans.LoansScreen
@@ -68,6 +69,7 @@ private object Routes {
     const val JOIN_GROUP = "join_group"
     const val CHANGE_PASSWORD = "change_password"
     const val EDIT_PROFILE = "edit_profile"
+    const val CREATE_LIST = "create_list"
     const val LIST_DETAILS = "list_details/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
 
@@ -202,6 +204,7 @@ fun AppNavigation() {
             MyListsScreen(
                 onNavigate = navigateBottomBar,
                 onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
+                onCreateListClick = { navController.navigate(Routes.CREATE_LIST) },
             )
         }
 
@@ -218,6 +221,18 @@ fun AppNavigation() {
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
+            )
+        }
+
+        composable(Routes.CREATE_LIST) {
+            CreateListScreen(
+                // Opens the new list. popUpTo takes Create list off the stack, so Back goes to My lists, not here.
+                onCreateClick = { listName ->
+                    navController.navigate(Routes.listDetails(listName)) {
+                        popUpTo(Routes.CREATE_LIST) { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() },
             )
         }
 
