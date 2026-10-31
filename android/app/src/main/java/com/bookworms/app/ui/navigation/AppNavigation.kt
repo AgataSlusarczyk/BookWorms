@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.sampleBookDetailsFor
@@ -51,6 +52,7 @@ private object Routes {
     const val FORGOT_PASSWORD = "forgot_password"
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
     const val BOOK_DETAILS = "book_details/{isbn}"
+    const val ADD_COMMENT = "add_comment/{isbn}"
     const val SCAN_ISBN = "scan_isbn"
     const val INVITE_TO_GROUP = "invite_to_group"
 
@@ -74,6 +76,7 @@ private object Routes {
     const val GROUP_DETAILS = "group_details/{groupName}"
 
     fun bookDetails(isbn: String) = "book_details/$isbn"
+    fun addComment(isbn: String) = "add_comment/$isbn"
 
     // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
@@ -346,7 +349,21 @@ fun AppNavigation() {
                 onReadingStatusChange = { readingStatus = it },
                 onRequestLoanClick = {},
                 onJoinQueueClick = {},
-                onAddCommentClick = {},
+                onAddCommentClick = { navController.navigate(Routes.addComment(book.isbn)) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.ADD_COMMENT) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
+            // Temporary – looks the book up in the sample list until books come from the server.
+            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
+
+            AddCommentScreen(
+                bookTitle = book.title,
+                bookAuthor = book.author,
+                // TODO: show the new comment in Book details once comments come from the server.
+                onPostClick = { _, _ -> navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }

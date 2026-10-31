@@ -80,6 +80,15 @@
     <!-- %d = how many comments -->
     <string name="comments_title">Comments · %d</string>
     <string name="add_comment">Add</string>
+
+    <!-- Add comment -->
+    <string name="add_comment_title">Add comment</string>
+    <string name="your_comment_label">Your comment</string>
+    <string name="comment_placeholder">What did you think of this book?</string>
+    <string name="comment_visibility_hint">People in your groups will see your comment.</string>
+    <string name="post_comment">Post comment</string>
+    <string name="contains_spoilers">Contains spoilers</string>
+    <string name="contains_spoilers_hint">Others will have to tap to read it.</string>
     <plurals name="days_ago">
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
