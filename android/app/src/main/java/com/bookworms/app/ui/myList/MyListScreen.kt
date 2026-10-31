@@ -42,7 +42,11 @@ internal enum class ListStatus(@StringRes val label: Int, val color: Color, val 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Unit = {}) {
+fun MyListsScreen(
+    onNavigate: (String) -> Unit = {},
+    onListClick: (String) -> Unit = {},
+    onCreateListClick: () -> Unit = {},
+) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
 
@@ -79,7 +83,7 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
             item { ListBookCard("Czarna Ziemia", "Timothy Snyder", ListStatus.Reserved) }
 
             item { SectionHeader(stringResource(R.string.custom_lists), Modifier.padding(top = 4.dp)) }
-            item { CustomListsRow(onListClick = onListClick) }
+            item { CustomListsRow(onListClick = onListClick, onCreateListClick = onCreateListClick) }
 
             item { HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 4.dp)) }
 
@@ -93,16 +97,15 @@ fun MyListsScreen(onNavigate: (String) -> Unit = {}, onListClick: (String) -> Un
 @Composable
 private fun ListCard(content: @Composable ColumnScope.() -> Unit) = AppCard(content = content)
 
+// TODO: the user's own lists from the server.
+internal val sampleCustomLists = listOf("Sci-fi", "Holiday reads")
+
 // Lists the user made themselves, side by side, with a "Create list" tile first.
 @Composable
-private fun CustomListsRow(onListClick: (String) -> Unit) {
-    // TODO: the user's own lists from the server.
-    val customLists = listOf("Sci-fi", "Holiday reads")
-
+private fun CustomListsRow(onListClick: (String) -> Unit, onCreateListClick: () -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            // TODO: ask for the new list's name.
-            AppCard(onClick = {}, modifier = Modifier.width(CustomListTileWidth)) {
+            AppCard(onClick = onCreateListClick, modifier = Modifier.width(CustomListTileWidth)) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -115,7 +118,7 @@ private fun CustomListsRow(onListClick: (String) -> Unit) {
                 }
             }
         }
-        items(customLists) { name ->
+        items(sampleCustomLists) { name ->
             AppCard(onClick = { onListClick(name) }, modifier = Modifier.width(CustomListTileWidth)) {
                 Box(
                     contentAlignment = Alignment.Center,
