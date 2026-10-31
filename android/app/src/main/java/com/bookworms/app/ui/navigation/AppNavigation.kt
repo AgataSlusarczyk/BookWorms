@@ -24,6 +24,7 @@ import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.groups.GroupsScreen
+import com.bookworms.app.ui.groups.JoinGroupScreen
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.sampleInvite
@@ -64,6 +65,7 @@ private object Routes {
     const val MY_BOOKS = "my_books"
     const val ADD_BOOK_MANUAL = "add_book_manual"
     const val CREATE_GROUP = "create_group"
+    const val JOIN_GROUP = "join_group"
     const val CHANGE_PASSWORD = "change_password"
     const val EDIT_PROFILE = "edit_profile"
     const val LIST_DETAILS = "list_details/{listName}"
@@ -191,8 +193,7 @@ fun AppNavigation() {
             GroupsScreen(
                 onNavigate = navigateBottomBar,
                 onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
-                // TODO: open the join group screen when it exists.
-                onJoinGroupClick = {},
+                onJoinGroupClick = { navController.navigate(Routes.JOIN_GROUP) },
                 onGroupClick = { groupName -> navController.navigate(Routes.groupDetails(groupName)) },
             )
         }
@@ -273,6 +274,18 @@ fun AppNavigation() {
         composable(Routes.ADD_BOOK_MANUAL) {
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.JOIN_GROUP) {
+            JoinGroupScreen(
+                // Opens the new group. popUpTo takes Join group off the stack, so Back goes to Groups, not here.
+                onGroupJoined = { groupName ->
+                    navController.navigate(Routes.groupDetails(groupName)) {
+                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
+                    }
+                },
                 onBackClick = { navController.popBackStack() },
             )
         }
