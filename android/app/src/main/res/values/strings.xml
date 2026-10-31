@@ -77,9 +77,47 @@
     <string name="request_loan">Request to borrow</string>
     <!-- %d = the user's place in the queue after joining it -->
     <string name="join_queue">Join the queue — you\'ll be #%d</string>
-    <!-- %d = how many comments -->
-    <string name="comments_title">Comments · %d</string>
     <string name="add_comment">Add</string>
+
+    <!-- Add comment -->
+    <string name="add_comment_title">Add comment</string>
+    <string name="your_comment_label">Your comment</string>
+    <string name="comment_placeholder">What did you think of this book?</string>
+    <string name="comment_visibility_public">Everyone can see this, even people without an account.</string>
+    <!-- %1$s = group name -->
+    <string name="comment_visibility_group">Only people in %1$s can see this.</string>
+    <string name="post_to_label">Post to</string>
+    <string name="your_rating_label">Your rating (optional)</string>
+    <plurals name="stars_rating">
+        <item quantity="one">%d of 5 stars</item>
+        <item quantity="other">%d of 5 stars</item>
+    </plurals>
+    <!-- %1$s = average like 4.5, %2$s = how many ratings (ratings_count) -->
+    <string name="average_rating">%1$s · %2$s</string>
+    <plurals name="ratings_count">
+        <item quantity="one">%d rating</item>
+        <item quantity="other">%d ratings</item>
+    </plurals>
+    <string name="reply">Reply</string>
+    <string name="your_reply_label">Your reply</string>
+    <!-- %1$s = who wrote the comment being answered -->
+    <string name="replying_to">Replying to %1$s</string>
+    <string name="post_reply">Post reply</string>
+    <string name="comments_heading">Comments</string>
+    <!-- %1$d = how many public comments -->
+    <string name="comments_public">Public · %1$d</string>
+    <!-- %1$s = group name, %2$d = how many comments in that group -->
+    <string name="comments_group">%1$s · %2$d</string>
+    <string name="no_public_comments">No comments yet. Be the first!</string>
+    <!-- %1$s = group name -->
+    <string name="no_group_discussion">Nobody in %1$s has talked about this book yet. Start the discussion!</string>
+    <string name="spoiler_hidden">Contains spoilers · Tap to show</string>
+    <string name="log_in_to_comment">Log in to comment</string>
+    <string name="guest_book_title">Want to borrow this book?</string>
+    <string name="guest_book_text">Log in to see who in your groups has it, borrow it and keep track of what you read.</string>
+    <string name="post_comment">Post comment</string>
+    <string name="contains_spoilers">Contains spoilers</string>
+    <string name="contains_spoilers_hint">Others will have to tap to read it.</string>
     <plurals name="days_ago">
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>

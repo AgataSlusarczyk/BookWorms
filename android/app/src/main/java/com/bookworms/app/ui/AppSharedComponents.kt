@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -143,10 +144,10 @@ fun SegmentedTabs(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(4.dp)
-                        .background(
-                            color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                            shape = ButtonShape,
-                        )
+                        // Cuts everything below to the rounded shape, so the gray flash on tap
+                        // has rounded corners too, instead of square ones sticking out.
+                        .clip(ButtonShape)
+                        .background(if (selected) MaterialTheme.colorScheme.surface else Color.Transparent)
                         // Role.Tab makes screen readers announce these as tabs, not plain buttons.
                         .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
                     contentAlignment = Alignment.Center

@@ -2,6 +2,8 @@ package com.bookworms.app.ui.book
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +36,11 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +49,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
@@ -62,9 +71,14 @@ fun BookDetailsScreen(
     onReadingStatusChange: (ReadingStatus) -> Unit,
     onRequestLoanClick: (BookCopy) -> Unit,
     onJoinQueueClick: (BookCopy) -> Unit,
-    onAddCommentClick: () -> Unit,
+    // groupName is null for a public comment.
+    onAddCommentClick: (groupName: String?) -> Unit,
+    onReplyClick: (groupName: String, comment: BookComment) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Someone browsing without an account: they only read public comments.
+    isGuest: Boolean = false,
+    onLoginClick: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -77,6 +91,7 @@ fun BookDetailsScreen(
     ) {
         TopActions(
             isFavorite = isFavorite,
+            showUserActions = !isGuest,
             onBackClick = onBackClick,
             onFavoriteClick = onFavoriteClick,
             onMoreClick = onMoreClick,
@@ -96,48 +111,132 @@ fun BookDetailsScreen(
 
         SectionDivider()
 
-        SectionLabel(stringResource(R.string.reading_status_label))
-        ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
+        // A guest has no account to save a reading status to, and isn't in any group,
+        // so instead of these two sections they get a reason to log in.
+        if (isGuest) {
+            GuestLoginCard(onLoginClick = onLoginClick)
+        } else {
+            SectionLabel(stringResource(R.string.reading_status_label))
+            ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
+
+            SectionDivider()
+
+            SectionLabel(stringResource(R.string.copies_in_group, book.copies.size))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                book.copies.forEach { copy ->
+                    CopyCard(
+                        copy = copy,
+                        onRequestLoanClick = { onRequestLoanClick(copy) },
+                        onJoinQueueClick = { onJoinQueueClick(copy) },
+                    )
+                }
+            }
+        }
 
         SectionDivider()
 
-        SectionLabel(stringResource(R.string.copies_in_group, book.copies.size))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            book.copies.forEach { copy ->
-                CopyCard(
-                    copy = copy,
-                    onRequestLoanClick = { onRequestLoanClick(copy) },
-                    onJoinQueueClick = { onJoinQueueClick(copy) },
+        CommentsSection(
+            book = book,
+            isGuest = isGuest,
+            onAddCommentClick = onAddCommentClick,
+            onReplyClick = onReplyClick,
+            onLoginClick = onLoginClick,
+        )
+    }
+}
+
+// Chips on top: "Public" and one for each of the user's groups. Below, the comments of the picked one.
+@Composable
+private fun CommentsSection(
+    book: BookDetails,
+    isGuest: Boolean,
+    onAddCommentClick: (groupName: String?) -> Unit,
+    onReplyClick: (groupName: String, comment: BookComment) -> Unit,
+    onLoginClick: () -> Unit,
+) {
+    // 0 = Public, 1 and more = the groups in order. Guests only ever see Public.
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    val discussion = if (isGuest) null else book.groupDiscussions.getOrNull(selectedIndex - 1)
+    val comments = discussion?.comments ?: book.publicComments
+
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.comments_heading),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        // Guests can't write, so instead of "Add" they get a way to log in.
+        // offset lines the text up with the right edge of the cards below.
+        TextButton(
+            onClick = { if (isGuest) onLoginClick() else onAddCommentClick(discussion?.groupName) },
+            modifier = Modifier.offset(x = 12.dp),
+        ) {
+            Text(stringResource(if (isGuest) R.string.log_in_to_comment else R.string.add_comment))
+        }
+    }
+
+    if (!isGuest) {
+        // Scrolls sideways when someone is in many groups.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+        ) {
+            FilterChip(
+                selected = selectedIndex == 0,
+                onClick = { selectedIndex = 0 },
+                label = { Text(stringResource(R.string.comments_public, book.publicComments.size)) },
+            )
+            book.groupDiscussions.forEachIndexed { index, group ->
+                FilterChip(
+                    selected = selectedIndex == index + 1,
+                    onClick = { selectedIndex = index + 1 },
+                    label = { Text(stringResource(R.string.comments_group, group.groupName, group.comments.size)) },
                 )
             }
         }
+    }
 
-        SectionDivider()
+    Spacer(Modifier.height(8.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.comments_title, book.comments.size),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
-            // Lines the text up with the right edge of the cards below.
-            TextButton(onClick = onAddCommentClick, modifier = Modifier.offset(x = 12.dp)) {
-                Text(stringResource(R.string.add_comment))
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            book.comments.forEach { comment ->
-                CommentCard(comment)
+    if (comments.isEmpty()) {
+        Text(
+            text = if (discussion != null) {
+                stringResource(R.string.no_group_discussion, discussion.groupName)
+            } else {
+                stringResource(R.string.no_public_comments)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        comments.forEach { comment ->
+            CommentCard(comment)
+            // Replies are only in group discussions: a bit to the right, under the comment they answer.
+            if (discussion != null) {
+                comment.replies.forEach { reply ->
+                    CommentCard(reply, modifier = Modifier.padding(start = ReplyIndent))
+                }
+                TextButton(
+                    onClick = { onReplyClick(discussion.groupName, comment) },
+                    // Lines the text up with the replies above.
+                    modifier = Modifier.padding(start = ReplyIndent - 12.dp),
+                ) {
+                    Text(stringResource(R.string.reply))
+                }
             }
         }
     }
 }
 
+private val ReplyIndent = 40.dp
+
 // Back arrow on the left, heart and "more" on the right.
+// showUserActions is false for guests – without an account there's nowhere to save a favorite.
 @Composable
 private fun TopActions(
     isFavorite: Boolean,
+    showUserActions: Boolean,
     onBackClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onMoreClick: () -> Unit,
@@ -151,6 +250,7 @@ private fun TopActions(
             )
         }
         Spacer(Modifier.weight(1f))
+        if (!showUserActions) return@Row
         IconButton(onClick = onFavoriteClick) {
             Icon(
                 painter = painterResource(if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
@@ -165,6 +265,29 @@ private fun TopActions(
                 painter = painterResource(R.drawable.ic_more_vert),
                 contentDescription = stringResource(R.string.more_options),
             )
+        }
+    }
+}
+
+// Light blue box for guests, in place of the copies: who has the book is only for people in the groups.
+@Composable
+private fun GuestLoginCard(onLoginClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), FieldShape)
+            .padding(16.dp),
+    ) {
+        Text(stringResource(R.string.guest_book_title), style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.guest_book_text),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onLoginClick, shape = FieldShape, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.login_button))
         }
     }
 }
@@ -204,6 +327,23 @@ private fun BookHeader(book: BookDetails) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Average of the public ratings, e.g. "★★★★☆ 4.5 · 2 ratings". Hidden until someone rates the book.
+            book.averageRating()?.let { average ->
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StarRow(rating = average.roundToInt())
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.average_rating,
+                            "%.1f".format(average),
+                            pluralStringResource(R.plurals.ratings_count, book.ratingCount(), book.ratingCount()),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill(text = book.genre)
@@ -329,11 +469,15 @@ private fun CopyStatusPill(status: CopyStatus) {
 }
 
 @Composable
-private fun CommentCard(comment: BookComment) {
+private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
+    // A comment with spoilers starts hidden; one tap shows it.
+    var revealed by rememberSaveable(comment.id) { mutableStateOf(false) }
+    val hidden = comment.hasSpoilers && !revealed
+
     OutlinedCard(
         shape = FieldShape,
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(modifier = Modifier.padding(12.dp)) {
             AvatarPlaceholder()
@@ -343,10 +487,20 @@ private fun CommentCard(comment: BookComment) {
                     text = comment.authorName,
                     style = MaterialTheme.typography.titleSmall,
                 )
-                Text(
-                    text = comment.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                comment.rating?.let { StarRow(rating = it, modifier = Modifier.padding(vertical = 2.dp)) }
+                if (hidden) {
+                    Text(
+                        text = stringResource(R.string.spoiler_hidden),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { revealed = true },
+                    )
+                } else {
+                    Text(
+                        text = comment.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = pluralStringResource(R.plurals.days_ago, comment.daysAgo, comment.daysAgo),
@@ -388,6 +542,7 @@ private fun BookDetailsScreenPreview() {
             onRequestLoanClick = {},
             onJoinQueueClick = {},
             onAddCommentClick = {},
+            onReplyClick = { _, _ -> },
             onBackClick = {},
         )
     }

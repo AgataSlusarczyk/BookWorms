@@ -8,14 +8,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.ReadingStatus
+import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
@@ -50,7 +54,10 @@ private object Routes {
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
     // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
-    const val BOOK_DETAILS = "book_details/{isbn}"
+    // The part after "?" is optional: guest=true when someone browses without an account.
+    const val BOOK_DETAILS = "book_details/{isbn}?guest={guest}"
+    // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.
+    const val ADD_COMMENT = "add_comment/{isbn}?group={group}&replyTo={replyTo}"
     const val SCAN_ISBN = "scan_isbn"
     const val INVITE_TO_GROUP = "invite_to_group"
 
@@ -73,7 +80,16 @@ private object Routes {
     const val LIST_DETAILS = "list_details/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
 
-    fun bookDetails(isbn: String) = "book_details/$isbn"
+    fun bookDetails(isbn: String, guest: Boolean = false) = if (guest) "book_details/$isbn?guest=true" else "book_details/$isbn"
+
+    fun addComment(isbn: String, group: String? = null, replyTo: String? = null): String {
+        // Leaving a part out means "none" – the screen then gets null.
+        val options = listOfNotNull(
+            group?.let { "group=${Uri.encode(it)}" },
+            replyTo?.let { "replyTo=${Uri.encode(it)}" },
+        )
+        return if (options.isEmpty()) "add_comment/$isbn" else "add_comment/$isbn?" + options.joinToString("&")
+    }
 
     // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
@@ -127,7 +143,7 @@ fun AppNavigation() {
                 query = query,
                 results = results,
                 onQueryChange = { query = it },
-                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn, guest = true)) },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
@@ -334,8 +350,12 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.BOOK_DETAILS) { entry ->
+        composable(
+            Routes.BOOK_DETAILS,
+            arguments = listOf(navArgument("guest") { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
+            val isGuest = entry.arguments?.getBoolean("guest") ?: false
             // Temporary – looks the book up in the sample list until books come from the server.
             val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
 
@@ -352,8 +372,39 @@ fun AppNavigation() {
                 onReadingStatusChange = { readingStatus = it },
                 onRequestLoanClick = {},
                 onJoinQueueClick = {},
-                onAddCommentClick = {},
+                onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
+                onReplyClick = { groupName, comment ->
+                    navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))
+                },
                 onBackClick = { navController.popBackStack() },
+                isGuest = isGuest,
+                // Login is at the bottom of the pile (under Browse), so we go back down to it.
+                onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
+            )
+        }
+
+        composable(
+            Routes.ADD_COMMENT,
+            arguments = listOf(
+                navArgument("group") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("replyTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
+            val group = entry.arguments?.getString("group")
+            val replyTo = entry.arguments?.getString("replyTo")
+            // Temporary – looks the book up in the sample list until books come from the server.
+            val book = remember(isbn) { sampleBookDetailsFor(sampleBooks.first { it.isbn == isbn }) }
+
+            AddCommentScreen(
+                bookTitle = book.title,
+                bookAuthor = book.author,
+                groups = book.groupDiscussions.map { it.groupName },
+                initialGroup = group,
+                // TODO: show the new comment in Book details once comments come from the server.
+                onPostClick = { _, _, _, _ -> navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+                replyingTo = replyTo?.let { book.findGroupComment(it) },
             )
         }
 
