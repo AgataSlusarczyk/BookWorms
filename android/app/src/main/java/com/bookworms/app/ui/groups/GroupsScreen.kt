@@ -99,7 +99,7 @@ fun GroupsScreen(
 @Composable
 private fun GroupCard(name: String, members: String, role: String, onClick: () -> Unit) {
     AppCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
             Box(modifier = Modifier.size(40.dp).background(PlaceholderGray, CircleShape))
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
