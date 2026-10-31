@@ -3,6 +3,7 @@ package com.bookworms.app.ui.lists
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,6 +48,8 @@ fun MyListsScreen(
     onNavigate: (String) -> Unit = {},
     onListClick: (String) -> Unit = {},
     onCreateListClick: () -> Unit = {},
+    // Gets the book's title – the sample books here have no ISBN yet.
+    onBookClick: (title: String) -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
@@ -71,16 +75,17 @@ fun MyListsScreen(
                     onSelect = { selectedTabIndex = it },
                 )
             }
-            item { ListBookCard("Solaris", "Stanisław Lem", ListStatus.Available) }
+            item { ListBookCard("Solaris", "Stanisław Lem", ListStatus.Available, onClick = { onBookClick("Solaris") }) }
             item {
                 ListBookCard(
                     title = "Pachnidło",
                     author = "Patrick Süskind",
                     status = ListStatus.Borrowed,
+                    onClick = { onBookClick("Pachnidło") },
                     extraBadge = stringResource(R.string.badge_notify_me),
                 )
             }
-            item { ListBookCard("Czarna Ziemia", "Timothy Snyder", ListStatus.Reserved) }
+            item { ListBookCard("Czarna Ziemia", "Timothy Snyder", ListStatus.Reserved, onClick = { onBookClick("Czarna Ziemia") }) }
 
             item { SectionHeader(stringResource(R.string.custom_lists), Modifier.padding(top = 4.dp)) }
             item { CustomListsRow(onListClick = onListClick, onCreateListClick = onCreateListClick) }
@@ -88,7 +93,7 @@ fun MyListsScreen(
             item { HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 4.dp)) }
 
             item { ReadingStatsCard() }
-            item { MostBorrowedCard() }
+            item { MostBorrowedCard(onBookClick = onBookClick) }
         }
     }
 }
@@ -138,8 +143,14 @@ private val CustomListTileWidth = 120.dp
 private val CustomListTileHeight = 80.dp
 
 @Composable
-internal fun ListBookCard(title: String, author: String, status: ListStatus, extraBadge: String? = null) {
-    ListCard {
+internal fun ListBookCard(
+    title: String,
+    author: String,
+    status: ListStatus,
+    onClick: () -> Unit,
+    extraBadge: String? = null,
+) {
+    AppCard(onClick = onClick) {
         BookRow(
             title = title,
             subtitle = author,
@@ -236,20 +247,23 @@ private fun ReadingStatsCard() {
 }
 
 @Composable
-private fun MostBorrowedCard() {
-    val items = listOf("1. Problem trzech ciał" to 9, "2. Solaris" to 7, "3. Lalka" to 5)
+private fun MostBorrowedCard(onBookClick: (title: String) -> Unit) {
+    val items = listOf("Problem trzech ciał" to 9, "Solaris" to 7, "Lalka" to 5)
 
     ListCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.stats_most_borrowed), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            items.forEach { (name, count) ->
+            items.forEachIndexed { index, (title, count) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        // Rounded, so the gray flash on tap doesn't have square corners.
+                        .clip(ButtonShape)
+                        .clickable { onBookClick(title) }
                         .padding(vertical = 4.dp),
                 ) {
-                    Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text("${index + 1}. $title", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     Text(
                         "$count×",
                         style = MaterialTheme.typography.bodySmall,

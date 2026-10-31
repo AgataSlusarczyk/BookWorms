@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -56,7 +58,6 @@ import com.bookworms.app.ui.components.AvatarPlaceholder
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.AvailableGreen
-import com.bookworms.app.ui.theme.AvailableGreenLight
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.FavoriteRed
 import com.bookworms.app.ui.theme.PlaceholderGray
@@ -121,16 +122,11 @@ fun BookDetailsScreen(
 
             SectionDivider()
 
-            SectionLabel(stringResource(R.string.copies_in_group, book.copies.size))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                book.copies.forEach { copy ->
-                    CopyCard(
-                        copy = copy,
-                        onRequestLoanClick = { onRequestLoanClick(copy) },
-                        onJoinQueueClick = { onJoinQueueClick(copy) },
-                    )
-                }
-            }
+            CopiesSection(
+                book = book,
+                onRequestLoanClick = onRequestLoanClick,
+                onJoinQueueClick = onJoinQueueClick,
+            )
         }
 
         SectionDivider()
@@ -388,84 +384,126 @@ private fun ReadingStatus.labelRes(): Int = when (this) {
     ReadingStatus.FINISHED -> R.string.reading_status_finished
 }
 
-// One copy: who owns it, whether it's free, and what the user can do about it.
+// "Who has it": one line saying where the book can be borrowed right now, then each of the
+// user's groups with the copies in it. A copy can be free in one group and missing in another.
 @Composable
-private fun CopyCard(
-    copy: BookCopy,
-    onRequestLoanClick: () -> Unit,
-    onJoinQueueClick: () -> Unit,
+private fun CopiesSection(
+    book: BookDetails,
+    onRequestLoanClick: (BookCopy) -> Unit,
+    onJoinQueueClick: (BookCopy) -> Unit,
 ) {
-    OutlinedCard(
-        shape = FieldShape,
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarPlaceholder()
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = copy.ownerName,
-                        style = MaterialTheme.typography.titleMedium,
+    Text(stringResource(R.string.who_has_it), style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(4.dp))
+
+    val availableIn = book.groupsWithAvailableCopy()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        StatusDot(if (availableIn.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else AvailableGreen)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = if (availableIn.isEmpty()) {
+                stringResource(R.string.not_available_now)
+            } else {
+                stringResource(R.string.available_now_in, availableIn.joinToString(", "))
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    book.copiesByGroup().forEach { (groupName, copies) ->
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text(groupName, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(
+                text = pluralStringResource(R.plurals.book_copies, copies.size, copies.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (copies.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_copies_in_group),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            // All copies of one group in one card, with thin lines between them – shorter than a card each.
+            OutlinedCard(
+                shape = FieldShape,
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                copies.forEachIndexed { index, copy ->
+                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    CopyRow(
+                        copy = copy,
+                        onRequestLoanClick = { onRequestLoanClick(copy) },
+                        onJoinQueueClick = { onJoinQueueClick(copy) },
                     )
-                    Text(
-                        text = when (val status = copy.status) {
-                            is CopyStatus.Available -> stringResource(R.string.copy_added_on, status.addedOn)
-                            is CopyStatus.Borrowed -> stringResource(R.string.copy_return_by, status.returnBy)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                CopyStatusPill(copy.status)
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            when (val status = copy.status) {
-                is CopyStatus.Available -> Button(
-                    onClick = onRequestLoanClick,
-                    shape = FieldShape,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.request_loan))
-                }
-
-                is CopyStatus.Borrowed -> OutlinedButton(
-                    onClick = onJoinQueueClick,
-                    shape = FieldShape,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.join_queue, status.queuePosition))
                 }
             }
         }
     }
 }
 
-// Green "Available" or blue "Borrowed".
+// One copy: who owns it, a colored line with its status, and a small button on the right.
 @Composable
-private fun CopyStatusPill(status: CopyStatus) {
-    when (status) {
-        is CopyStatus.Available -> Pill(
-            text = stringResource(R.string.copy_available),
-            containerColor = AvailableGreenLight,
-            contentColor = AvailableGreen,
-            showDot = true,
-        )
+private fun CopyRow(
+    copy: BookCopy,
+    onRequestLoanClick: () -> Unit,
+    onJoinQueueClick: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+        AvatarPlaceholder(size = 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(copy.ownerName, style = MaterialTheme.typography.titleSmall)
+            // e.g. "● Available · added 12.09" in green or "● Borrowed · due back 20.11" in blue.
+            val (color, text) = when (val status = copy.status) {
+                is CopyStatus.Available -> AvailableGreen to
+                    "${stringResource(R.string.copy_available)} · ${stringResource(R.string.copy_added_on, status.addedOn)}"
+                is CopyStatus.Borrowed -> MaterialTheme.colorScheme.primary to
+                    "${stringResource(R.string.copy_borrowed)} · ${stringResource(R.string.copy_return_by, status.returnBy)}"
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StatusDot(color)
+                Spacer(Modifier.width(6.dp))
+                Text(text, style = MaterialTheme.typography.bodySmall, color = color)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        when (val status = copy.status) {
+            is CopyStatus.Available -> Button(
+                onClick = onRequestLoanClick,
+                shape = FieldShape,
+                contentPadding = SmallButtonPadding,
+            ) {
+                Text(stringResource(R.string.borrow_action))
+            }
 
-        is CopyStatus.Borrowed -> Pill(
-            text = stringResource(R.string.copy_borrowed),
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-            contentColor = MaterialTheme.colorScheme.primary,
-            showDot = true,
-        )
+            is CopyStatus.Borrowed -> OutlinedButton(
+                onClick = onJoinQueueClick,
+                shape = FieldShape,
+                contentPadding = SmallButtonPadding,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            ) {
+                Text(stringResource(R.string.join_queue_short, status.queuePosition))
+            }
+        }
     }
+}
+
+// Narrower than the default button padding, so the button fits next to the name.
+private val SmallButtonPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+
+@Composable
+private fun StatusDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .background(color, CircleShape),
+    )
 }
 
 @Composable

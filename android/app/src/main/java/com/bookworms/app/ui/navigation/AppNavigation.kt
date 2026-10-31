@@ -37,9 +37,12 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
+import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
+import com.bookworms.app.ui.lists.EditListScreen
 import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
+import com.bookworms.app.ui.lists.sampleListBooks
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ChangePasswordScreen
@@ -78,6 +81,8 @@ private object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val CREATE_LIST = "create_list"
     const val LIST_DETAILS = "list_details/{listName}"
+    const val EDIT_LIST = "edit_list/{listName}"
+    const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
 
     fun bookDetails(isbn: String, guest: Boolean = false) = if (guest) "book_details/$isbn?guest=true" else "book_details/$isbn"
@@ -93,6 +98,8 @@ private object Routes {
 
     // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
+    fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
+    fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
 }
 
@@ -109,6 +116,13 @@ fun AppNavigation() {
             launchSingleTop = true
             restoreState = true
         }
+    }
+
+    // Temporary – most screens only know a book's title, so we look it up in the sample books.
+    // A title that isn't there (e.g. "Pachnidło") opens the first sample book.
+    val openBookByTitle: (String) -> Unit = { title ->
+        val book = sampleBooks.find { it.title == title } ?: sampleBooks.first()
+        navController.navigate(Routes.bookDetails(book.isbn))
     }
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
@@ -202,13 +216,12 @@ fun AppNavigation() {
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onNavigate = navigateBottomBar,
-                // Temporary – these books have no ISBN yet, so it opens a sample book.
-                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
+                onBookClick = openBookByTitle,
             )
         }
 
         composable(Routes.LOANS) {
-            LoansScreen(onNavigate = navigateBottomBar)
+            LoansScreen(onNavigate = navigateBottomBar, onBookClick = openBookByTitle)
         }
 
         composable(Routes.GROUPS) {
@@ -225,6 +238,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
                 onCreateListClick = { navController.navigate(Routes.CREATE_LIST) },
+                onBookClick = openBookByTitle,
             )
         }
 
@@ -252,6 +266,7 @@ fun AppNavigation() {
                         popUpTo(Routes.CREATE_LIST) { inclusive = true }
                     }
                 },
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -259,7 +274,44 @@ fun AppNavigation() {
         composable(Routes.LIST_DETAILS) { backStackEntry ->
             // The route gives the name back already decoded, e.g. "Holiday reads".
             val listName = backStackEntry.arguments?.getString("listName").orEmpty()
-            MyListDetailsScreen(listName = listName, onBackClick = { navController.popBackStack() })
+            MyListDetailsScreen(
+                listName = listName,
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                onEditClick = { navController.navigate(Routes.editList(listName)) },
+                onAddBooksClick = { navController.navigate(Routes.addBooksToList(listName)) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.EDIT_LIST) { backStackEntry ->
+            val listName = backStackEntry.arguments?.getString("listName").orEmpty()
+            EditListScreen(
+                listName = listName,
+                // Opens the list again under its (maybe new) name. popUpTo removes the old list
+                // and this form from the pile, so Back goes to My lists.
+                onSaveClick = { newName ->
+                    navController.navigate(Routes.listDetails(newName)) {
+                        popUpTo(Routes.LIST_DETAILS) { inclusive = true }
+                    }
+                },
+                // The list is gone, so we go all the way back to My lists.
+                onDeleteClick = { navController.popBackStack(Routes.LISTS, inclusive = false) },
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.ADD_BOOKS_TO_LIST) { backStackEntry ->
+            val listName = backStackEntry.arguments?.getString("listName").orEmpty()
+            AddBooksToListScreen(
+                listName = listName,
+                // TODO: the books on this list from the server.
+                isbnsOnList = sampleListBooks.map { it.book.isbn },
+                // TODO: add the books on the server first. For now it just goes back to the list.
+                onAddClick = { navController.popBackStack() },
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.GROUP_DETAILS) { backStackEntry ->
@@ -303,8 +355,7 @@ fun AppNavigation() {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
                 onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
-                // Temporary – these books have no ISBN yet, so it opens a sample book.
-                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
+                onBookClick = openBookByTitle,
             )
         }
 

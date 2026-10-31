@@ -1,7 +1,9 @@
 package com.bookworms.app.ui.lists
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,17 +55,49 @@ private const val MaxSearchResults = 5
 fun CreateListScreen(
     // Gets the new list's name, so the app can open it.
     onCreateClick: (listName: String) -> Unit,
+    onBookClick: (isbn: String) -> Unit,
     onBackClick: () -> Unit,
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
+    ListFormScreen(
+        title = stringResource(R.string.create_list),
+        buttonText = stringResource(R.string.create_list),
+        searchLabel = R.string.list_books_label,
+        addedHeader = R.string.list_books_added,
+        // TODO: create the list with its books on the server first.
+        onSubmit = { name -> onCreateClick(name) },
+        onBookClick = onBookClick,
+        onBackClick = onBackClick,
+    )
+}
+
+// The form shared by Create list and Edit list: name, description, and a search to add books.
+// Edit list fills it in with the list's current values and can put extra things under the button.
+@Composable
+internal fun ListFormScreen(
+    title: String,
+    buttonText: String,
+    @StringRes searchLabel: Int,
+    // Header above the picked books, e.g. "Added · 2". Gets the number of books.
+    @StringRes addedHeader: Int,
+    onSubmit: (listName: String) -> Unit,
+    onBookClick: (isbn: String) -> Unit,
+    onBackClick: () -> Unit,
+    initialName: String = "",
+    initialIsbns: List<String> = emptyList(),
+    belowButton: @Composable ColumnScope.() -> Unit = {},
+) {
+    var name by rememberSaveable { mutableStateOf(initialName) }
     var description by rememberSaveable { mutableStateOf("") }
     var search by rememberSaveable { mutableStateOf("") }
     // Only the ISBNs, because a plain list of texts survives turning the phone.
-    var addedIsbns by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var addedIsbns by rememberSaveable { mutableStateOf(initialIsbns) }
 
     // Two lists with the same name would be easy to mix up, so we don't allow it (big and small letters count as the same).
+    // The list being edited may keep its own name.
     val trimmedName = name.trim()
-    val nameTaken = sampleCustomLists.any { it.equals(trimmedName, ignoreCase = true) }
+    val nameTaken = sampleCustomLists
+        .filterNot { it.equals(initialName, ignoreCase = true) }
+        .any { it.equals(trimmedName, ignoreCase = true) }
 
     // TODO: search all books on the server, not only the sample ones.
     val addedBooks = addedIsbns.mapNotNull { isbn -> sampleBooks.find { it.isbn == isbn } }
@@ -73,7 +107,7 @@ fun CreateListScreen(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
-        topBar = { AppTopBar(title = stringResource(R.string.create_list), onBackClick = onBackClick) },
+        topBar = { AppTopBar(title = title, onBackClick = onBackClick) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -125,7 +159,7 @@ fun CreateListScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            LabeledField(label = stringResource(R.string.list_books_label)) {
+            LabeledField(label = stringResource(searchLabel)) {
                 OutlinedTextField(
                     value = search,
                     onValueChange = { search = it },
@@ -150,9 +184,13 @@ fun CreateListScreen(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         results.forEach { book ->
-                            ListFormBookCard(book, iconRes = R.drawable.ic_add, iconDescription = stringResource(R.string.add_book_to_list, book.title)) {
-                                addedIsbns = addedIsbns + book.isbn
-                            }
+                            ListFormBookCard(
+                                book = book,
+                                iconRes = R.drawable.ic_add,
+                                iconDescription = stringResource(R.string.add_book_to_list, book.title),
+                                onClick = { onBookClick(book.isbn) },
+                                onIconClick = { addedIsbns = addedIsbns + book.isbn },
+                            )
                         }
                     }
                 }
@@ -160,12 +198,16 @@ fun CreateListScreen(
 
             // The books already picked. "×" takes a book off again.
             if (addedBooks.isNotEmpty()) {
-                SectionHeader(stringResource(R.string.list_books_added, addedBooks.size), Modifier.padding(top = 16.dp, bottom = 8.dp))
+                SectionHeader(stringResource(addedHeader, addedBooks.size), Modifier.padding(top = 16.dp, bottom = 8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     addedBooks.forEach { book ->
-                        ListFormBookCard(book, iconRes = R.drawable.ic_close, iconDescription = stringResource(R.string.remove_book_from_list, book.title)) {
-                            addedIsbns = addedIsbns - book.isbn
-                        }
+                        ListFormBookCard(
+                            book = book,
+                            iconRes = R.drawable.ic_close,
+                            iconDescription = stringResource(R.string.remove_book_from_list, book.title),
+                            onClick = { onBookClick(book.isbn) },
+                            onIconClick = { addedIsbns = addedIsbns - book.isbn },
+                        )
                     }
                 }
             }
@@ -173,8 +215,7 @@ fun CreateListScreen(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                // TODO: create the list with its books on the server first.
-                onClick = { onCreateClick(trimmedName) },
+                onClick = { onSubmit(trimmedName) },
                 // Spaces alone don't count as a name. Books are optional – they can be added later too.
                 enabled = trimmedName.isNotEmpty() && !nameTaken,
                 shape = FieldShape,
@@ -182,16 +223,19 @@ fun CreateListScreen(
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text(stringResource(R.string.create_list))
+                Text(buttonText)
             }
+
+            belowButton()
         }
     }
 }
 
 // A book in the form: cover, title, author and one button on the right ("+" to add or "×" to remove).
+// The button adds/removes; the rest of the card opens the book.
 @Composable
-private fun ListFormBookCard(book: Book, iconRes: Int, iconDescription: String, onIconClick: () -> Unit) {
-    AppCard {
+private fun ListFormBookCard(book: Book, iconRes: Int, iconDescription: String, onClick: () -> Unit, onIconClick: () -> Unit) {
+    AppCard(onClick = onClick) {
         BookRow(
             title = book.title,
             subtitle = book.author,
@@ -208,6 +252,6 @@ private fun ListFormBookCard(book: Book, iconRes: Int, iconDescription: String, 
 @Composable
 private fun CreateListScreenPreview() {
     BookWormsTheme {
-        CreateListScreen(onCreateClick = {}, onBackClick = {})
+        CreateListScreen(onCreateClick = {}, onBookClick = {}, onBackClick = {})
     }
 }

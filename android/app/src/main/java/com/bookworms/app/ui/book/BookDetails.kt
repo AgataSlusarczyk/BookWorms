@@ -22,6 +22,8 @@ data class BookDetails(
 data class BookCopy(
     val ownerName: String,
     val status: CopyStatus,
+    // The user's groups the owner shares this copy with. Someone in two groups shows up in both.
+    val groups: List<String>,
 )
 
 sealed interface CopyStatus {
@@ -57,6 +59,15 @@ fun BookDetails.averageRating(): Double? =
 
 fun BookDetails.ratingCount(): Int = publicComments.count { it.rating != null }
 
+// Each of the user's groups with the copies in it, in the same order as the discussions.
+// A group where nobody has the book gets an empty list.
+fun BookDetails.copiesByGroup(): List<Pair<String, List<BookCopy>>> =
+    groupDiscussions.map { group -> group.groupName to copies.filter { group.groupName in it.groups } }
+
+// Names of the groups where at least one copy can be borrowed right now.
+fun BookDetails.groupsWithAvailableCopy(): List<String> =
+    copiesByGroup().filter { (_, copies) -> copies.any { it.status is CopyStatus.Available } }.map { it.first }
+
 // Looks for a comment or a reply with this id in all the group discussions.
 fun BookDetails.findGroupComment(id: String): BookComment? =
     groupDiscussions.flatMap { it.comments }.find { it.id == id }
@@ -76,8 +87,9 @@ val sampleBookDetails = BookDetails(
     description = "Stacja badawcza nad oceanem planety, który odpowiada na ludzkie pytania " +
         "w sposób niemożliwy do rozszyfrowania.",
     copies = listOf(
-        BookCopy("Anna K.", CopyStatus.Available(addedOn = "12.09")),
-        BookCopy("Marek W.", CopyStatus.Borrowed(returnBy = "20.11", queuePosition = 2)),
+        // Anna is only in Czytelnia 23, so in Rodzina the book is borrowed and can't be had right now.
+        BookCopy("Anna K.", CopyStatus.Available(addedOn = "12.09"), groups = listOf("Czytelnia 23")),
+        BookCopy("Marek W.", CopyStatus.Borrowed(returnBy = "20.11", queuePosition = 2), groups = listOf("Czytelnia 23", "Rodzina")),
     ),
     publicComments = listOf(
         BookComment("p1", "Marek W.", "Pierwsze 50 stron się wlecze, potem nie da się odłożyć.", daysAgo = 3, rating = 4),

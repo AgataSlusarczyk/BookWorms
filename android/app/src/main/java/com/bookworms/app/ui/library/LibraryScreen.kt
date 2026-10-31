@@ -33,7 +33,11 @@ private val recentBooks = listOf(
 )
 
 @Composable
-fun LibraryScreen(onNavigate: (String) -> Unit = {}, onBookClick: () -> Unit = {}) {
+fun LibraryScreen(
+    onNavigate: (String) -> Unit = {},
+    // Gets the book's title – the sample books here have no ISBN yet.
+    onBookClick: (title: String) -> Unit = {},
+) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     Scaffold(
@@ -73,7 +77,7 @@ fun LibraryScreen(onNavigate: (String) -> Unit = {}, onBookClick: () -> Unit = {
             item { SectionHeader(stringResource(R.string.recently_added), Modifier.padding(top = 4.dp)) }
 
             items(recentBooks, key = { it.first }) { (title, author, year) ->
-                AppCard(onClick = onBookClick) {
+                AppCard(onClick = { onBookClick(title) }) {
                     BookRow(title = title, subtitle = stringResource(R.string.book_author_year, author, year))
                 }
             }
