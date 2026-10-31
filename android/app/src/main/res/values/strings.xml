@@ -220,7 +220,9 @@
 
     <!-- Miscellaneous / Actions -->
     <string name="badge_notify_me">notify me</string>
-    <string name="stats_books_read_in_year">You read in %1$s</string>
+    <!-- Followed by a year the user can pick, e.g. "You read in 2026 ▾" -->
+    <string name="stats_books_read_in">You read in</string>
+    <string name="content_desc_pick_year">Pick a year</string>
     <string name="stats_most_borrowed">Most borrowed in group</string>
     <string name="role_admin">admin</string>
     <string name="role_member">member</string>

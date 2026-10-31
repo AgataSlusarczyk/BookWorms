@@ -182,11 +182,24 @@ internal fun ListBookCard(
     }
 }
 
+// How much the user read in one year: the total, and the books per month for the bars.
+private data class ReadingYear(val year: Int, val total: Int, val months: List<Pair<String, Int>>)
+
+// TODO: the user's reading history from the server. Newest year first.
+// The current year shows the last six months up to now; past years show July–December.
+private val sampleReadingYears = listOf(
+    ReadingYear(2026, total = 12, months = listOf("VI" to 3, "VII" to 4, "VIII" to 2, "IX" to 6, "X" to 4, "XI" to 9)),
+    ReadingYear(2025, total = 19, months = listOf("VII" to 5, "VIII" to 8, "IX" to 3, "X" to 6, "XI" to 10, "XII" to 7)),
+    ReadingYear(2024, total = 7, months = listOf("VII" to 1, "VIII" to 3, "IX" to 0, "X" to 2, "XI" to 4, "XII" to 2)),
+)
+
 @Composable
 private fun ReadingStatsCard() {
-    // Share of the tallest bar, from 0 to 1. The last month is highlighted.
-    val heights = listOf(0.3f, 0.45f, 0.22f, 0.65f, 0.4f, 1f)
-    val labels = listOf("VI", "VII", "VIII", "IX", "X", "XI")
+    // Which year is shown. Starts at the newest one.
+    var selectedYear by rememberSaveable { mutableIntStateOf(sampleReadingYears.first().year) }
+    val stats = sampleReadingYears.first { it.year == selectedYear }
+    // The month with the most books gets a full-height, dark bar; the others are measured against it.
+    val most = stats.months.maxOf { it.second }.coerceAtLeast(1)
 
     ListCard {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -195,11 +208,16 @@ private fun ReadingStatsCard() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    stringResource(R.string.stats_books_read_in_year, "2026"),
+                    stringResource(R.string.stats_books_read_in),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
                 )
-                Text("12", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                YearPicker(
+                    selected = selectedYear,
+                    years = sampleReadingYears.map { it.year },
+                    onSelect = { selectedYear = it },
+                )
+                Spacer(Modifier.weight(1f))
+                Text(stats.total.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -212,14 +230,14 @@ private fun ReadingStatsCard() {
                     .fillMaxWidth()
                     .height(80.dp),
             ) {
-                heights.forEachIndexed { index, height ->
-                    val isLast = index == heights.lastIndex
+                stats.months.forEach { (_, books) ->
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight(height)
+                            // A month with no books still gets a thin line, so the gap doesn't look like a bug.
+                            .fillMaxHeight((books.toFloat() / most).coerceAtLeast(0.04f))
                             .background(
-                                if (isLast) MaterialTheme.colorScheme.primary
+                                if (books == most) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                 RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp),
                             )
@@ -232,7 +250,7 @@ private fun ReadingStatsCard() {
 
             // Same weights as the bars, so every label sits right under its bar.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                labels.forEach { label ->
+                stats.months.forEach { (label, _) ->
                     Text(
                         label,
                         style = MaterialTheme.typography.labelSmall,
@@ -241,6 +259,43 @@ private fun ReadingStatsCard() {
                         textAlign = TextAlign.Center,
                     )
                 }
+            }
+        }
+    }
+}
+
+// The year in blue with a small arrow. Tapping it opens a list of years to pick from.
+@Composable
+private fun YearPicker(selected: Int, years: List<Int>, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Box, so the menu opens right under the year.
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(start = 6.dp, end = 2.dp),
+        ) {
+            Text(selected.toString(), style = MaterialTheme.typography.titleMedium)
+            Icon(
+                painterResource(R.drawable.ic_expand_more),
+                contentDescription = stringResource(R.string.content_desc_pick_year),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            years.forEach { year ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            year.toString(),
+                            fontWeight = if (year == selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onSelect(year)
+                        expanded = false
+                    },
+                )
             }
         }
     }
