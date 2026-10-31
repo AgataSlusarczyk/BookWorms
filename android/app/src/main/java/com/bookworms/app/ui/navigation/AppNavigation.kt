@@ -184,7 +184,11 @@ fun AppNavigation() {
         }
 
         composable(Routes.LIBRARY) {
-            LibraryScreen(onNavigate = navigateBottomBar)
+            LibraryScreen(
+                onNavigate = navigateBottomBar,
+                // Temporary – these books have no ISBN yet, so it opens a sample book.
+                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
+            )
         }
 
         composable(Routes.LOANS) {
@@ -283,6 +287,8 @@ fun AppNavigation() {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
                 onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+                // Temporary – these books have no ISBN yet, so it opens a sample book.
+                onBookClick = { navController.navigate(Routes.bookDetails(sampleBooks.first().isbn)) },
             )
         }
 
@@ -363,7 +369,6 @@ fun AppNavigation() {
             )
         }
 
-        // Nothing opens this screen yet – it gets linked when groups are added.
         composable(Routes.INVITE_TO_GROUP) {
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
