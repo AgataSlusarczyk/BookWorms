@@ -41,7 +41,8 @@ private val sampleOwnBooks = listOf(
 fun MyBooksScreen(
     onBackClick: () -> Unit,
     onAddBookClick: () -> Unit,
-    onBookClick: () -> Unit,
+    // Gets the book's title – the sample books here have no ISBN yet.
+    onBookClick: (title: String) -> Unit,
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -67,7 +68,7 @@ fun MyBooksScreen(
         ) {
             item { SectionHeader(pluralStringResource(R.plurals.books_count, sampleOwnBooks.size, sampleOwnBooks.size)) }
             items(sampleOwnBooks, key = { it.title }) { book ->
-                OwnBookCard(book, onClick = onBookClick)
+                OwnBookCard(book, onClick = { onBookClick(book.title) })
             }
         }
     }

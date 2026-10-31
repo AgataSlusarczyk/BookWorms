@@ -68,15 +68,19 @@
     <string name="reading_status_in_progress">In progress</string>
     <string name="reading_status_finished">Finished</string>
     <!-- %d = how many copies people in the group have -->
-    <string name="copies_in_group">Copies in the group · %d</string>
+    <string name="who_has_it">Who has it</string>
+    <!-- %1$s = names of the groups, e.g. "Czytelnia 23, Rodzina" -->
+    <string name="available_now_in">Available now in %1$s</string>
+    <string name="not_available_now">Borrowed in all your groups right now</string>
+    <string name="no_copies_in_group">Nobody in this group has it yet.</string>
     <!-- %s = date -->
     <string name="copy_added_on">added %s</string>
     <string name="copy_return_by">due back %s</string>
     <string name="copy_available">Available</string>
     <string name="copy_borrowed">Borrowed</string>
-    <string name="request_loan">Request to borrow</string>
+    <string name="borrow_action">Borrow</string>
     <!-- %d = the user's place in the queue after joining it -->
-    <string name="join_queue">Join the queue — you\'ll be #%d</string>
+    <string name="join_queue_short">Queue · #%d</string>
     <string name="add_comment">Add</string>
 
     <!-- Add comment -->
@@ -348,4 +352,23 @@
     <string name="list_books_added">Added · %1$d</string>
     <string name="add_book_to_list">Add %1$s</string>
     <string name="remove_book_from_list">Remove %1$s</string>
+
+    <!-- Edit list / Add books to a list -->
+    <string name="edit_list_title">Edit list</string>
+    <string name="add_books">Add books</string>
+    <!-- %1$d = how many books are on the list -->
+    <string name="list_books_on_list">On this list · %1$d</string>
+    <string name="delete_list">Delete list</string>
+    <!-- %1$s = the name of the list -->
+    <string name="delete_list_title">Delete “%1$s”?</string>
+    <string name="delete_list_text">Only the list is removed. The books stay in the app.</string>
+    <string name="delete_action">Delete</string>
+    <string name="cancel">Cancel</string>
+    <!-- %1$s = the name of the list -->
+    <string name="add_books_to_list_title">Add to %1$s</string>
+    <string name="book_on_list">On list</string>
+    <plurals name="add_x_books">
+        <item quantity="one">Add %d book</item>
+        <item quantity="other">Add %d books</item>
+    </plurals>
 </resources>

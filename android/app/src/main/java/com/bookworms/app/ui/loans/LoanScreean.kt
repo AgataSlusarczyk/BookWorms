@@ -21,7 +21,11 @@ import com.bookworms.app.ui.theme.StatusAmberBg
 import com.bookworms.app.ui.theme.StatusBlueBg
 
 @Composable
-fun LoansScreen(onNavigate: (String) -> Unit = {}) {
+fun LoansScreen(
+    onNavigate: (String) -> Unit = {},
+    // Gets the book's title – the sample books here have no ISBN yet.
+    onBookClick: (title: String) -> Unit = {},
+) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(
         stringResource(R.string.tab_borrowing),
@@ -58,6 +62,7 @@ fun LoansScreen(onNavigate: (String) -> Unit = {}) {
                     subtitle = stringResource(R.string.loan_subtitle, "Marek W.", "12.11"),
                     statusText = stringResource(R.string.status_return_by, "20.11"),
                     extraText = pluralStringResource(R.plurals.in_x_days, 6, 6),
+                    onClick = { onBookClick("Problem trzech ciał") },
                 )
             }
             item {
@@ -66,6 +71,7 @@ fun LoansScreen(onNavigate: (String) -> Unit = {}) {
                     subtitle = stringResource(R.string.loan_subtitle, "Ola N.", "03.10"),
                     statusText = stringResource(R.string.status_overdue),
                     extraText = pluralStringResource(R.plurals.x_days_overdue, 4, 4),
+                    onClick = { onBookClick("Pachnidło") },
                     isOverdue = true,
                 )
             }
@@ -77,6 +83,7 @@ fun LoansScreen(onNavigate: (String) -> Unit = {}) {
                     title = "Solaris",
                     subtitle = stringResource(R.string.asks_to_borrow, "Krzysiek P."),
                     time = stringResource(R.string.x_hours_ago, "2"),
+                    onClick = { onBookClick("Solaris") },
                 )
             }
         }
@@ -85,9 +92,16 @@ fun LoansScreen(onNavigate: (String) -> Unit = {}) {
 
 // A book you borrowed: blue chip with the return date, or a red chip and border when it's late.
 @Composable
-private fun LoanCard(title: String, subtitle: String, statusText: String, extraText: String, isOverdue: Boolean = false) {
+private fun LoanCard(
+    title: String,
+    subtitle: String,
+    statusText: String,
+    extraText: String,
+    onClick: () -> Unit,
+    isOverdue: Boolean = false,
+) {
     val error = MaterialTheme.colorScheme.error
-    AppCard(borderColor = if (isOverdue) error else CardBorder) {
+    AppCard(borderColor = if (isOverdue) error else CardBorder, onClick = onClick) {
         BookRow(title = title, subtitle = subtitle) {
             if (isOverdue) {
                 StatusTag(statusText, dotColor = error, backgroundColor = MaterialTheme.colorScheme.errorContainer, textColor = error)
@@ -100,9 +114,10 @@ private fun LoanCard(title: String, subtitle: String, statusText: String, extraT
 }
 
 // Someone wants to borrow your book: amber "Pending" chip and Reject / Accept buttons.
+// Tapping the buttons doesn't open the book – only the rest of the card does.
 @Composable
-private fun RequestCard(title: String, subtitle: String, time: String) {
-    AppCard {
+private fun RequestCard(title: String, subtitle: String, time: String, onClick: () -> Unit) {
+    AppCard(onClick = onClick) {
         BookRow(title = title, subtitle = subtitle) {
             StatusTag(stringResource(R.string.status_pending), dotColor = StatusAmber, backgroundColor = StatusAmberBg, textColor = StatusAmber)
             Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
