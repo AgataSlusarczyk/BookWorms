@@ -91,6 +91,7 @@ fun BookDetailsScreen(
     ) {
         TopActions(
             isFavorite = isFavorite,
+            showUserActions = !isGuest,
             onBackClick = onBackClick,
             onFavoriteClick = onFavoriteClick,
             onMoreClick = onMoreClick,
@@ -110,19 +111,25 @@ fun BookDetailsScreen(
 
         SectionDivider()
 
-        SectionLabel(stringResource(R.string.reading_status_label))
-        ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
+        // A guest has no account to save a reading status to, and isn't in any group,
+        // so instead of these two sections they get a reason to log in.
+        if (isGuest) {
+            GuestLoginCard(onLoginClick = onLoginClick)
+        } else {
+            SectionLabel(stringResource(R.string.reading_status_label))
+            ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
 
-        SectionDivider()
+            SectionDivider()
 
-        SectionLabel(stringResource(R.string.copies_in_group, book.copies.size))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            book.copies.forEach { copy ->
-                CopyCard(
-                    copy = copy,
-                    onRequestLoanClick = { onRequestLoanClick(copy) },
-                    onJoinQueueClick = { onJoinQueueClick(copy) },
-                )
+            SectionLabel(stringResource(R.string.copies_in_group, book.copies.size))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                book.copies.forEach { copy ->
+                    CopyCard(
+                        copy = copy,
+                        onRequestLoanClick = { onRequestLoanClick(copy) },
+                        onJoinQueueClick = { onJoinQueueClick(copy) },
+                    )
+                }
             }
         }
 
@@ -225,9 +232,11 @@ private fun CommentsSection(
 private val ReplyIndent = 40.dp
 
 // Back arrow on the left, heart and "more" on the right.
+// showUserActions is false for guests – without an account there's nowhere to save a favorite.
 @Composable
 private fun TopActions(
     isFavorite: Boolean,
+    showUserActions: Boolean,
     onBackClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onMoreClick: () -> Unit,
@@ -241,6 +250,7 @@ private fun TopActions(
             )
         }
         Spacer(Modifier.weight(1f))
+        if (!showUserActions) return@Row
         IconButton(onClick = onFavoriteClick) {
             Icon(
                 painter = painterResource(if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
@@ -255,6 +265,29 @@ private fun TopActions(
                 painter = painterResource(R.drawable.ic_more_vert),
                 contentDescription = stringResource(R.string.more_options),
             )
+        }
+    }
+}
+
+// Light blue box for guests, in place of the copies: who has the book is only for people in the groups.
+@Composable
+private fun GuestLoginCard(onLoginClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), FieldShape)
+            .padding(16.dp),
+    ) {
+        Text(stringResource(R.string.guest_book_title), style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.guest_book_text),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onLoginClick, shape = FieldShape, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.login_button))
         }
     }
 }

@@ -113,6 +113,8 @@
     <string name="no_group_discussion">Nobody in %1$s has talked about this book yet. Start the discussion!</string>
     <string name="spoiler_hidden">Contains spoilers · Tap to show</string>
     <string name="log_in_to_comment">Log in to comment</string>
+    <string name="guest_book_title">Want to borrow this book?</string>
+    <string name="guest_book_text">Log in to see who in your groups has it, borrow it and keep track of what you read.</string>
     <string name="post_comment">Post comment</string>
     <string name="contains_spoilers">Contains spoilers</string>
     <string name="contains_spoilers_hint">Others will have to tap to read it.</string>
