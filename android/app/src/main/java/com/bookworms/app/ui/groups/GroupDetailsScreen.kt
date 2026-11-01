@@ -1,7 +1,8 @@
-    package com.bookworms.app.ui.groups
+package com.bookworms.app.ui.groups
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,8 +14,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -23,6 +29,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -83,16 +91,35 @@ private enum class GroupTab(val label: Int) {
 
 @Composable
 fun GroupDetailsScreen(
+    // The name from the Groups list. The name shown comes from the group's details, so a rename shows up here.
     groupName: String,
-    // Only the admin sees join requests.
+    // Only the admin sees join requests and can edit the group and its members.
     isAdmin: Boolean,
     onBookClick: (isbn: String) -> Unit,
     onChatClick: () -> Unit,
     onInviteClick: () -> Unit,
+    onEditClick: () -> Unit,
     onLeaveClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val group = groupInfo(groupName)
+
+    // What the admin did on this screen, kept as usernames so it survives turning the phone.
+    // TODO: send each change to the server instead.
+    var acceptedRequests by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var rejectedRequests by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var newAdmins by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var removedMembers by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // Who the "Remove from group?" dialog asks about, or null when it's closed.
+    var memberToRemove by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val joinRequests = sampleJoinRequests.filter { it.username !in acceptedRequests && it.username !in rejectedRequests }
+    // An accepted request makes the person a member.
+    val members = (sampleMembers + sampleJoinRequests.filter { it.username in acceptedRequests }
+        .map { GroupMember(it.name, it.username, isAdmin = false) })
+        .filter { it.username !in removedMembers }
+        .map { if (it.username in newAdmins) it.copy(isAdmin = true) else it }
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -100,9 +127,14 @@ fun GroupDetailsScreen(
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
-                title = groupName,
+                title = group.name,
                 onBackClick = onBackClick,
                 actions = {
+                    if (isAdmin) {
+                        IconButton(onClick = onEditClick) {
+                            Icon(painterResource(R.drawable.ic_edit), contentDescription = stringResource(R.string.edit_group_title))
+                        }
+                    }
                     TextButton(onClick = onInviteClick) { Text(stringResource(R.string.invite_action)) }
                 },
             )
@@ -115,17 +147,23 @@ fun GroupDetailsScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            item { GroupHeader(groupName = groupName, memberCount = sampleMembers.size) }
+            item { GroupHeader(group = group, memberCount = members.size) }
             item { ChatCard(onClick = onChatClick) }
 
-            if (isAdmin && sampleJoinRequests.isNotEmpty()) {
+            if (isAdmin && joinRequests.isNotEmpty()) {
                 item {
                     SectionHeader(
-                        stringResource(R.string.join_requests_count, sampleJoinRequests.size),
+                        stringResource(R.string.join_requests_count, joinRequests.size),
                         Modifier.padding(top = 4.dp),
                     )
                 }
-                items(sampleJoinRequests, key = { it.username }) { request -> JoinRequestCard(request) }
+                items(joinRequests, key = { it.username }) { request ->
+                    JoinRequestCard(
+                        request,
+                        onAccept = { acceptedRequests = acceptedRequests + request.username },
+                        onReject = { rejectedRequests = rejectedRequests + request.username },
+                    )
+                }
             }
 
             item {
@@ -140,8 +178,14 @@ fun GroupDetailsScreen(
                 GroupTab.Books -> items(sampleGroupBooks, key = { it.isbn }) { book ->
                     GroupBookCard(book, onClick = { onBookClick(book.isbn) })
                 }
-                GroupTab.Members -> items(sampleMembers, key = { it.username }) { member ->
-                    MemberCard(member)
+                GroupTab.Members -> items(members, key = { it.username }) { member ->
+                    MemberCard(
+                        member,
+                        // The admin can manage members, but not other admins.
+                        canManage = isAdmin && !member.isAdmin,
+                        onMakeAdmin = { newAdmins = newAdmins + member.username },
+                        onRemove = { memberToRemove = member.username },
+                    )
                 }
             }
 
@@ -157,30 +201,56 @@ fun GroupDetailsScreen(
             }
         }
     }
+
+    // Asks first, so nobody gets removed by a slip of the finger.
+    members.find { it.username == memberToRemove }?.let { member ->
+        AlertDialog(
+            onDismissRequest = { memberToRemove = null },
+            title = { Text(stringResource(R.string.remove_member_title, member.name, group.name)) },
+            text = { Text(stringResource(R.string.remove_member_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        removedMembers = removedMembers + member.username
+                        memberToRemove = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.remove_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToRemove = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 // Group picture, name, "4 members · Private" and the description.
 @Composable
-private fun GroupHeader(groupName: String, memberCount: Int) {
+private fun GroupHeader(group: GroupInfo, memberCount: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarPlaceholder(size = 56.dp)
             Spacer(Modifier.width(16.dp))
             Column {
-                Text(groupName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
                     text = stringResource(
                         R.string.group_members_visibility,
                         pluralStringResource(R.plurals.members, memberCount, memberCount),
-                        stringResource(R.string.visibility_private),
+                        stringResource(group.visibility.title),
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        // TODO: the description the admin wrote when creating the group.
-        Text("Sci-fi fans from work. We meet every first Thursday.", style = MaterialTheme.typography.bodyMedium)
+        if (group.description.isNotBlank()) {
+            Text(group.description, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 
@@ -207,7 +277,7 @@ private fun ChatCard(onClick: () -> Unit) {
 
 // Someone used the invite code and waits for the admin – the same buttons as for borrow requests.
 @Composable
-private fun JoinRequestCard(request: JoinRequest) {
+private fun JoinRequestCard(request: JoinRequest, onAccept: () -> Unit, onReject: () -> Unit) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
             AvatarPlaceholder()
@@ -227,11 +297,10 @@ private fun JoinRequestCard(request: JoinRequest) {
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
         ) {
-            // TODO: send the answer to the server.
-            OutlinedButton(onClick = {}, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+            OutlinedButton(onClick = onReject, shape = ButtonShape, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.action_reject))
             }
-            Button(onClick = {}, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+            Button(onClick = onAccept, shape = ButtonShape, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.action_accept))
             }
         }
@@ -258,8 +327,9 @@ private fun GroupBookCard(book: GroupBook, onClick: () -> Unit) {
 }
 
 // Picture, name, @username and the role on the right. The admin's role is blue, so it stands out.
+// With canManage there's also a ⋮ menu: Make admin and Remove from group.
 @Composable
-private fun MemberCard(member: GroupMember) {
+private fun MemberCard(member: GroupMember, canManage: Boolean, onMakeAdmin: () -> Unit, onRemove: () -> Unit) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
             AvatarPlaceholder()
@@ -276,6 +346,34 @@ private fun MemberCard(member: GroupMember) {
                     .background(if (member.isAdmin) StatusBlueBg else PlaceholderGray, CircleShape)
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
+            if (canManage) MemberMenu(member.name, onMakeAdmin, onRemove)
+        }
+    }
+}
+
+// ⋮ button with the admin's options for one member. Box, so the menu opens right under the button.
+@Composable
+private fun MemberMenu(memberName: String, onMakeAdmin: () -> Unit, onRemove: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.member_options, memberName))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.make_admin)) },
+                onClick = {
+                    expanded = false
+                    onMakeAdmin()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.remove_from_group), color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    expanded = false
+                    onRemove()
+                },
+            )
         }
     }
 }
@@ -290,6 +388,7 @@ private fun GroupDetailsScreenPreview() {
             onBookClick = {},
             onChatClick = {},
             onInviteClick = {},
+            onEditClick = {},
             onLeaveClick = {},
             onBackClick = {},
         )

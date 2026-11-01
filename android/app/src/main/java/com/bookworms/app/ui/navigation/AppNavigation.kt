@@ -26,9 +26,12 @@ import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
+import com.bookworms.app.ui.groups.GroupInfo
 import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.groups.JoinGroupScreen
+import com.bookworms.app.ui.groups.groupInfo
+import com.bookworms.app.ui.groups.sampleGroups
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.sampleInvite
@@ -90,6 +93,7 @@ private object Routes {
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
+    const val EDIT_GROUP = "edit_group/{groupName}"
     const val MY_COPY = "my_copy/{title}"
     const val EDIT_OWN_BOOK = "edit_own_book/{title}"
 
@@ -110,6 +114,7 @@ private object Routes {
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
+    fun editGroup(groupName: String) = "edit_group/${Uri.encode(groupName)}"
     fun myCopy(title: String) = "my_copy/${Uri.encode(title)}"
     fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
 }
@@ -347,9 +352,39 @@ fun AppNavigation() {
                 // TODO: open the group chat when that screen exists.
                 onChatClick = {},
                 onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
+                onEditClick = { navController.navigate(Routes.editGroup(groupName)) },
                 // TODO: leave the group on the server first. For now it just goes back to Groups.
                 onLeaveClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.EDIT_GROUP) { backStackEntry ->
+            val groupKey = backStackEntry.arguments?.getString("groupName").orEmpty()
+            val group = groupInfo(groupKey)
+            // Starts with the group's current details. Temporary state – moves to a ViewModel later.
+            var name by rememberSaveable { mutableStateOf(group.name) }
+            var description by rememberSaveable { mutableStateOf(group.description) }
+            var visibility by rememberSaveable { mutableStateOf(group.visibility) }
+
+            CreateGroupScreen(
+                name = name,
+                description = description,
+                onNameChange = { name = it },
+                onDescriptionChange = { description = it },
+                visibility = visibility,
+                onVisibilityChange = { visibility = it },
+                invitedUsernames = emptyList(),
+                onAddInvite = {},
+                onRemoveInvite = {},
+                // TODO: save the changes on the server first.
+                onCreateGroupClick = {
+                    sampleGroups[groupKey] = GroupInfo(name.trim(), description.trim(), visibility)
+                    navController.popBackStack()
+                },
+                onBackClick = { navController.popBackStack() },
+                // TODO: delete the group on the server first. For now it just goes back to Groups.
+                onDeleteClick = { navController.popBackStack(Routes.GROUPS, inclusive = false) },
             )
         }
 
