@@ -220,7 +220,21 @@
 
     <!-- Miscellaneous / Actions -->
     <string name="badge_notify_me">notify me</string>
-    <string name="stats_books_read_in_year">You read in %1$s</string>
+    <!-- Order of the books on Favorites / Want to read / Read -->
+    <string name="sort_recently_added">Recently added</string>
+    <string name="sort_title">Title A–Z</string>
+    <string name="sort_author">Author A–Z</string>
+    <string name="content_desc_sort">Change order</string>
+    <string name="shelf_empty">No books here yet.</string>
+    <!-- %1$d = how many books are on the shelf -->
+    <string name="see_all">See all · %1$d</string>
+    <plurals name="added_days_ago">
+        <item quantity="one">added %d day ago</item>
+        <item quantity="other">added %d days ago</item>
+    </plurals>
+    <!-- Followed by a year the user can pick, e.g. "You read in 2026 ▾" -->
+    <string name="stats_books_read_in">You read in</string>
+    <string name="content_desc_pick_year">Pick a year</string>
     <string name="stats_most_borrowed">Most borrowed in group</string>
     <string name="role_admin">admin</string>
     <string name="role_member">member</string>
