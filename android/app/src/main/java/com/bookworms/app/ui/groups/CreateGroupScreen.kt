@@ -26,7 +26,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -35,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,13 +91,24 @@ fun CreateGroupScreen(
     onCreateGroupClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Passed only on Edit group. The form then has "Save" instead of "Create group",
+    // no invite field (the group has its own Invite screen) and a "Delete group" button.
+    onDeleteClick: (() -> Unit)? = null,
 ) {
+    val isEditing = onDeleteClick != null
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = modifier.mistedBackground(),
         containerColor = Color.Transparent,
         // The same top bar as the other screens opened from a tab (My books, Add book…).
-        topBar = { AppTopBar(title = stringResource(R.string.create_group_title), onBackClick = onBackClick) },
+        topBar = {
+            AppTopBar(
+                title = stringResource(if (isEditing) R.string.edit_group_title else R.string.create_group_title),
+                onBackClick = onBackClick,
+            )
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -162,13 +176,15 @@ fun CreateGroupScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            if (!isEditing) {
+                Spacer(Modifier.height(16.dp))
 
-            InviteFriendsField(
-                invitedUsernames = invitedUsernames,
-                onAddInvite = onAddInvite,
-                onRemoveInvite = onRemoveInvite,
-            )
+                InviteFriendsField(
+                    invitedUsernames = invitedUsernames,
+                    onAddInvite = onAddInvite,
+                    onRemoveInvite = onRemoveInvite,
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
@@ -181,7 +197,7 @@ fun CreateGroupScreen(
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text(stringResource(R.string.create_group_button))
+                Text(stringResource(if (isEditing) R.string.save_action else R.string.create_group_button))
             }
 
             Spacer(Modifier.height(8.dp))
@@ -193,7 +209,43 @@ fun CreateGroupScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            if (isEditing) {
+                Spacer(Modifier.height(16.dp))
+                TextButton(
+                    onClick = { showDeleteDialog = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.delete_group))
+                }
+            }
         }
+    }
+
+    // Asks first, because a deleted group can't be brought back.
+    if (showDeleteDialog && onDeleteClick != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.delete_group_title, name)) },
+            text = { Text(stringResource(R.string.delete_group_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteClick()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.delete_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
