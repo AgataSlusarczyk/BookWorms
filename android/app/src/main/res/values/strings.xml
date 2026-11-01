@@ -179,6 +179,8 @@
     <!-- Sections and Headers -->
     <string name="section_we_have">We have %1$s</string>
     <string name="section_pending_confirmation">Pending confirmation %1$s</string>
+    <string name="section_waiting_for_answer">Waiting for an answer %1$s</string>
+    <string name="section_lent_out">Lent out %1$s</string>
     <string name="profile_my_groups_count">My groups • %1$d</string>
 
     <!-- Statuses -->
@@ -195,6 +197,13 @@
 
     <!-- Interface phrases (Mock data formats) -->
     <string name="loan_subtitle">from %1$s • since %2$s</string>
+    <string name="loan_subtitle_lent">to %1$s • since %2$s</string>
+    <string name="you_asked">You asked %1$s</string>
+    <string name="due_today">due today</string>
+    <string name="mark_returned">Mark as returned</string>
+    <string name="loans_empty_borrowing">You haven\'t borrowed any books.</string>
+    <string name="loans_empty_lent">None of your books are lent out.</string>
+    <string name="loans_empty_requests">No requests right now.</string>
     <plurals name="in_x_days">
         <item quantity="one">in %1$d day</item>
         <item quantity="other">in %1$d days</item>
