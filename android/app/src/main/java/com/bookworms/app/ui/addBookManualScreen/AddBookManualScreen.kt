@@ -25,20 +25,31 @@ import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.CardBorder
 
+// Also the Edit book form: pass the book, and the fields start filled in.
 @Composable
-fun AddBookManualScreen(onScanIsbnClick: () -> Unit, onBackClick: () -> Unit) {
+internal fun AddBookManualScreen(
+    onScanIsbnClick: () -> Unit,
+    onBackClick: () -> Unit,
+    onSaveClick: () -> Unit = {},
+    book: OwnBook? = null,
+) {
     // rememberSaveable, so typed text survives rotating the phone.
-    var title by rememberSaveable { mutableStateOf("") }
-    var author by rememberSaveable { mutableStateOf("") }
-    var isbn by rememberSaveable { mutableStateOf("") }
-    var publisher by rememberSaveable { mutableStateOf("") }
-    var year by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable { mutableStateOf(book?.title.orEmpty()) }
+    var author by rememberSaveable { mutableStateOf(book?.author.orEmpty()) }
+    var isbn by rememberSaveable { mutableStateOf(book?.isbn.orEmpty()) }
+    var publisher by rememberSaveable { mutableStateOf(book?.publisher.orEmpty()) }
+    var year by rememberSaveable { mutableStateOf(book?.year?.toString().orEmpty()) }
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
-        topBar = { AppTopBar(title = stringResource(R.string.add_book_title), onBackClick = onBackClick) },
+        topBar = {
+            AppTopBar(
+                title = stringResource(if (book == null) R.string.add_book_title else R.string.edit_book_title),
+                onBackClick = onBackClick,
+            )
+        },
     ) { padding ->
         Column(
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -51,18 +62,21 @@ fun AddBookManualScreen(onScanIsbnClick: () -> Unit, onBackClick: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-            ScanIsbnCard(onClick = onScanIsbnClick)
+            // Only when adding – a book being edited already has its details.
+            if (book == null) {
+                ScanIsbnCard(onClick = onScanIsbnClick)
 
-            // "or fill in the details yourself", with a thin line on both sides.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
-                Text(
-                    text = stringResource(R.string.or_fill_in_yourself),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                )
-                HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
+                // "or fill in the details yourself", with a thin line on both sides.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
+                    Text(
+                        text = stringResource(R.string.or_fill_in_yourself),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                    HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
+                }
             }
 
             BookField(label = stringResource(R.string.title_label), value = title, onValueChange = { title = it })
@@ -100,7 +114,8 @@ fun AddBookManualScreen(onScanIsbnClick: () -> Unit, onBackClick: () -> Unit) {
             Spacer(Modifier.height(8.dp))
 
             Button(
-                onClick = { /* TODO: save the book (ViewModel + server) */ },
+                // TODO: save the book on the server first (ViewModel + server).
+                onClick = onSaveClick,
                 // Title and author are the minimum to tell books apart.
                 enabled = title.isNotBlank() && author.isNotBlank(),
                 shape = FieldShape,

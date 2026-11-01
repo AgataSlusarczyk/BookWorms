@@ -37,6 +37,8 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
+import com.bookworms.app.ui.library.MyCopyScreen
+import com.bookworms.app.ui.library.ownBook
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.EditListScreen
@@ -88,6 +90,8 @@ private object Routes {
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
+    const val MY_COPY = "my_copy/{title}"
+    const val EDIT_OWN_BOOK = "edit_own_book/{title}"
 
     fun bookDetails(isbn: String, guest: Boolean = false) = if (guest) "book_details/$isbn?guest=true" else "book_details/$isbn"
 
@@ -106,6 +110,8 @@ private object Routes {
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
+    fun myCopy(title: String) = "my_copy/${Uri.encode(title)}"
+    fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
 }
 
 @Composable
@@ -371,7 +377,30 @@ fun AppNavigation() {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
                 onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
-                onBookClick = openBookByTitle,
+                onBookClick = { title -> navController.navigate(Routes.myCopy(title)) },
+            )
+        }
+
+        composable(Routes.MY_COPY) { backStackEntry ->
+            val title = backStackEntry.arguments?.getString("title").orEmpty()
+            MyCopyScreen(
+                title = title,
+                onEditClick = { navController.navigate(Routes.editOwnBook(title)) },
+                onOpenBookPageClick = { openBookByTitle(title) },
+                // TODO: show My books without the book once books come from the server.
+                onRemoveClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.EDIT_OWN_BOOK) { backStackEntry ->
+            val title = backStackEntry.arguments?.getString("title").orEmpty()
+            AddBookManualScreen(
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                onBackClick = { navController.popBackStack() },
+                // TODO: save the changes on the server first. For now it just goes back to My copy.
+                onSaveClick = { navController.popBackStack() },
+                book = ownBook(title),
             )
         }
 
