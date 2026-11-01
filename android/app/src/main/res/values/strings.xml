@@ -275,6 +275,24 @@
     </plurals>
     <string name="status_lent_to">Lent to %1$s</string>
 
+    <!-- My copy -->
+    <string name="my_copy_title">My copy</string>
+    <string name="isbn_value">ISBN %1$s</string>
+    <string name="on_your_shelf">On your shelf</string>
+    <string name="lent_dates">since %1$s · return by %2$s</string>
+    <string name="visible_in">Visible in</string>
+    <string name="visible_in_hint">Friends in these groups can see and borrow it.</string>
+    <string name="visible_to_nobody">Only you can see this book.</string>
+    <string name="available_to_borrow">Available to borrow</string>
+    <string name="available_to_borrow_hint">Turn off while you\'re reading it yourself.</string>
+    <string name="open_book_page">Open book page</string>
+    <string name="remove_from_my_books">Remove from my books</string>
+    <string name="remove_lent_hint">Get it back before removing it.</string>
+    <string name="remove_book_title">Remove “%1$s”?</string>
+    <string name="remove_book_text">It will disappear from your groups. This can\'t be undone.</string>
+    <string name="remove_action">Remove</string>
+    <string name="edit_book_title">Edit book</string>
+
     <!-- Add book -->
     <string name="add_book_title">Add book</string>
     <string name="title_label">Title</string>

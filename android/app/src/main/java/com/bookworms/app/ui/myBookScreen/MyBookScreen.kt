@@ -26,22 +26,11 @@ import com.bookworms.app.ui.theme.StatusBlueBg
 import com.bookworms.app.ui.theme.StatusGreen
 import com.bookworms.app.ui.theme.StatusGreenBg
 
-// One of your own books. lentTo is the name of the friend who has it now, or null if it's on your shelf.
-private data class OwnBook(val title: String, val author: String, val year: Int, val lentTo: String? = null)
-
-// Sample books until your books come from the server.
-private val sampleOwnBooks = listOf(
-    OwnBook("Wiedźmin", "Andrzej Sapkowski", 1994),
-    OwnBook("Problem trzech ciał", "Liu Cixin", 2008, lentTo = "Marek W."),
-    OwnBook("Solaris", "Stanisław Lem", 1961),
-    OwnBook("Lalka", "Bolesław Prus", 1890, lentTo = "Ola N."),
-)
-
 @Composable
 fun MyBooksScreen(
     onBackClick: () -> Unit,
     onAddBookClick: () -> Unit,
-    // Gets the book's title – the sample books here have no ISBN yet.
+    // Gets the book's title, to open My copy.
     onBookClick: (title: String) -> Unit,
 ) {
     Scaffold(
