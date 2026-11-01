@@ -42,6 +42,8 @@ import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.EditListScreen
 import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
+import com.bookworms.app.ui.lists.Shelf
+import com.bookworms.app.ui.lists.ShelfScreen
 import com.bookworms.app.ui.lists.sampleListBooks
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.notifications.NotificationsScreen
@@ -81,6 +83,8 @@ private object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val CREATE_LIST = "create_list"
     const val LIST_DETAILS = "list_details/{listName}"
+    // {shelf} = Favorites, WantToRead or Read.
+    const val SHELF = "shelf/{shelf}"
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
@@ -98,6 +102,7 @@ private object Routes {
 
     // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
+    fun shelf(shelf: Shelf) = "shelf/${shelf.name}"
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
@@ -239,6 +244,17 @@ fun AppNavigation() {
                 onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
                 onCreateListClick = { navController.navigate(Routes.CREATE_LIST) },
                 onBookClick = openBookByTitle,
+                onSeeAllClick = { shelf -> navController.navigate(Routes.shelf(shelf)) },
+            )
+        }
+
+        composable(Routes.SHELF) { backStackEntry ->
+            // The route has the shelf's name, e.g. "WantToRead"; valueOf turns it back into Shelf.WantToRead.
+            val shelf = Shelf.valueOf(backStackEntry.arguments?.getString("shelf") ?: Shelf.Favorites.name)
+            ShelfScreen(
+                shelf = shelf,
+                onBookClick = openBookByTitle,
+                onBackClick = { navController.popBackStack() },
             )
         }
 

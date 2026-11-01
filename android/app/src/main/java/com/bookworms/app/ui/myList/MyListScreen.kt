@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,9 +51,15 @@ fun MyListsScreen(
     onCreateListClick: () -> Unit = {},
     // Gets the book's title – the sample books here have no ISBN yet.
     onBookClick: (title: String) -> Unit = {},
+    // Opens the whole shelf on its own screen.
+    onSeeAllClick: (Shelf) -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf(R.string.tab_favorites, R.string.tab_want_to_read, R.string.tab_read)
+    val shelf = Shelf.entries[selectedTabIndex]
+    val allBooks = shelf.books()
+    // Only the newest few here, so "Your lists" and the stats stay close. The rest is behind "See all".
+    val previewBooks = ShelfSort.RecentlyAdded.apply(allBooks).take(ShelfPreviewCount)
+    val favorites = favoriteTitles()
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -70,22 +77,38 @@ fun MyListsScreen(
         ) {
             item {
                 SegmentedTabs(
-                    tabs = tabs.map { stringResource(it) },
+                    tabs = Shelf.entries.map { stringResource(it.label) },
                     selectedIndex = selectedTabIndex,
                     onSelect = { selectedTabIndex = it },
                 )
             }
-            item { ListBookCard("Solaris", "Stanisław Lem", ListStatus.Available, onClick = { onBookClick("Solaris") }) }
-            item {
-                ListBookCard(
-                    title = "Pachnidło",
-                    author = "Patrick Süskind",
-                    status = ListStatus.Borrowed,
-                    onClick = { onBookClick("Pachnidło") },
-                    extraBadge = stringResource(R.string.badge_notify_me),
-                )
+            if (allBooks.isEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.shelf_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            item { ListBookCard("Czarna Ziemia", "Timothy Snyder", ListStatus.Reserved, onClick = { onBookClick("Czarna Ziemia") }) }
+            items(previewBooks, key = { it.title }) { book ->
+                ShelfBookCard(book, isFavorite = book.title in favorites, onClick = { onBookClick(book.title) })
+            }
+            // Only when there's more than the preview shows.
+            if (allBooks.size > previewBooks.size) {
+                item {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { onSeeAllClick(shelf) }) {
+                            Text(stringResource(R.string.see_all, allBooks.size))
+                            Icon(
+                                painterResource(R.drawable.ic_chevron_right),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                }
+            }
 
             item { SectionHeader(stringResource(R.string.custom_lists), Modifier.padding(top = 4.dp)) }
             item { CustomListsRow(onListClick = onListClick, onCreateListClick = onCreateListClick) }
@@ -97,6 +120,8 @@ fun MyListsScreen(
         }
     }
 }
+
+private const val ShelfPreviewCount = 3
 
 // The cards on this screen use the shared white card with a thin border.
 @Composable
@@ -148,15 +173,20 @@ internal fun ListBookCard(
     author: String,
     status: ListStatus,
     onClick: () -> Unit,
+    // A full heart for books on Favorites, an empty one for the rest.
+    isFavorite: Boolean = false,
     extraBadge: String? = null,
+    // When the book was put on the list; shown after the author, e.g. "Stanisław Lem · added 5 days ago".
+    addedDaysAgo: Int? = null,
 ) {
     AppCard(onClick = onClick) {
         BookRow(
             title = title,
-            subtitle = author,
+            subtitle = if (addedDaysAgo == null) author else
+                "$author · ${pluralStringResource(R.plurals.added_days_ago, addedDaysAgo, addedDaysAgo)}",
             trailing = {
                 Icon(
-                    painter = painterResource(R.drawable.ic_favorite_border),
+                    painter = painterResource(if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
                     contentDescription = stringResource(R.string.content_desc_favorite),
                     tint = MaterialTheme.colorScheme.error,
                 )
