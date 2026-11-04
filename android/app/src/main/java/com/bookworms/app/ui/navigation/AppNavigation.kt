@@ -349,8 +349,6 @@ fun AppNavigation() {
                 // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
                 isAdmin = groupName == "Czytelnia 23",
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
-                // TODO: open the group chat when that screen exists.
-                onChatClick = {},
                 onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
                 onEditClick = { navController.navigate(Routes.editGroup(groupName)) },
                 // TODO: leave the group on the server first. For now it just goes back to Groups.
