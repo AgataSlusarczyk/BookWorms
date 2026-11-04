@@ -96,7 +96,6 @@ fun GroupDetailsScreen(
     // Only the admin sees join requests and can edit the group and its members.
     isAdmin: Boolean,
     onBookClick: (isbn: String) -> Unit,
-    onChatClick: () -> Unit,
     onInviteClick: () -> Unit,
     onEditClick: () -> Unit,
     onLeaveClick: () -> Unit,
@@ -148,7 +147,6 @@ fun GroupDetailsScreen(
                 .fillMaxSize(),
         ) {
             item { GroupHeader(group = group, memberCount = members.size) }
-            item { ChatCard(onClick = onChatClick) }
 
             if (isAdmin && joinRequests.isNotEmpty()) {
                 item {
@@ -250,27 +248,6 @@ private fun GroupHeader(group: GroupInfo, memberCount: Int) {
         }
         if (group.description.isNotBlank()) {
             Text(group.description, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-// Opens the group chat. Shows the last message, so you can see if there's something new.
-@Composable
-private fun ChatCard(onClick: () -> Unit) {
-    AppCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Icon(painterResource(R.drawable.ic_mail), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.group_chat), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    "Ola: Who has the new Pratchett?",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-            }
-            Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -386,7 +363,6 @@ private fun GroupDetailsScreenPreview() {
             groupName = "Czytelnia 23",
             isAdmin = true,
             onBookClick = {},
-            onChatClick = {},
             onInviteClick = {},
             onEditClick = {},
             onLeaveClick = {},

@@ -355,7 +355,6 @@
     <string name="invite_action">Invite</string>
     <!-- %1$s = number of members (members), %2$s = Private or Public -->
     <string name="group_members_visibility">%1$s · %2$s</string>
-    <string name="group_chat">Group chat</string>
     <!-- %1$d = how many people wait for the admin's answer -->
     <string name="join_requests_count">Join requests · %1$d</string>
     <string name="tab_group_books">Books</string>
@@ -374,7 +373,7 @@
     <string name="edit_group_title">Edit group</string>
     <string name="delete_group">Delete group</string>
     <string name="delete_group_title">Delete “%1$s”?</string>
-    <string name="delete_group_text">Everyone will lose access to the group and its chat. This can\'t be undone.</string>
+    <string name="delete_group_text">Everyone will lose access to the group. This can\'t be undone.</string>
 
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
