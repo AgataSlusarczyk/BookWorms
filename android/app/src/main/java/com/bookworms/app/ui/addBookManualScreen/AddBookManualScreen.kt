@@ -19,6 +19,7 @@ import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
+import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
@@ -26,19 +27,22 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.CardBorder
 
 // Also the Edit book form: pass the book, and the fields start filled in.
+// prefill = a book from the app ("I own this book" on Book details): still adding, but the fields start filled in.
 @Composable
 internal fun AddBookManualScreen(
     onScanIsbnClick: () -> Unit,
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit = {},
     book: OwnBook? = null,
+    prefill: Book? = null,
 ) {
     // rememberSaveable, so typed text survives rotating the phone.
-    var title by rememberSaveable { mutableStateOf(book?.title.orEmpty()) }
-    var author by rememberSaveable { mutableStateOf(book?.author.orEmpty()) }
-    var isbn by rememberSaveable { mutableStateOf(book?.isbn.orEmpty()) }
+    var title by rememberSaveable { mutableStateOf(book?.title ?: prefill?.title.orEmpty()) }
+    var author by rememberSaveable { mutableStateOf(book?.author ?: prefill?.author.orEmpty()) }
+    // The field keeps digits only, so the dashes from the app's ISBN go away.
+    var isbn by rememberSaveable { mutableStateOf(book?.isbn ?: prefill?.isbn?.filter { it.isDigit() || it == 'X' }.orEmpty()) }
     var publisher by rememberSaveable { mutableStateOf(book?.publisher.orEmpty()) }
-    var year by rememberSaveable { mutableStateOf(book?.year?.toString().orEmpty()) }
+    var year by rememberSaveable { mutableStateOf((book?.year ?: prefill?.year)?.toString().orEmpty()) }
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -62,8 +66,8 @@ internal fun AddBookManualScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-            // Only when adding – a book being edited already has its details.
-            if (book == null) {
+            // Only when adding a new book – an edited or prefilled book already has its details.
+            if (book == null && prefill == null) {
                 ScanIsbnCard(onClick = onScanIsbnClick)
 
                 // "or fill in the details yourself", with a thin line on both sides.

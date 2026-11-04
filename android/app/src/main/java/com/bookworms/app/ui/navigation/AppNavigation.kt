@@ -21,6 +21,7 @@ import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.sampleBookDetailsFor
+import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
@@ -49,8 +50,14 @@ import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.lists.Shelf
 import com.bookworms.app.ui.lists.ShelfScreen
+import com.bookworms.app.ui.lists.sampleCustomLists
 import com.bookworms.app.ui.lists.sampleListBooks
 import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.loans.QueueSpot
+import com.bookworms.app.ui.loans.cancelRequest
+import com.bookworms.app.ui.loans.hasSentRequest
+import com.bookworms.app.ui.loans.queueSpots
+import com.bookworms.app.ui.loans.sendRequest
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
@@ -81,7 +88,8 @@ private object Routes {
     // Screens opened from a tab, without the bottom bar.
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
-    const val ADD_BOOK_MANUAL = "add_book_manual"
+    // isbn = a book from the app to fill the form in with (none = an empty form).
+    const val ADD_BOOK_MANUAL = "add_book_manual?isbn={isbn}"
     const val CREATE_GROUP = "create_group"
     const val JOIN_GROUP = "join_group"
     const val CHANGE_PASSWORD = "change_password"
@@ -96,6 +104,8 @@ private object Routes {
     const val EDIT_GROUP = "edit_group/{groupName}"
     const val MY_COPY = "my_copy/{title}"
     const val EDIT_OWN_BOOK = "edit_own_book/{title}"
+
+    fun addBookManual(isbn: String? = null) = if (isbn == null) "add_book_manual" else "add_book_manual?isbn=$isbn"
 
     fun bookDetails(isbn: String, guest: Boolean = false) = if (guest) "book_details/$isbn?guest=true" else "book_details/$isbn"
 
@@ -409,7 +419,7 @@ fun AppNavigation() {
         composable(Routes.MY_BOOKS) {
             MyBooksScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddBookClick = { navController.navigate(Routes.ADD_BOOK_MANUAL) },
+                onAddBookClick = { navController.navigate(Routes.addBookManual()) },
                 onBookClick = { title -> navController.navigate(Routes.myCopy(title)) },
             )
         }
@@ -437,10 +447,16 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.ADD_BOOK_MANUAL) {
+        composable(
+            Routes.ADD_BOOK_MANUAL,
+            arguments = listOf(navArgument("isbn") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
+                // TODO: look the book up on the server. For now only the sample books can fill the form in.
+                prefill = sampleBooks.find { it.isbn == isbn },
             )
         }
 
@@ -492,15 +508,27 @@ fun AppNavigation() {
             var isFavorite by rememberSaveable { mutableStateOf(false) }
             var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
 
+            val details = sampleBookDetailsFor(book)
+            val context = LocalContext.current
+
             BookDetailsScreen(
-                book = sampleBookDetailsFor(book),
+                book = details,
                 isFavorite = isFavorite,
                 readingStatus = readingStatus,
                 onFavoriteClick = { isFavorite = !isFavorite },
-                onMoreClick = {},
                 onReadingStatusChange = { readingStatus = it },
-                onRequestLoanClick = {},
-                onJoinQueueClick = {},
+                // TODO: send requests and queue changes to the server.
+                // For now they go to the shared sample lists, so a request shows up in Loans too.
+                requestedFrom = details.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
+                queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
+                onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
+                onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
+                onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
+                onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
+                customLists = sampleCustomLists,
+                onShareClick = { shareBook(context, details) },
+                // Opens Add book with this book's details already filled in.
+                onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
                 onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
                 onReplyClick = { groupName, comment ->
                     navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))

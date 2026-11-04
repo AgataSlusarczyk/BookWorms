@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.book
 
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,9 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,11 +46,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -57,6 +64,7 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
+import com.bookworms.app.ui.loans.LoanDays
 import com.bookworms.app.ui.theme.AvailableGreen
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.FavoriteRed
@@ -68,10 +76,18 @@ fun BookDetailsScreen(
     isFavorite: Boolean,
     readingStatus: ReadingStatus,
     onFavoriteClick: () -> Unit,
-    onMoreClick: () -> Unit,
     onReadingStatusChange: (ReadingStatus) -> Unit,
-    onRequestLoanClick: (BookCopy) -> Unit,
-    onJoinQueueClick: (BookCopy) -> Unit,
+    // Owners the user already asked for this book, and owners whose copy the user waits for.
+    requestedFrom: List<String>,
+    queuedFor: List<String>,
+    onSendRequest: (BookCopy) -> Unit,
+    onCancelRequest: (BookCopy) -> Unit,
+    onJoinQueue: (BookCopy) -> Unit,
+    onLeaveQueue: (BookCopy) -> Unit,
+    // The user's own lists, for "Add to list" in the ⋮ menu.
+    customLists: List<String>,
+    onShareClick: () -> Unit,
+    onOwnBookClick: () -> Unit,
     // groupName is null for a public comment.
     onAddCommentClick: (groupName: String?) -> Unit,
     onReplyClick: (groupName: String, comment: BookComment) -> Unit,
@@ -81,6 +97,48 @@ fun BookDetailsScreen(
     isGuest: Boolean = false,
     onLoginClick: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+
+    // Which copy button was tapped, so the right question shows up. Kept as the owner's name,
+    // so it survives turning the phone.
+    var copyAction by rememberSaveable { mutableStateOf<CopyAction?>(null) }
+    var copyOwner by rememberSaveable { mutableStateOf("") }
+    var showListsDialog by rememberSaveable { mutableStateOf(false) }
+    // TODO: the lists this book is on, from the server.
+    var checkedLists by rememberSaveable(book.isbn) { mutableStateOf(listOf<String>()) }
+
+    val dialogCopy = book.copies.find { it.ownerName == copyOwner }
+    val action = copyAction
+    if (action != null && dialogCopy != null) {
+        CopyActionDialog(
+            action = action,
+            copy = dialogCopy,
+            bookTitle = book.title,
+            onConfirm = {
+                when (action) {
+                    CopyAction.ASK -> {
+                        onSendRequest(dialogCopy)
+                        Toast.makeText(context, context.getString(R.string.request_sent_to, dialogCopy.ownerName), Toast.LENGTH_SHORT).show()
+                    }
+                    CopyAction.CANCEL_REQUEST -> onCancelRequest(dialogCopy)
+                    CopyAction.JOIN_QUEUE -> onJoinQueue(dialogCopy)
+                    CopyAction.LEAVE_QUEUE -> onLeaveQueue(dialogCopy)
+                }
+                copyAction = null
+            },
+            onDismiss = { copyAction = null },
+        )
+    }
+
+    if (showListsDialog) {
+        AddToListDialog(
+            lists = customLists,
+            checked = checkedLists,
+            onToggle = { name -> checkedLists = if (name in checkedLists) checkedLists - name else checkedLists + name },
+            onDismiss = { showListsDialog = false },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -95,7 +153,9 @@ fun BookDetailsScreen(
             showUserActions = !isGuest,
             onBackClick = onBackClick,
             onFavoriteClick = onFavoriteClick,
-            onMoreClick = onMoreClick,
+            onAddToListClick = { showListsDialog = true },
+            onShareClick = onShareClick,
+            onOwnBookClick = onOwnBookClick,
         )
 
         Spacer(Modifier.height(16.dp))
@@ -124,8 +184,18 @@ fun BookDetailsScreen(
 
             CopiesSection(
                 book = book,
-                onRequestLoanClick = onRequestLoanClick,
-                onJoinQueueClick = onJoinQueueClick,
+                requestedFrom = requestedFrom,
+                queuedFor = queuedFor,
+                onCopyButtonClick = { copy ->
+                    // The same button asks or cancels, depending on what the user already did.
+                    copyOwner = copy.ownerName
+                    copyAction = when {
+                        copy.status is CopyStatus.Available ->
+                            if (copy.ownerName in requestedFrom) CopyAction.CANCEL_REQUEST else CopyAction.ASK
+                        copy.ownerName in queuedFor -> CopyAction.LEAVE_QUEUE
+                        else -> CopyAction.JOIN_QUEUE
+                    }
+                },
             )
         }
 
@@ -227,7 +297,7 @@ private fun CommentsSection(
 
 private val ReplyIndent = 40.dp
 
-// Back arrow on the left, heart and "more" on the right.
+// Back arrow on the left, heart and the ⋮ menu on the right.
 // showUserActions is false for guests – without an account there's nowhere to save a favorite.
 @Composable
 private fun TopActions(
@@ -235,8 +305,12 @@ private fun TopActions(
     showUserActions: Boolean,
     onBackClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    onMoreClick: () -> Unit,
+    onAddToListClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onOwnBookClick: () -> Unit,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
+
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         // Moved by 12dp to the sides, so the icons line up with the content (same as BackTitle).
         IconButton(onClick = onBackClick, modifier = Modifier.offset(x = (-12).dp)) {
@@ -256,11 +330,28 @@ private fun TopActions(
                 tint = FavoriteRed,
             )
         }
-        IconButton(onClick = onMoreClick, modifier = Modifier.offset(x = 12.dp)) {
-            Icon(
-                painter = painterResource(R.drawable.ic_more_vert),
-                contentDescription = stringResource(R.string.more_options),
-            )
+        // The menu opens under the button, so both sit in one Box.
+        Box(modifier = Modifier.offset(x = 12.dp)) {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_more_vert),
+                    contentDescription = stringResource(R.string.more_options),
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.add_to_list)) },
+                    onClick = { menuOpen = false; onAddToListClick() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.share_book)) },
+                    onClick = { menuOpen = false; onShareClick() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.i_own_this_book)) },
+                    onClick = { menuOpen = false; onOwnBookClick() },
+                )
+            }
         }
     }
 }
@@ -389,8 +480,9 @@ private fun ReadingStatus.labelRes(): Int = when (this) {
 @Composable
 private fun CopiesSection(
     book: BookDetails,
-    onRequestLoanClick: (BookCopy) -> Unit,
-    onJoinQueueClick: (BookCopy) -> Unit,
+    requestedFrom: List<String>,
+    queuedFor: List<String>,
+    onCopyButtonClick: (BookCopy) -> Unit,
 ) {
     Text(stringResource(R.string.who_has_it), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
@@ -438,8 +530,9 @@ private fun CopiesSection(
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     CopyRow(
                         copy = copy,
-                        onRequestLoanClick = { onRequestLoanClick(copy) },
-                        onJoinQueueClick = { onJoinQueueClick(copy) },
+                        isRequested = copy.ownerName in requestedFrom,
+                        isQueued = copy.ownerName in queuedFor,
+                        onButtonClick = { onCopyButtonClick(copy) },
                     )
                 }
             }
@@ -448,11 +541,13 @@ private fun CopiesSection(
 }
 
 // One copy: who owns it, a colored line with its status, and a small button on the right.
+// After the user asks or joins the queue, the button shows that, and tapping it again undoes it.
 @Composable
 private fun CopyRow(
     copy: BookCopy,
-    onRequestLoanClick: () -> Unit,
-    onJoinQueueClick: () -> Unit,
+    isRequested: Boolean,
+    isQueued: Boolean,
+    onButtonClick: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
         AvatarPlaceholder(size = 36.dp)
@@ -474,24 +569,126 @@ private fun CopyRow(
         }
         Spacer(Modifier.width(8.dp))
         when (val status = copy.status) {
-            is CopyStatus.Available -> Button(
-                onClick = onRequestLoanClick,
-                shape = FieldShape,
-                contentPadding = SmallButtonPadding,
-            ) {
-                Text(stringResource(R.string.borrow_action))
+            is CopyStatus.Available -> if (isRequested) {
+                // Gray – nothing to do but wait for the owner.
+                OutlinedButton(
+                    onClick = onButtonClick,
+                    shape = FieldShape,
+                    contentPadding = SmallButtonPadding,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                ) {
+                    Text(stringResource(R.string.requested))
+                }
+            } else {
+                Button(
+                    onClick = onButtonClick,
+                    shape = FieldShape,
+                    contentPadding = SmallButtonPadding,
+                ) {
+                    Text(stringResource(R.string.borrow_action))
+                }
             }
 
             is CopyStatus.Borrowed -> OutlinedButton(
-                onClick = onJoinQueueClick,
+                onClick = onButtonClick,
                 shape = FieldShape,
                 contentPadding = SmallButtonPadding,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                // Blue once the user is in the queue.
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = if (isQueued) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                ),
             ) {
-                Text(stringResource(R.string.join_queue_short, status.queuePosition))
+                Text(stringResource(if (isQueued) R.string.in_queue else R.string.join_queue_short, status.queuePosition))
             }
         }
     }
+}
+
+// What tapping a copy's button asks about.
+private enum class CopyAction { ASK, CANCEL_REQUEST, JOIN_QUEUE, LEAVE_QUEUE }
+
+@Composable
+private fun CopyActionDialog(
+    action: CopyAction,
+    copy: BookCopy,
+    bookTitle: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val owner = copy.ownerName
+    val borrowed = copy.status as? CopyStatus.Borrowed
+    val title = when (action) {
+        CopyAction.ASK -> stringResource(R.string.ask_for_book_title, owner, bookTitle)
+        CopyAction.CANCEL_REQUEST -> stringResource(R.string.cancel_request_title)
+        CopyAction.JOIN_QUEUE -> stringResource(R.string.join_queue_title)
+        CopyAction.LEAVE_QUEUE -> stringResource(R.string.leave_queue_title)
+    }
+    val text = when (action) {
+        CopyAction.ASK -> stringResource(R.string.ask_for_book_text, owner, LoanDays)
+        CopyAction.CANCEL_REQUEST -> stringResource(R.string.cancel_request_text, owner)
+        CopyAction.JOIN_QUEUE -> stringResource(
+            R.string.join_queue_text,
+            owner,
+            borrowed?.returnBy.orEmpty(),
+            borrowed?.queuePosition ?: 1,
+        )
+        CopyAction.LEAVE_QUEUE -> stringResource(R.string.leave_queue_text)
+    }
+    val confirm = when (action) {
+        CopyAction.ASK -> R.string.send_action
+        CopyAction.CANCEL_REQUEST -> R.string.cancel_request_action
+        CopyAction.JOIN_QUEUE -> R.string.join_action
+        CopyAction.LEAVE_QUEUE -> R.string.leave_action
+    }
+    // "Cancel" would be confusing next to "Cancel request", so the undo questions say "Keep" instead.
+    val dismiss = when (action) {
+        CopyAction.ASK, CopyAction.JOIN_QUEUE -> R.string.cancel
+        CopyAction.CANCEL_REQUEST, CopyAction.LEAVE_QUEUE -> R.string.keep_action
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(dismiss)) } },
+    )
+}
+
+// "Add to list" from the ⋮ menu: the user's lists with a check box each. Changes count right away.
+@Composable
+private fun AddToListDialog(
+    lists: List<String>,
+    checked: List<String>,
+    onToggle: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_to_list)) },
+        text = {
+            if (lists.isEmpty()) {
+                Text(stringResource(R.string.no_lists_yet))
+            } else {
+                Column {
+                    lists.forEach { name ->
+                        // The whole row is tappable, not only the small box.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggle(name) },
+                        ) {
+                            Checkbox(checked = name in checked, onCheckedChange = { onToggle(name) })
+                            Spacer(Modifier.width(8.dp))
+                            Text(name, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done_action)) } },
+    )
 }
 
 // Narrower than the default button padding, so the button fits next to the name.
@@ -575,10 +772,16 @@ private fun BookDetailsScreenPreview() {
             isFavorite = false,
             readingStatus = ReadingStatus.IN_PROGRESS,
             onFavoriteClick = {},
-            onMoreClick = {},
             onReadingStatusChange = {},
-            onRequestLoanClick = {},
-            onJoinQueueClick = {},
+            requestedFrom = emptyList(),
+            queuedFor = listOf("Marek W."),
+            onSendRequest = {},
+            onCancelRequest = {},
+            onJoinQueue = {},
+            onLeaveQueue = {},
+            customLists = listOf("Sci-fi", "Holiday reads"),
+            onShareClick = {},
+            onOwnBookClick = {},
             onAddCommentClick = {},
             onReplyClick = { _, _ -> },
             onBackClick = {},

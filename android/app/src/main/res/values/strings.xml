@@ -81,7 +81,39 @@
     <string name="borrow_action">Borrow</string>
     <!-- %d = the user's place in the queue after joining it -->
     <string name="join_queue_short">Queue · #%d</string>
+    <string name="in_queue">In queue · #%d</string>
+    <string name="requested">Requested</string>
     <string name="add_comment">Add</string>
+
+    <!-- Book details: Borrow and Queue questions -->
+    <!-- %1$s = owner, %2$s = book title -->
+    <string name="ask_for_book_title">Ask %1$s for %2$s?</string>
+    <!-- %1$s = owner, %2$d = how many days the loan lasts -->
+    <string name="ask_for_book_text">%1$s will get your request. If they say yes, you\'ll have it for %2$d days.</string>
+    <string name="send_action">Send</string>
+    <!-- %s = owner -->
+    <string name="request_sent_to">Request sent to %s</string>
+    <string name="cancel_request_title">Cancel your request?</string>
+    <!-- %s = owner -->
+    <string name="cancel_request_text">%s won\'t see it anymore.</string>
+    <string name="cancel_request_action">Cancel request</string>
+    <string name="keep_action">Keep</string>
+    <string name="join_queue_title">Join the queue?</string>
+    <!-- %1$s = owner, %2$s = return date, %3$d = the user's place in the queue -->
+    <string name="join_queue_text">%1$s\'s copy is due back %2$s. You\'ll be #%3$d in line.</string>
+    <string name="join_action">Join</string>
+    <string name="leave_queue_title">Leave the queue?</string>
+    <string name="leave_queue_text">You\'ll lose your place in line.</string>
+    <string name="leave_action">Leave</string>
+
+    <!-- Book details: the ⋮ menu -->
+    <string name="add_to_list">Add to list</string>
+    <string name="share_book">Share</string>
+    <string name="i_own_this_book">I own this book</string>
+    <string name="no_lists_yet">You have no lists yet.</string>
+    <string name="done_action">Done</string>
+    <!-- Text sent with Share. %1$s = title, %2$s = author -->
+    <string name="share_book_text">%1$s – %2$s</string>
 
     <!-- Add comment -->
     <string name="add_comment_title">Add comment</string>
@@ -213,6 +245,7 @@
         <item quantity="other">%1$d days overdue</item>
     </plurals>
     <string name="x_hours_ago">%1$s h ago</string>
+    <string name="just_now">Just now</string>
     <string name="asks_to_borrow">%1$s asks to borrow</string>
     <string name="asks_to_borrow_book">%1$s asks to borrow %2$s</string>
     <string name="book_days_overdue">%1$s – %2$s days overdue</string>
