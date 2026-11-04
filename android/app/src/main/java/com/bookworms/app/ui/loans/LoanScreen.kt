@@ -29,12 +29,6 @@ import java.time.temporal.ChronoUnit
 // A book that changed hands. person = who it's from (Borrowing) or who has it (Lent).
 private data class Loan(val id: Int, val title: String, val person: String, val since: LocalDate, val returnBy: LocalDate)
 
-// Someone asked to borrow a book. person = who asked (Requests) or whose book it is (Borrowing).
-private data class LoanRequest(val id: Int, val title: String, val person: String, val hoursAgo: Int)
-
-// How long a book is lent for when the user accepts a request.
-private const val LoanDays = 14L
-
 // TODO: the user's loans and requests from the server.
 // Dates are counted from today, so the sample stays the same whenever the app is opened.
 private val today: LocalDate get() = LocalDate.now()
@@ -42,10 +36,6 @@ private val today: LocalDate get() = LocalDate.now()
 private val sampleBorrowed = listOf(
     Loan(1, "Problem trzech ciał", "Marek W.", today.minusDays(8), today.plusDays(6)),
     Loan(2, "Pachnidło", "Ola N.", today.minusDays(30), today.minusDays(4)),
-)
-
-private val sampleSentRequests = listOf(
-    LoanRequest(11, "Bieguni", "Anna K.", hoursAgo = 5),
 )
 
 private val sampleLent = listOf(
@@ -82,7 +72,7 @@ fun LoansScreen(
     val requests = sampleRequests.filter { it.id !in acceptedIds && it.id !in rejectedIds }
     // An accepted request becomes a book the user lent out, from today.
     val lent = (sampleRequests.filter { it.id in acceptedIds }
-        .map { Loan(it.id, it.title, it.person, today, today.plusDays(LoanDays)) } + sampleLent)
+        .map { Loan(it.id, it.title, it.person, today, today.plusDays(LoanDays.toLong())) } + sampleLent)
         .filter { it.id !in returnedIds }
 
     Scaffold(
@@ -110,7 +100,7 @@ fun LoansScreen(
             when (selectedTabIndex) {
                 // Books the user has from others, and the ones they asked for.
                 0 -> {
-                    if (sampleBorrowed.isEmpty() && sampleSentRequests.isEmpty()) {
+                    if (sampleBorrowed.isEmpty() && sentRequests.isEmpty()) {
                         emptyText(R.string.loans_empty_borrowing)
                     }
                     if (sampleBorrowed.isNotEmpty()) {
@@ -119,9 +109,9 @@ fun LoansScreen(
                             LoanCard(loan, R.string.loan_subtitle, onClick = { onBookClick(loan.title) })
                         }
                     }
-                    if (sampleSentRequests.isNotEmpty()) {
-                        item { SectionHeader(stringResource(R.string.section_waiting_for_answer, sampleSentRequests.size.toString()), Modifier.padding(top = 4.dp)) }
-                        items(sampleSentRequests, key = { it.id }) { request ->
+                    if (sentRequests.isNotEmpty()) {
+                        item { SectionHeader(stringResource(R.string.section_waiting_for_answer, sentRequests.size.toString()), Modifier.padding(top = 4.dp)) }
+                        items(sentRequests, key = { it.id }) { request ->
                             RequestCard(
                                 request,
                                 subtitle = stringResource(R.string.you_asked, request.person),
@@ -242,7 +232,8 @@ private fun RequestCard(
         BookRow(title = request.title, subtitle = subtitle) {
             StatusTag(stringResource(R.string.status_pending), dotColor = StatusAmber, backgroundColor = StatusAmberBg, textColor = StatusAmber)
             Text(
-                stringResource(R.string.x_hours_ago, request.hoursAgo.toString()),
+                // A request sent from Book details a moment ago has 0 hours.
+                if (request.hoursAgo == 0) stringResource(R.string.just_now) else stringResource(R.string.x_hours_ago, request.hoursAgo.toString()),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
