@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +23,8 @@ import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.ButtonShape
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
+import com.bookworms.app.ui.loans.incomingRequests
+import com.bookworms.app.ui.loans.requestAnswers
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
 import com.bookworms.app.ui.theme.CardBorder
@@ -27,8 +32,18 @@ import com.bookworms.app.ui.theme.StatusAmber
 import com.bookworms.app.ui.theme.StatusAmberBg
 import com.bookworms.app.ui.theme.StatusBlueBg
 
+// TODO: read/unread from the server.
+// Kept outside the screen, so the notifications stay read after going back and opening them again.
+private var allRead by mutableStateOf(false)
+
 @Composable
 fun NotificationsScreen(onBackClick: () -> Unit = {}) {
+    // The borrow request in the sample is a real one from Loans, so answering it here also answers it there.
+    val request = incomingRequests.first { it.id == 31 }
+    val answer = requestAnswers[request.id]
+    // An answered request counts as read.
+    val requestUnread = !allRead && answer == null
+
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
@@ -38,7 +53,10 @@ fun NotificationsScreen(onBackClick: () -> Unit = {}) {
                 title = stringResource(R.string.notifications_title),
                 onBackClick = onBackClick,
                 actions = {
-                    TextButton(onClick = { }) { Text(stringResource(R.string.action_mark_read)) }
+                    // Grayed out when there's nothing new.
+                    TextButton(onClick = { allRead = true }, enabled = requestUnread) {
+                        Text(stringResource(R.string.action_mark_read))
+                    }
                 },
             )
         },
@@ -53,9 +71,12 @@ fun NotificationsScreen(onBackClick: () -> Unit = {}) {
             item { SectionHeader(stringResource(R.string.date_today)) }
             item {
                 NotificationActionCard(
-                    title = stringResource(R.string.asks_to_borrow_book, "Krzysiek P.", "Solaris"),
-                    time = stringResource(R.string.x_hours_ago, "2"),
-                    isUnread = true,
+                    title = stringResource(R.string.asks_to_borrow_book, request.person, request.title),
+                    time = stringResource(R.string.x_hours_ago, request.hoursAgo.toString()),
+                    isUnread = requestUnread,
+                    answer = answer,
+                    onAccept = { requestAnswers[request.id] = true },
+                    onReject = { requestAnswers[request.id] = false },
                 )
             }
             item {
@@ -89,8 +110,17 @@ private fun NotificationCard(isUnread: Boolean = false, content: @Composable Col
     AppCard(borderColor = if (isUnread) MaterialTheme.colorScheme.primary else CardBorder, content = content)
 }
 
+// A notification you answer, e.g. a borrow request. answer = null until you tap a button,
+// then the buttons turn into a short line saying what you chose.
 @Composable
-fun NotificationActionCard(title: String, time: String, isUnread: Boolean) {
+fun NotificationActionCard(
+    title: String,
+    time: String,
+    isUnread: Boolean,
+    answer: Boolean?,
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+) {
     NotificationCard(isUnread = isUnread) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.Top) {
@@ -110,13 +140,21 @@ fun NotificationActionCard(title: String, time: String, isUnread: Boolean) {
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { }, shape = ButtonShape, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.action_reject))
+            if (answer == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onReject, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.action_reject))
+                    }
+                    Button(onClick = onAccept, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.action_accept))
+                    }
                 }
-                Button(onClick = { }, shape = ButtonShape, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.action_accept))
-                }
+            } else {
+                Text(
+                    stringResource(if (answer) R.string.you_accepted_request else R.string.you_rejected_request),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

@@ -1,9 +1,11 @@
 package com.bookworms.app.ui.profile
 
+import android.net.Uri
 import android.util.Patterns
-import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,9 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -40,15 +40,24 @@ import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.UsernamePattern
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
-import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
 fun EditProfileScreen(
-    onSaveClick: () -> Unit,
+    // photo = the picked photo, or the old one when the user didn't pick a new one.
+    onSaveClick: (photo: Uri?) -> Unit,
     onBackClick: () -> Unit,
+    photoUri: Uri? = null,
 ) {
+    // The new photo is only a draft until Save, so Back leaves the old one.
+    var photo by rememberSaveable { mutableStateOf(photoUri) }
+    // The phone's own photo picker. It needs no permission, because the user picks the photo themselves.
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+        // null = the user closed the picker without choosing anything.
+        if (picked != null) photo = picked
+    }
     // TODO: start with the user's data from the server. rememberSaveable keeps it when the phone rotates.
     var name by rememberSaveable { mutableStateOf("Anna Kowalska") }
     var username by rememberSaveable { mutableStateOf("anna_k") }
@@ -75,9 +84,9 @@ fun EditProfileScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-            // Gray circle in place of the photo, the same as in Profile, only bigger.
-            Box(modifier = Modifier.size(96.dp).background(PlaceholderGray, CircleShape))
-            TextButton(onClick = { /* TODO: pick a new photo */ }) {
+            // The same circle as in Profile, only bigger.
+            ProfilePhoto(uri = photo, size = 96.dp)
+            TextButton(onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                 Text(stringResource(R.string.change_photo))
             }
 
@@ -113,7 +122,7 @@ fun EditProfileScreen(
             Spacer(Modifier.height(16.dp))
 
             Button(
-                onClick = onSaveClick,
+                onClick = { onSaveClick(photo) },
                 // Spaces alone don't count as a name.
                 enabled = name.isNotBlank() && usernameValid && emailValid,
                 shape = FieldShape,

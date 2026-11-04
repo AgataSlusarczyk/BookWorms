@@ -43,11 +43,6 @@ private val sampleLent = listOf(
     Loan(22, "Wiedźmin", "Tomek R.", today.minusDays(20), today.minusDays(2)),
 )
 
-private val sampleRequests = listOf(
-    LoanRequest(31, "Solaris", "Krzysiek P.", hoursAgo = 2),
-    LoanRequest(32, "Lalka", "Ola N.", hoursAgo = 26),
-)
-
 private val dayMonth = DateTimeFormatter.ofPattern("dd.MM")
 
 @Composable
@@ -63,15 +58,14 @@ fun LoansScreen(
         stringResource(R.string.tab_requests),
     )
 
-    // What the user did on this screen, kept as ids so it survives turning the phone.
+    // Returned books, kept as ids so they survive turning the phone.
     // TODO: send each answer to the server instead.
-    var acceptedIds by rememberSaveable { mutableStateOf(listOf<Int>()) }
-    var rejectedIds by rememberSaveable { mutableStateOf(listOf<Int>()) }
     var returnedIds by rememberSaveable { mutableStateOf(listOf<Int>()) }
 
-    val requests = sampleRequests.filter { it.id !in acceptedIds && it.id !in rejectedIds }
+    // Answers live in SampleLoans.kt, so a request answered in Notifications is gone from here too.
+    val requests = incomingRequests.filter { it.id !in requestAnswers }
     // An accepted request becomes a book the user lent out, from today.
-    val lent = (sampleRequests.filter { it.id in acceptedIds }
+    val lent = (incomingRequests.filter { requestAnswers[it.id] == true }
         .map { Loan(it.id, it.title, it.person, today, today.plusDays(LoanDays.toLong())) } + sampleLent)
         .filter { it.id !in returnedIds }
 
@@ -149,8 +143,8 @@ fun LoansScreen(
                                 request,
                                 subtitle = stringResource(R.string.asks_to_borrow, request.person),
                                 onClick = { onBookClick(request.title) },
-                                onAccept = { acceptedIds = acceptedIds + request.id },
-                                onReject = { rejectedIds = rejectedIds + request.id },
+                                onAccept = { requestAnswers[request.id] = true },
+                                onReject = { requestAnswers[request.id] = false },
                             )
                         }
                     }

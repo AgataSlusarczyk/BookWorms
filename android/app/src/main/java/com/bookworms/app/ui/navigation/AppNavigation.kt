@@ -1,6 +1,7 @@
 package com.bookworms.app.ui.navigation
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.bookworms.app.R
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
@@ -25,6 +27,7 @@ import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.filterBooks
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupInfo
@@ -35,6 +38,8 @@ import com.bookworms.app.ui.groups.groupInfo
 import com.bookworms.app.ui.groups.sampleGroups
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.copyInviteCode
+import com.bookworms.app.ui.group.newInviteCode
+import com.bookworms.app.ui.group.withCode
 import com.bookworms.app.ui.group.sampleInvite
 import com.bookworms.app.ui.group.sampleRecentMembers
 import com.bookworms.app.ui.group.shareInviteLink
@@ -43,6 +48,7 @@ import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
 import com.bookworms.app.ui.library.ownBook
+import com.bookworms.app.ui.library.sampleOwnBooks
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.EditListScreen
@@ -284,6 +290,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                photoUri = profilePhotoUri,
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
@@ -398,9 +405,13 @@ fun AppNavigation() {
 
         composable(Routes.EDIT_PROFILE) {
             EditProfileScreen(
-                // TODO: save the name on the server first. For now it just goes back to Profile.
-                onSaveClick = { navController.popBackStack() },
+                // TODO: save the name and photo on the server first. For now the photo is kept until the app closes.
+                onSaveClick = { photo ->
+                    profilePhotoUri = photo
+                    navController.popBackStack()
+                },
                 onBackClick = { navController.popBackStack() },
+                photoUri = profilePhotoUri,
             )
         }
 
@@ -430,19 +441,36 @@ fun AppNavigation() {
                 title = title,
                 onEditClick = { navController.navigate(Routes.editOwnBook(title)) },
                 onOpenBookPageClick = { openBookByTitle(title) },
-                // TODO: show My books without the book once books come from the server.
-                onRemoveClick = { navController.popBackStack() },
+                // TODO: remove the book on the server first.
+                onRemoveClick = {
+                    sampleOwnBooks.removeAll { it.title == title }
+                    navController.popBackStack()
+                },
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.EDIT_OWN_BOOK) { backStackEntry ->
             val title = backStackEntry.arguments?.getString("title").orEmpty()
+            val context = LocalContext.current
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
-                // TODO: save the changes on the server first. For now it just goes back to My copy.
-                onSaveClick = { navController.popBackStack() },
+                // TODO: save the changes on the server first.
+                onSaveClick = { edited ->
+                    // Books are told apart by their title for now, so two books can't have the same one.
+                    if (edited.title != title && sampleOwnBooks.any { it.title == edited.title }) {
+                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val index = sampleOwnBooks.indexOfFirst { it.title == title }
+                        if (index >= 0) sampleOwnBooks[index] = edited
+                        // My copy opens again under the (maybe new) title. popUpTo removes the old one
+                        // and this form from the pile, so Back goes to My books.
+                        navController.navigate(Routes.myCopy(edited.title)) {
+                            popUpTo(Routes.MY_COPY) { inclusive = true }
+                        }
+                    }
+                },
                 book = ownBook(title),
             )
         }
@@ -452,9 +480,22 @@ fun AppNavigation() {
             arguments = listOf(navArgument("isbn") { type = NavType.StringType; nullable = true; defaultValue = null }),
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
+            val context = LocalContext.current
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
+                // TODO: save the book on the server first.
+                onSaveClick = { newBook ->
+                    // Books are told apart by their title for now, so the same title can't be added twice.
+                    if (sampleOwnBooks.any { it.title == newBook.title }) {
+                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
+                    } else {
+                        sampleOwnBooks.add(newBook)
+                        Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
+                        // Back to where Add book was opened from: My books or the book's page.
+                        navController.popBackStack()
+                    }
+                },
                 // TODO: look the book up on the server. For now only the sample books can fill the form in.
                 prefill = sampleBooks.find { it.isbn == isbn },
             )
@@ -581,12 +622,17 @@ fun AppNavigation() {
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
 
+            // Temporary state – the code comes from the server later. Only the code is kept,
+            // rememberSaveable can't hold the whole GroupInvite.
+            var code by rememberSaveable { mutableStateOf(sampleInvite.code) }
+            val invite = sampleInvite.withCode(code)
+
             InviteToGroupScreen(
-                invite = sampleInvite,
+                invite = invite,
                 recentMembers = sampleRecentMembers,
-                onCopyCodeClick = { copyInviteCode(context, sampleInvite.code) },
-                onShareLinkClick = { shareInviteLink(context, sampleInvite) },
-                onGenerateNewCodeClick = {},
+                onCopyCodeClick = { copyInviteCode(context, invite.code) },
+                onShareLinkClick = { shareInviteLink(context, invite) },
+                onGenerateNewCodeClick = { code = newInviteCode() },
                 onCloseClick = { navController.popBackStack() },
             )
         }

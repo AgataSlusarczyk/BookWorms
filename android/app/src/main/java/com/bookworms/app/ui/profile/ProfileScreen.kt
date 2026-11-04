@@ -1,10 +1,9 @@
 package com.bookworms.app.ui.profile
 
-import androidx.compose.foundation.background
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,12 +24,12 @@ import com.bookworms.app.R
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.ButtonShape
 import com.bookworms.app.ui.components.SegmentedTabs
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.CardBorder
-import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
 fun ProfileScreen(
@@ -40,6 +39,7 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
+    photoUri: Uri? = null,
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -57,7 +57,7 @@ fun ProfileScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                    Box(modifier = Modifier.size(56.dp).background(PlaceholderGray, CircleShape))
+                    ProfilePhoto(uri = photoUri, size = 56.dp)
                     Spacer(Modifier.width(16.dp))
                     // weight(1f) pushes the pencil to the right edge.
                     Column(modifier = Modifier.weight(1f)) {

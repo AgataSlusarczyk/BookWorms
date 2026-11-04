@@ -67,7 +67,7 @@ fun MyBooksScreen(
 @Composable
 private fun OwnBookCard(book: OwnBook, onClick: () -> Unit) {
     AppCard(onClick = onClick) {
-        BookRow(title = book.title, subtitle = stringResource(R.string.book_author_year, book.author, book.year)) {
+        BookRow(title = book.title, subtitle = book.authorAndYear()) {
             if (book.lentTo == null) {
                 StatusTag(
                     text = stringResource(R.string.status_available),
