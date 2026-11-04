@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -25,6 +26,10 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -51,6 +56,24 @@ fun InviteToGroupScreen(
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // A new code turns the old one off, so people who got it can't join anymore – worth asking first.
+    var confirmNewCode by rememberSaveable { mutableStateOf(false) }
+    if (confirmNewCode) {
+        AlertDialog(
+            onDismissRequest = { confirmNewCode = false },
+            title = { Text(stringResource(R.string.new_code_title)) },
+            text = { Text(stringResource(R.string.new_code_text)) },
+            confirmButton = {
+                TextButton(onClick = { confirmNewCode = false; onGenerateNewCodeClick() }) {
+                    Text(stringResource(R.string.new_code_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmNewCode = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -117,7 +140,7 @@ fun InviteToGroupScreen(
         }
 
         TextButton(
-            onClick = onGenerateNewCodeClick,
+            onClick = { confirmNewCode = true },
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 8.dp),

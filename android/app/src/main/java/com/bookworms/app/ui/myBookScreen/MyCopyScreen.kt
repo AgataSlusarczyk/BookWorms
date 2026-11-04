@@ -149,7 +149,7 @@ private fun BookHeader(book: OwnBook) {
         Column {
             Text(book.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                stringResource(R.string.book_author_year, book.author, book.year),
+                book.authorAndYear(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

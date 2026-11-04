@@ -26,6 +26,18 @@ val sampleInvite = GroupInvite(
     usesLeft = 14,
 )
 
+// A fresh code like "BKX-3M9T".
+// TODO: the server makes the new code and turns the old one off.
+fun newInviteCode(): String {
+    // No 0/O and 1/I, so the code is easy to read out loud.
+    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "BKX-" + (1..4).map { chars.random() }.joinToString("")
+}
+
+// The same invite with another code, and a link that ends with it.
+fun GroupInvite.withCode(code: String): GroupInvite =
+    copy(code = code, link = link.substringBeforeLast('/') + "/" + code)
+
 val sampleRecentMembers = listOf(
     RecentMember("Marek Wrona", joined = "today, 9:12"),
     RecentMember("Ola Nowak", joined = "yesterday"),

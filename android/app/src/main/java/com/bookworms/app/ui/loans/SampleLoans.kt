@@ -1,6 +1,7 @@
 package com.bookworms.app.ui.loans
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 
 // Someone asked to borrow a book. person = who asked (Requests) or whose book it is (Borrowing).
 internal data class LoanRequest(val id: Int, val title: String, val person: String, val hoursAgo: Int)
@@ -18,6 +19,15 @@ internal val sentRequests = mutableStateListOf(
 )
 
 internal val queueSpots = mutableStateListOf<QueueSpot>()
+
+// Others asking to borrow the user's books. They can be answered in Loans and in Notifications.
+internal val incomingRequests = listOf(
+    LoanRequest(31, "Solaris", "Krzysiek P.", hoursAgo = 2),
+    LoanRequest(32, "Lalka", "Ola N.", hoursAgo = 26),
+)
+
+// The user's answers so far: request id → true = accepted, false = rejected.
+internal val requestAnswers = mutableStateMapOf<Int, Boolean>()
 
 internal fun hasSentRequest(title: String, owner: String) = sentRequests.any { it.title == title && it.person == owner }
 

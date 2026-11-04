@@ -32,7 +32,8 @@ import com.bookworms.app.ui.theme.CardBorder
 internal fun AddBookManualScreen(
     onScanIsbnClick: () -> Unit,
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit = {},
+    // Gets the book as it is on the form. When editing, the groups and loan stay as they were.
+    onSaveClick: (OwnBook) -> Unit = {},
     book: OwnBook? = null,
     prefill: Book? = null,
 ) {
@@ -119,7 +120,27 @@ internal fun AddBookManualScreen(
 
             Button(
                 // TODO: save the book on the server first (ViewModel + server).
-                onClick = onSaveClick,
+                onClick = {
+                    val details = OwnBook(
+                        title = title.trim(),
+                        author = author.trim(),
+                        // 0 = no year given. My books then shows only the author.
+                        year = year.toIntOrNull() ?: 0,
+                        isbn = isbn,
+                        publisher = publisher.trim(),
+                        // A new book starts visible in all the user's groups. My copy can change that.
+                        groups = myGroups,
+                    )
+                    onSaveClick(
+                        book?.copy(
+                            title = details.title,
+                            author = details.author,
+                            year = details.year,
+                            isbn = details.isbn,
+                            publisher = details.publisher,
+                        ) ?: details,
+                    )
+                },
                 // Title and author are the minimum to tell books apart.
                 enabled = title.isNotBlank() && author.isNotBlank(),
                 shape = FieldShape,

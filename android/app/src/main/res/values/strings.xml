@@ -187,6 +187,9 @@
     <string name="recently_joined">Recently joined</string>
     <string name="member_role">member</string>
     <string name="generate_new_code">Generate new code</string>
+    <string name="new_code_title">Generate a new code?</string>
+    <string name="new_code_text">The old code and link will stop working. People who already joined stay in the group.</string>
+    <string name="new_code_action">Generate</string>
 
     <!-- Navigation -->
     <string name="nav_library">Library</string>
@@ -284,6 +287,8 @@
     <string name="action_accept">Accept</string>
     <string name="action_reject">Reject</string>
     <string name="action_mark_read">Mark as read</string>
+    <string name="you_accepted_request">You accepted this request.</string>
+    <string name="you_rejected_request">You rejected this request.</string>
     <string name="action_logout">Log out</string>
     
     <string name="menu_my_books">My books</string>
@@ -325,6 +330,8 @@
     <string name="remove_book_text">It will disappear from your groups. This can\'t be undone.</string>
     <string name="remove_action">Remove</string>
     <string name="edit_book_title">Edit book</string>
+    <string name="book_added">Added to My books</string>
+    <string name="already_in_my_books">You already have a book with this title in My books.</string>
 
     <!-- Add book -->
     <string name="add_book_title">Add book</string>
