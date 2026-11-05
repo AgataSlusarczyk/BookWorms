@@ -70,7 +70,6 @@ import java.util.concurrent.Executors
 
 @Composable
 fun ScanIsbnScreen(
-    // The code the camera read, or null while it's still looking for one.
     recognizedIsbn: String?,
     onIsbnRecognized: (String) -> Unit = {},
     onEnterIsbnManuallyClick: () -> Unit,
@@ -95,7 +94,6 @@ fun ScanIsbnScreen(
         onResult = { granted -> hasCameraPermission = granted }
     )
 
-    // Ask for camera permission as soon as the screen opens.
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -113,7 +111,6 @@ fun ScanIsbnScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // weight(1f) = take the space that's left, so the buttons stay at the bottom.
         CameraViewport(
             hasPermission = hasCameraPermission,
             isScanningEnabled = recognizedIsbn == null,
@@ -142,7 +139,6 @@ fun ScanIsbnScreen(
                 .fillMaxWidth()
                 .height(48.dp),
         ) {
-            // null, because the button text already says what it does.
             Icon(
                 painter = painterResource(R.drawable.ic_barcode_scan),
                 contentDescription = null,
@@ -215,7 +211,6 @@ private fun CameraViewport(
         }
 
         if (hasPermission) {
-            // Aiming frame and red laser line drawn on top of the camera feed.
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -255,11 +250,16 @@ private fun CameraPreviewWithAnalysis(
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
     val scanner = remember {
-        val options = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_EAN_13)
-            .build()
-        BarcodeScanning.getClient(options)
-    }
+    val options = BarcodeScannerOptions.Builder()
+        .setBarcodeFormats(
+            Barcode.FORMAT_EAN_13,
+            Barcode.FORMAT_EAN_8,
+            Barcode.FORMAT_UPC_A,
+            Barcode.FORMAT_UPC_E
+        )
+        .build()
+    BarcodeScanning.getClient(options)
+}
 
     DisposableEffect(Unit) {
         onDispose {
@@ -333,8 +333,7 @@ private fun processFrameForIsbn(
             for (barcode in barcodes) {
                 val rawValue = barcode.rawValue ?: continue
                 val digitsOnly = rawValue.filter { it.isDigit() }
-                // Valid ISBN-13 barcodes are 13 digits and start with 978 or 979.
-                if (digitsOnly.length == 13 && (digitsOnly.startsWith("978") || digitsOnly.startsWith("979"))) {
+                if (digitsOnly.length >= 10) { // Akceptuje ISBN-10, ISBN-13 i EAN
                     onIsbnDetected(digitsOnly)
                     break
                 }
@@ -345,7 +344,6 @@ private fun processFrameForIsbn(
         }
 }
 
-// Light blue box with the code the camera read.
 @Composable
 private fun RecognizedCode(isbn: String, modifier: Modifier = Modifier) {
     Column(

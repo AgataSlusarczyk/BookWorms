@@ -19,10 +19,12 @@ import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import androidx.compose.ui.res.painterResource
 
 @Composable
 fun AddBookManualScreen(
     onSaveBook: (title: String, author: String, isbn: String, publisher: String, year: Int) -> Unit,
+    onScanIsbnClick: () -> Unit = {},
     onBackClick: () -> Unit,
 ) {
     var title by rememberSaveable { mutableStateOf("") }
@@ -38,6 +40,14 @@ fun AddBookManualScreen(
             AppTopBar(
                 title = stringResource(R.string.add_book_title),
                 onBackClick = onBackClick,
+                actions = {
+                    IconButton(onClick = onScanIsbnClick) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_barcode_scan),
+                            contentDescription = stringResource(R.string.scan_isbn_action),
+                        )
+                    }
+                },
             )
         },
     ) { padding ->

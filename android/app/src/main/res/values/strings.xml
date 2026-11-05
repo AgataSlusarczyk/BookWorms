@@ -167,6 +167,11 @@
     <string name="enter_isbn_manually">Enter ISBN manually</string>
     <string name="add_book_without_isbn">Book without ISBN — add it manually</string>
 
+    <!-- Scanner permissions & actions -->
+    <string name="scan_isbn_action">Scan ISBN</string>
+    <string name="camera_permission_required">Camera permission is required to scan ISBN barcodes.</string>
+    <string name="grant_camera_permission">Allow camera access</string>
+
     <string name="invite_title">Invite to group</string>
     <string name="invite_code_label">Invite code</string>
     <!-- %1$s = how long the code works, %2$s = how many more people can use it -->
@@ -340,6 +345,7 @@
     <string name="isbn_label">ISBN</string>
     <string name="publisher_label">Publisher</string>
     <string name="year_label">Year</string>
+    <string name="action_save">Save</string>
     <string name="save_action">Save</string>
     <string name="scan_isbn_subtitle">Point the camera at the barcode – the details fill in themselves</string>
     <string name="or_fill_in_yourself">or fill in yourself</string>
