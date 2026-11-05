@@ -3,6 +3,7 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,8 @@ import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
+import com.bookworms.app.ui.library.OwnBook
+import com.bookworms.app.ui.library.myGroups
 import com.bookworms.app.ui.library.ownBook
 import com.bookworms.app.ui.library.sampleOwnBooks
 import com.bookworms.app.ui.lists.AddBooksToListScreen
@@ -69,6 +72,7 @@ import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
+import com.bookworms.app.ui.scan.fetchBookDetailsByIsbn
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -597,7 +601,7 @@ fun AppNavigation() {
             AddCommentScreen(
                 bookTitle = book.title,
                 bookAuthor = book.author,
-                groups = book.groupDiscussions.map { it.groupName },
+                groups = book.groupDiscussions.map { groupName -> groupName },
                 initialGroup = group,
                 // TODO: show the new comment in Book details once comments come from the server.
                 onPostClick = { _, _, _, _ -> navController.popBackStack() },
@@ -606,14 +610,59 @@ fun AppNavigation() {
             )
         }
 
-        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
-        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
+        // Zintegrowany skaner ISBN: pobiera dane z OpenLibrary, dodaje książkę do 'sampleOwnBooks' i otwiera 'MyCopyScreen'.
         composable(Routes.SCAN_ISBN) {
+            var scannedIsbn by rememberSaveable { mutableStateOf<String?>(null) }
+            val context = LocalContext.current
+
+            LaunchedEffect(scannedIsbn) {
+                val code = scannedIsbn ?: return@LaunchedEffect
+                
+                // Pobieramy dane książki z serwera (OpenLibrary API)
+                val fetchedDetails = fetchBookDetailsByIsbn(
+                    isbn = code,
+                    ownerName = "Anna K.",
+                    userGroups = myGroups,
+                )
+
+                // Sprawdzamy czy książka już istnieje w bibliotece użytkownika
+                val existing = sampleOwnBooks.find { it.isbn == fetchedDetails.isbn || it.title == fetchedDetails.title }
+                if (existing == null) {
+                    val newOwnBook = OwnBook(
+                        title = fetchedDetails.title,
+                        author = fetchedDetails.author,
+                        year = fetchedDetails.year,
+                        isbn = fetchedDetails.isbn,
+                        publisher = "OpenLibrary",
+                        groups = myGroups,
+                    )
+                    sampleOwnBooks.add(0, newOwnBook)
+                    Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
+                }
+
+                // Przechodzimy do zarządzania własnym egzemplarzem tej książki
+                navController.navigate(Routes.myCopy(fetchedDetails.title)) {
+                    popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                }
+            }
+
             ScanIsbnScreen(
-                // Temporary – a sample code until the camera can read barcodes.
-                recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = { navController.popBackStack() },
-                onAddWithoutIsbnClick = { navController.popBackStack() },
+                recognizedIsbn = scannedIsbn,
+                onIsbnRecognized = { code ->
+                    if (scannedIsbn == null) {
+                        scannedIsbn = code
+                    }
+                },
+                onEnterIsbnManuallyClick = {
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                },
+                onAddWithoutIsbnClick = {
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                },
                 onCloseClick = { navController.popBackStack() },
             )
         }
