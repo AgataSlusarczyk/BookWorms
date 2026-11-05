@@ -18,7 +18,9 @@ git config user.email "your-github-email@example.com"
 ```
 
 - **Server** (`server/`): requires JDK 21 and Docker Desktop running. Start with `./gradlew bootRun` – Postgres starts automatically.
+- **Database**: Postgres runs in Docker on `localhost:5434` (database, user `bookworms`, password `secret`), so you can connect to it from DataGrip or `psql`. The schema comes from the Flyway migrations in `server/src/main/resources/db/migration` – never edit a merged migration, add a new `V<n>__...sql` instead.
 - **Android** (`android/`): open the `android` folder in Android Studio and run on an emulator. The emulator reaches the local server at `http://10.0.2.2:8080`.
+- **VS Code**: `Cmd+Shift+B` runs **Start everything** – the database, the server and the app on the running emulator. The single steps (and **Database: reset**, which deletes all data) are under `Tasks: Run Task`.
 
 ## Daily workflow
 

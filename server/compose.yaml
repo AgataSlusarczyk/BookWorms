@@ -6,4 +6,17 @@ services:
       - 'POSTGRES_PASSWORD=secret'
       - 'POSTGRES_USER=bookworms'
     ports:
-      - '5432'
+      # A fixed port, so a database client can connect: localhost:5434, bookworms / secret.
+      # 5434 and not 5432, so it doesn't clash with a Postgres already running on the computer.
+      - '127.0.0.1:5434:5432'
+    volumes:
+      # Keeps the data after `docker compose down`. `docker compose down -v` clears it.
+      - 'postgres-data:/var/lib/postgresql'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bookworms -d bookworms']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  postgres-data:
