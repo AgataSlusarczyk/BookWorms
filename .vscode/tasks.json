@@ -45,16 +45,15 @@
     },
     {
       "label": "Android: run on emulator",
-      "detail": "Installs the app on the running emulator or phone and opens it",
+      "detail": "Starts the emulator if nothing is connected, installs the app and opens it",
       "type": "shell",
-      // adb from PATH, or from the default Android Studio SDK folder on a Mac.
-      "command": "ADB=$(command -v adb || echo \"$HOME/Library/Android/sdk/platform-tools/adb\") && ./gradlew installDebug && \"$ADB\" shell am start -n com.bookworms.app/.MainActivity",
-      "options": { "cwd": "${workspaceFolder}/android" },
+      "command": "./scripts/run-android.sh",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
       "label": "Start everything",
-      "detail": "Database, server and the app on the emulator",
+      "detail": "Database + server and the emulator with the app, at the same time",
       "dependsOn": ["Server: run", "Android: run on emulator"],
       "dependsOrder": "parallel",
       "group": { "kind": "build", "isDefault": true },
