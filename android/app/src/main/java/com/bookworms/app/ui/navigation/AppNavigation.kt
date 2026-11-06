@@ -47,6 +47,7 @@ import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
+import com.bookworms.app.ui.library.myGroups
 import com.bookworms.app.ui.library.ownBook
 import com.bookworms.app.ui.library.sampleOwnBooks
 import com.bookworms.app.ui.lists.AddBooksToListScreen
@@ -69,6 +70,12 @@ import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
+import com.bookworms.app.ui.scan.fetchBookDetailsByIsbn
+import com.bookworms.app.ui.browse.Book
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -134,6 +141,9 @@ private object Routes {
     fun myCopy(title: String) = "my_copy/${Uri.encode(title)}"
     fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
 }
+
+// Holds scanned book details across navigation until Add book consumes it.
+private var scannedBookPrefill: Book? = null
 
 @Composable
 fun AppNavigation() {
@@ -248,7 +258,8 @@ fun AppNavigation() {
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onNavigate = navigateBottomBar,
-                onBookClick = openBookByTitle,
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
             )
         }
 
@@ -481,11 +492,15 @@ fun AppNavigation() {
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
             val context = LocalContext.current
+            // Use scanned data if available, otherwise match from sample books.
+            val initialBook = scannedBookPrefill ?: sampleBooks.find { it.isbn == isbn }
+
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
                 // TODO: save the book on the server first.
                 onSaveClick = { newBook ->
+                    scannedBookPrefill = null // Clean up prefill
                     // Books are told apart by their title for now, so the same title can't be added twice.
                     if (sampleOwnBooks.any { it.title == newBook.title }) {
                         Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
@@ -497,7 +512,55 @@ fun AppNavigation() {
                     }
                 },
                 // TODO: look the book up on the server. For now only the sample books can fill the form in.
-                prefill = sampleBooks.find { it.isbn == isbn },
+                prefill = initialBook,
+            )
+        }
+
+        composable(Routes.SCAN_ISBN) {
+            var scannedIsbn by rememberSaveable { mutableStateOf<String?>(null) }
+            val context = LocalContext.current
+
+            LaunchedEffect(scannedIsbn) {
+                val code = scannedIsbn ?: return@LaunchedEffect
+
+                // Background network request so UI doesn't freeze
+                CoroutineScope(Dispatchers.Main).launch {
+                    val details = fetchBookDetailsByIsbn(isbn = code, ownerName = "", userGroups = emptyList())
+                    
+                    // Populate the global prefill cache with fetched data
+                    scannedBookPrefill = Book(
+                        isbn = details.isbn,
+                        title = details.title,
+                        author = details.author,
+                        year = details.year,
+                        groupsAvailable = 0
+                    )
+                    
+                    // Navigate to the form
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                }
+            }
+
+            ScanIsbnScreen(
+                recognizedIsbn = scannedIsbn,
+                onIsbnRecognized = { code ->
+                    if (scannedIsbn == null) {
+                        scannedIsbn = code
+                    }
+                },
+                onEnterIsbnManuallyClick = {
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                },
+                onAddWithoutIsbnClick = {
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                },
+                onCloseClick = { navController.popBackStack() },
             )
         }
 
@@ -543,7 +606,7 @@ fun AppNavigation() {
             val isbn = entry.arguments?.getString("isbn")
             val isGuest = entry.arguments?.getBoolean("guest") ?: false
             // Temporary – looks the book up in the sample list until books come from the server.
-            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
+            val book = remember(isbn) { sampleBooks.find { it.isbn == isbn } ?: sampleBooks.first() }
 
             // Temporary state – moves to a ViewModel when book details come from the server.
             var isFavorite by rememberSaveable { mutableStateOf(false) }
@@ -592,7 +655,9 @@ fun AppNavigation() {
             val group = entry.arguments?.getString("group")
             val replyTo = entry.arguments?.getString("replyTo")
             // Temporary – looks the book up in the sample list until books come from the server.
-            val book = remember(isbn) { sampleBookDetailsFor(sampleBooks.first { it.isbn == isbn }) }
+            val book = remember(isbn) {
+                sampleBookDetailsFor(sampleBooks.find { it.isbn == isbn } ?: sampleBooks.first())
+            }
 
             AddCommentScreen(
                 bookTitle = book.title,
@@ -603,18 +668,6 @@ fun AppNavigation() {
                 onPostClick = { _, _, _, _ -> navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
                 replyingTo = replyTo?.let { book.findGroupComment(it) },
-            )
-        }
-
-        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
-        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
-        composable(Routes.SCAN_ISBN) {
-            ScanIsbnScreen(
-                // Temporary – a sample code until the camera can read barcodes.
-                recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = { navController.popBackStack() },
-                onAddWithoutIsbnClick = { navController.popBackStack() },
-                onCloseClick = { navController.popBackStack() },
             )
         }
 
