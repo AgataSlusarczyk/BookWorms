@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
@@ -28,6 +29,8 @@ class SecurityConfig {
 			.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
 			.authorizeHttpRequests {
 				it.requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
+				// The public catalog: people browse books before they have an account.
+				it.requestMatchers(HttpMethod.GET, "/books", "/books/**", "/covers/**").permitAll()
 				it.anyRequest().authenticated()
 			}
 			.oauth2ResourceServer { it.jwt { } }

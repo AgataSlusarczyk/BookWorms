@@ -3,12 +3,15 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,13 +23,14 @@ import com.bookworms.app.ui.auth.LoginScreen
 import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
+import com.bookworms.app.ui.book.BookDetailsViewModel
 import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.findGroupComment
-import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
-import com.bookworms.app.ui.browse.filterBooks
+import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
@@ -45,6 +49,7 @@ import com.bookworms.app.ui.group.sampleRecentMembers
 import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
+import com.bookworms.app.ui.library.LibraryViewModel
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
 import com.bookworms.app.ui.library.ownBook
@@ -76,7 +81,7 @@ private object Routes {
     const val REGISTER = "register"
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
-    // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
+    // {isbn} is filled in with the book to show, e.g. "book_details/9788308075197".
     // The part after "?" is optional: guest=true when someone browses without an account.
     const val BOOK_DETAILS = "book_details/{isbn}?guest={guest}"
     // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.
@@ -181,14 +186,16 @@ fun AppNavigation() {
         }
 
         composable(Routes.BROWSE) {
-            var query by rememberSaveable { mutableStateOf("") }
-            // Filters again only when the query changes, not on every redraw of the screen.
-            val results = remember(query) { filterBooks(sampleBooks, query) }
+            // Searches the catalog on the server.
+            val viewModel: BrowseViewModel = viewModel()
+            val query by viewModel.query.collectAsState()
+            val results by viewModel.results.collectAsState()
 
             BrowseScreen(
                 query = query,
                 results = results,
-                onQueryChange = { query = it },
+                onQueryChange = viewModel::onQueryChange,
+                onRetryClick = viewModel::retry,
                 onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn, guest = true)) },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
@@ -246,9 +253,14 @@ fun AppNavigation() {
         }
 
         composable(Routes.LIBRARY) {
+            val viewModel: LibraryViewModel = viewModel()
+            val books by viewModel.books.collectAsState()
+
             LibraryScreen(
+                books = books,
+                onRetryClick = viewModel::refresh,
                 onNavigate = navigateBottomBar,
-                onBookClick = openBookByTitle,
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
             )
         }
 
@@ -540,45 +552,51 @@ fun AppNavigation() {
             Routes.BOOK_DETAILS,
             arguments = listOf(navArgument("guest") { type = NavType.BoolType; defaultValue = false }),
         ) { entry ->
-            val isbn = entry.arguments?.getString("isbn")
+            val isbn = entry.arguments?.getString("isbn").orEmpty()
             val isGuest = entry.arguments?.getBoolean("guest") ?: false
-            // Temporary – looks the book up in the sample list until books come from the server.
-            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
+            // Loads the book from the server. Copies and comments are still sample data.
+            val viewModel = viewModel { BookDetailsViewModel(isbn) }
+            val state by viewModel.book.collectAsState()
 
-            // Temporary state – moves to a ViewModel when book details come from the server.
+            // Temporary state – moves to a ViewModel when favorites and reading status are on the server.
             var isFavorite by rememberSaveable { mutableStateOf(false) }
             var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
-
-            val details = sampleBookDetailsFor(book)
             val context = LocalContext.current
 
-            BookDetailsScreen(
-                book = details,
-                isFavorite = isFavorite,
-                readingStatus = readingStatus,
-                onFavoriteClick = { isFavorite = !isFavorite },
-                onReadingStatusChange = { readingStatus = it },
-                // TODO: send requests and queue changes to the server.
-                // For now they go to the shared sample lists, so a request shows up in Loans too.
-                requestedFrom = details.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
-                queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
-                onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
-                onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
-                onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
-                onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
-                customLists = sampleCustomLists,
-                onShareClick = { shareBook(context, details) },
-                // Opens Add book with this book's details already filled in.
-                onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
-                onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
-                onReplyClick = { groupName, comment ->
-                    navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))
-                },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_book_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                isGuest = isGuest,
-                // Login is at the bottom of the pile (under Browse), so we go back down to it.
-                onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
-            )
+            ) { book ->
+                BookDetailsScreen(
+                    book = book,
+                    isFavorite = isFavorite,
+                    readingStatus = readingStatus,
+                    onFavoriteClick = { isFavorite = !isFavorite },
+                    onReadingStatusChange = { readingStatus = it },
+                    // TODO: send requests and queue changes to the server.
+                    // For now they go to the shared sample lists, so a request shows up in Loans too.
+                    requestedFrom = book.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
+                    queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
+                    onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
+                    onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
+                    onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
+                    onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
+                    customLists = sampleCustomLists,
+                    onShareClick = { shareBook(context, book) },
+                    // Opens Add book with this book's details already filled in.
+                    onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
+                    onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
+                    onReplyClick = { groupName, comment ->
+                        navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))
+                    },
+                    onBackClick = { navController.popBackStack() },
+                    isGuest = isGuest,
+                    // Login is at the bottom of the pile (under Browse), so we go back down to it.
+                    onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
+                )
+            }
         }
 
         composable(
@@ -588,22 +606,30 @@ fun AppNavigation() {
                 navArgument("replyTo") { type = NavType.StringType; nullable = true; defaultValue = null },
             ),
         ) { entry ->
-            val isbn = entry.arguments?.getString("isbn")
+            val isbn = entry.arguments?.getString("isbn").orEmpty()
             val group = entry.arguments?.getString("group")
             val replyTo = entry.arguments?.getString("replyTo")
-            // Temporary – looks the book up in the sample list until books come from the server.
-            val book = remember(isbn) { sampleBookDetailsFor(sampleBooks.first { it.isbn == isbn }) }
+            // The same book as on Book details, for its title and author.
+            val viewModel = viewModel { BookDetailsViewModel(isbn) }
+            val state by viewModel.book.collectAsState()
 
-            AddCommentScreen(
-                bookTitle = book.title,
-                bookAuthor = book.author,
-                groups = book.groupDiscussions.map { it.groupName },
-                initialGroup = group,
-                // TODO: show the new comment in Book details once comments come from the server.
-                onPostClick = { _, _, _, _ -> navController.popBackStack() },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_book_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                replyingTo = replyTo?.let { book.findGroupComment(it) },
-            )
+            ) { book ->
+                AddCommentScreen(
+                    bookTitle = book.title,
+                    bookAuthor = book.author,
+                    groups = book.groupDiscussions.map { it.groupName },
+                    initialGroup = group,
+                    // TODO: show the new comment in Book details once comments come from the server.
+                    onPostClick = { _, _, _, _ -> navController.popBackStack() },
+                    onBackClick = { navController.popBackStack() },
+                    replyingTo = replyTo?.let { book.findGroupComment(it) },
+                )
+            }
         }
 
         // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
