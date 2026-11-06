@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only in debug builds, added on top of src/main/AndroidManifest.xml. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Since Android 16 an app needs this to reach the local network. The local server is there
+         (10.0.2.2 = the computer the emulator runs on). Without it the connection silently times out.
+         The release app talks to a server on the internet, so it doesn't ask for it. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+</manifest>

@@ -45,14 +45,13 @@ CREATE TABLE books (
     page_count      INTEGER CHECK (page_count > 0),
     description     TEXT,
     cover_url       VARCHAR(1000),
-    -- Who added it by hand. NULL = it came from an API.
+    -- Who added it by hand. NULL = it came from an API, or it's sample data added by the team.
     created_by      UUID REFERENCES users (id) ON DELETE RESTRICT,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    -- A book from an API has that API's id, a book typed in by hand has its author.
+    -- A book from an API has that API's id.
     CONSTRAINT books_source_matches CHECK (
-        (source = 'GOOGLE_BOOKS' AND google_books_id IS NOT NULL) OR
-        (source = 'OPEN_LIBRARY' AND open_library_id IS NOT NULL) OR
-        (source = 'MANUAL' AND created_by IS NOT NULL)
+        (source <> 'GOOGLE_BOOKS' OR google_books_id IS NOT NULL) AND
+        (source <> 'OPEN_LIBRARY' OR open_library_id IS NOT NULL)
     )
 );
 

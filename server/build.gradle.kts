@@ -60,3 +60,8 @@ allOpen {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// Local development: bootRun turns on the dev profile, which loads the sample books (see DevDataLoader).
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+	systemProperty("spring.profiles.active", System.getenv("SPRING_PROFILES_ACTIVE") ?: "dev")
+}

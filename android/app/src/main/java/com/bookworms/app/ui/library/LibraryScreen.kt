@@ -15,28 +15,29 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.browse.Book
+import com.bookworms.app.ui.browse.authorAndYear
+import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.BookRow
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
-// Sample books until the library comes from the server: title, author, year.
-private val recentBooks = listOf(
-    Triple("Lód", "Jacek Dukaj", 2007),
-    Triple("Bieguni", "Olga Tokarczuk", 2007),
-    Triple("Kwiaty dla Algernona", "Daniel Keyes", 1966),
-)
-
 @Composable
 fun LibraryScreen(
+    // The newest books from the server (LibraryViewModel).
+    books: LoadState<List<Book>>,
+    onRetryClick: () -> Unit,
     onNavigate: (String) -> Unit = {},
-    // Gets the book's title – the sample books here have no ISBN yet.
-    onBookClick: (title: String) -> Unit = {},
+    onBookClick: (Book) -> Unit = {},
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -76,9 +77,13 @@ fun LibraryScreen(
 
             item { SectionHeader(stringResource(R.string.recently_added), Modifier.padding(top = 4.dp)) }
 
-            items(recentBooks, key = { it.first }) { (title, author, year) ->
-                AppCard(onClick = { onBookClick(title) }) {
-                    BookRow(title = title, subtitle = stringResource(R.string.book_author_year, author, year))
+            when (books) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick) }
+                is LoadState.Ready -> items(books.data, key = { it.isbn }) { book ->
+                    AppCard(onClick = { onBookClick(book) }) {
+                        BookRow(title = book.title, subtitle = book.authorAndYear())
+                    }
                 }
             }
         }
@@ -89,6 +94,6 @@ fun LibraryScreen(
 @Composable
 private fun LibraryScreenPreview() {
     BookWormsTheme {
-        LibraryScreen()
+        LibraryScreen(books = LoadState.Ready(sampleBooks), onRetryClick = {})
     }
 }

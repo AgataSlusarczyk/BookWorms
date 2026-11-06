@@ -1,16 +1,27 @@
 package com.bookworms.app.ui.browse
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.bookworms.app.R
+
 // One book in the search results.
 data class Book(
     val isbn: String,
     val title: String,
     val author: String,
-    val year: Int,
+    // null when the server doesn't know it.
+    val year: Int?,
     // In how many of the user's groups someone has a copy. 0 = nobody has it.
-    val groupsAvailable: Int,
+    // null = not known: the catalog doesn't show copies (guests, and until we have groups on the server).
+    val groupsAvailable: Int? = null,
 )
 
-// Temporary data until the app gets books from the server.
+// "Stanisław Lem · 1961", or only the author when the year isn't known.
+@Composable
+fun Book.authorAndYear(): String =
+    year?.let { stringResource(R.string.book_author_year, author, it) } ?: author
+
+// Sample books for previews and for the screens that don't use the server yet.
 val sampleBooks = listOf(
     Book("9788308049461", "Solaris", "Stanisław Lem", 1961, groupsAvailable = 2),
     Book("9788308057619", "Niezwyciężony", "Stanisław Lem", 1964, groupsAvailable = 1),

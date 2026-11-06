@@ -30,12 +30,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppHeader
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.BackTitle
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
@@ -43,8 +46,9 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 @Composable
 fun BrowseScreen(
     query: String,
-    results: List<Book>,
+    results: LoadState<List<Book>>,
     onQueryChange: (String) -> Unit,
+    onRetryClick: () -> Unit,
     onBookClick: (Book) -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -88,32 +92,12 @@ fun BrowseScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        if (query.isNotBlank()) {
-            Text(
-                text = pluralStringResource(R.plurals.search_results, results.size, query.trim(), results.size),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-        }
-
-        if (results.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_results),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-
-        // LazyColumn draws only the cards that fit on the screen, so it stays fast with long lists.
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            // weight(1f) = take the space that's left, so the button below stays at the bottom.
-            modifier = Modifier.weight(1f),
-        ) {
-            items(results, key = { it.isbn }) { book ->
-                BookCard(book, onClick = { onBookClick(book) })
+        // weight(1f) = take the space that's left, so the button below stays at the bottom.
+        Column(modifier = Modifier.weight(1f)) {
+            when (results) {
+                LoadState.Loading -> LoadingIndicator()
+                LoadState.Failed -> LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick)
+                is LoadState.Ready -> SearchResults(query, results.data, onBookClick)
             }
         }
 
@@ -132,11 +116,40 @@ fun BrowseScreen(
 }
 
 @Composable
+private fun SearchResults(query: String, books: List<Book>, onBookClick: (Book) -> Unit) {
+    if (query.isNotBlank()) {
+        Text(
+            text = pluralStringResource(R.plurals.search_results, books.size, query.trim(), books.size),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+    }
+
+    if (books.isEmpty()) {
+        Text(
+            text = stringResource(R.string.no_results),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+
+    // LazyColumn draws only the cards that fit on the screen, so it stays fast with long lists.
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(books, key = { it.isbn }) { book ->
+            BookCard(book, onClick = { onBookClick(book) })
+        }
+    }
+}
+
+@Composable
 private fun BookCard(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
     // The same card as on the other screens. TODO: show the real cover when books come from the server.
     AppCard(modifier = modifier, onClick = onClick) {
-        BookRow(title = book.title, subtitle = stringResource(R.string.book_author_year, book.author, book.year)) {
-            AvailabilityChip(book.groupsAvailable)
+        BookRow(title = book.title, subtitle = book.authorAndYear()) {
+            // The catalog doesn't know about copies yet, so there's no chip for books from the server.
+            book.groupsAvailable?.let { AvailabilityChip(it) }
         }
     }
 }
@@ -183,8 +196,9 @@ private fun BrowseScreenPreview() {
         val query = "lem"
         BrowseScreen(
             query = query,
-            results = filterBooks(sampleBooks, query),
+            results = LoadState.Ready(filterBooks(sampleBooks, query)),
             onQueryChange = {},
+            onRetryClick = {},
             onBookClick = {},
             onLoginClick = {},
             onBackClick = {},

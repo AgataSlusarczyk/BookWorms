@@ -40,4 +40,7 @@ if [ "$started_emulator" = true ]; then
 fi
 
 ./gradlew installDebug
+# Android 16+ blocks the local network (where our server is) until the user allows it.
+# Granting it here saves the question in the app. Older Androids don't have it, hence || true.
+"$ADB" shell pm grant com.bookworms.app android.permission.ACCESS_LOCAL_NETWORK 2> /dev/null || true
 "$ADB" shell am start -n com.bookworms.app/.MainActivity

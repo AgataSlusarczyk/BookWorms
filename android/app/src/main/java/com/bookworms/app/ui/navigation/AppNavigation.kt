@@ -3,12 +3,14 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,7 +27,7 @@ import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.sampleBookDetailsFor
 import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
-import com.bookworms.app.ui.browse.filterBooks
+import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.groups.CreateGroupScreen
@@ -45,6 +47,7 @@ import com.bookworms.app.ui.group.sampleRecentMembers
 import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
+import com.bookworms.app.ui.library.LibraryViewModel
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
 import com.bookworms.app.ui.library.ownBook
@@ -181,14 +184,16 @@ fun AppNavigation() {
         }
 
         composable(Routes.BROWSE) {
-            var query by rememberSaveable { mutableStateOf("") }
-            // Filters again only when the query changes, not on every redraw of the screen.
-            val results = remember(query) { filterBooks(sampleBooks, query) }
+            // Searches the catalog on the server.
+            val viewModel: BrowseViewModel = viewModel()
+            val query by viewModel.query.collectAsState()
+            val results by viewModel.results.collectAsState()
 
             BrowseScreen(
                 query = query,
                 results = results,
-                onQueryChange = { query = it },
+                onQueryChange = viewModel::onQueryChange,
+                onRetryClick = viewModel::retry,
                 onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn, guest = true)) },
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
@@ -246,9 +251,14 @@ fun AppNavigation() {
         }
 
         composable(Routes.LIBRARY) {
+            val viewModel: LibraryViewModel = viewModel()
+            val books by viewModel.books.collectAsState()
+
             LibraryScreen(
+                books = books,
+                onRetryClick = viewModel::refresh,
                 onNavigate = navigateBottomBar,
-                onBookClick = openBookByTitle,
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
             )
         }
 
@@ -542,8 +552,9 @@ fun AppNavigation() {
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
             val isGuest = entry.arguments?.getBoolean("guest") ?: false
-            // Temporary – looks the book up in the sample list until books come from the server.
-            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
+            // Temporary – looks the book up in the sample list until book details come from the server.
+            // A book that's only on the server (e.g. "Lód" from the Library) opens the first sample book.
+            val book = remember(isbn) { sampleBooks.find { it.isbn == isbn } ?: sampleBooks.first() }
 
             // Temporary state – moves to a ViewModel when book details come from the server.
             var isFavorite by rememberSaveable { mutableStateOf(false) }

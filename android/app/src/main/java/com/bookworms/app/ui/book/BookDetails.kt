@@ -122,5 +122,5 @@ fun sampleBookDetailsFor(book: Book) = sampleBookDetails.copy(
     isbn = book.isbn,
     title = book.title,
     author = book.author,
-    year = book.year,
+    year = book.year ?: sampleBookDetails.year,
 )
