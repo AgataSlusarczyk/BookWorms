@@ -62,6 +62,7 @@ import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.loans.LoanDays
@@ -385,12 +386,7 @@ private fun GuestLoginCard(onLoginClick: () -> Unit) {
 @Composable
 private fun BookHeader(book: BookDetails) {
     Row {
-        // TODO: show the real cover when books come from the server.
-        Box(
-            modifier = Modifier
-                .size(width = 96.dp, height = 136.dp)
-                .background(PlaceholderGray, RoundedCornerShape(8.dp)),
-        )
+        BookCover(book.coverUrl, Modifier.size(width = 96.dp, height = 136.dp))
 
         Spacer(Modifier.width(16.dp))
 

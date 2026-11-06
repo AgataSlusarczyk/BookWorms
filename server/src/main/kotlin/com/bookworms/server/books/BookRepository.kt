@@ -23,6 +23,9 @@ interface BookRepository : JpaRepository<Book, UUID> {
 	)
 	fun search(pattern: String, isbnDigits: String, pageable: Pageable): List<Book>
 
+	// Books the server could still look up a cover for.
+	fun findByIsbnIsNotNullAndCoverUrlIsNull(): List<Book>
+
 	// Loads the genres too, because the details show them.
 	@EntityGraph(attributePaths = ["genres"])
 	fun findByIsbn(isbn: String): Book?

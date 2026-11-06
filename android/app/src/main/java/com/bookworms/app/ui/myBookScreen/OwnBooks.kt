@@ -27,13 +27,13 @@ internal val myGroups = listOf("Czytelnia 23", "Rodzina")
 internal val sampleOwnBooks = mutableStateListOf(
     OwnBook("Wiedźmin", "Andrzej Sapkowski", 1994, "9788375780659", "SuperNOWA", groups = myGroups),
     OwnBook(
-        "Problem trzech ciał", "Liu Cixin", 2008, "9788375780638", "Rebis",
+        "Problem trzech ciał", "Liu Cixin", 2008, "9788381881548", "Rebis",
         groups = listOf("Czytelnia 23"),
         lentTo = "Marek W.", lentSince = "24.10", returnBy = "07.11",
     ),
-    OwnBook("Solaris", "Stanisław Lem", 1961, "9788308049461", "Wydawnictwo Literackie", groups = myGroups),
+    OwnBook("Solaris", "Stanisław Lem", 1961, "9788308075197", "Wydawnictwo Literackie", groups = myGroups),
     OwnBook(
-        "Lalka", "Bolesław Prus", 1890, "9788373271897", "Greg",
+        "Lalka", "Bolesław Prus", 1890, "9788304027763", "Ossolineum",
         groups = listOf("Rodzina"),
         lentTo = "Ola N.", lentSince = "02.10", returnBy = "28.10",
     ),
