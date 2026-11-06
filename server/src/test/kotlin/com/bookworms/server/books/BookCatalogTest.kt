@@ -27,6 +27,7 @@ class BookCatalogTest(
 				Book(
 					BookSource.MANUAL, "Solaris", "Stanisław Lem", "9788308049461",
 					publisher = "Wydawnictwo Literackie", publishedYear = 1961, pageCount = 224,
+					coverUrl = "/covers/9788308049461.jpg",
 					description = "Stacja badawcza nad oceanem planety.",
 				).apply { genres.add(genreRepository.findByCode("SCI_FI")!!) },
 				Book(BookSource.MANUAL, "Niezwyciężony", "Stanisław Lem", "9788308057619", publishedYear = 1964),
@@ -58,6 +59,7 @@ class BookCatalogTest(
 			jsonPath("$.length()") { value(1) }
 			jsonPath("$[0].title") { value("Niezwyciężony") }
 			jsonPath("$[0].publishedYear") { value(1964) }
+			jsonPath("$[0].coverUrl") { doesNotExist() }
 		}
 	}
 
@@ -93,6 +95,7 @@ class BookCatalogTest(
 			jsonPath("$.pageCount") { value(224) }
 			jsonPath("$.description") { value("Stacja badawcza nad oceanem planety.") }
 			jsonPath("$.genres[0]") { value("SCI_FI") }
+			jsonPath("$.coverUrl") { value("/covers/9788308049461.jpg") }
 		}
 	}
 

@@ -11,3 +11,6 @@ bookworms:
     # Local development only. Set the JWT_SECRET environment variable on a real server.
     secret: ${JWT_SECRET:dev-secret-do-not-use-in-production-0123456789}
     expiration: 7d
+  covers:
+    # Folders with cover images, served at /covers/<file>. Covers uploaded later will go here.
+    locations: file:uploads/covers/

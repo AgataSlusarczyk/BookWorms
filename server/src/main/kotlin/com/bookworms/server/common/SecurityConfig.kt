@@ -30,7 +30,7 @@ class SecurityConfig {
 			.authorizeHttpRequests {
 				it.requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
 				// The public catalog: people browse books before they have an account.
-				it.requestMatchers(HttpMethod.GET, "/books", "/books/**").permitAll()
+				it.requestMatchers(HttpMethod.GET, "/books", "/books/**", "/covers/**").permitAll()
 				it.anyRequest().authenticated()
 			}
 			.oauth2ResourceServer { it.jwt { } }

@@ -145,9 +145,9 @@ private fun SearchResults(query: String, books: List<Book>, onBookClick: (Book) 
 
 @Composable
 private fun BookCard(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    // The same card as on the other screens. TODO: show the real cover when books come from the server.
+    // The same card as on the other screens.
     AppCard(modifier = modifier, onClick = onClick) {
-        BookRow(title = book.title, subtitle = book.authorAndYear()) {
+        BookRow(title = book.title, subtitle = book.authorAndYear(), coverUrl = book.coverUrl) {
             // The catalog doesn't know about copies yet, so there's no chip for books from the server.
             book.groupsAvailable?.let { AvailabilityChip(it) }
         }

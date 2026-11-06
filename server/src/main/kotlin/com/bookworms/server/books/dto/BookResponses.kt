@@ -10,6 +10,8 @@ data class BookSummaryResponse(
 	val title: String,
 	val authors: String?,
 	val publishedYear: Int?,
+	// A path on this server, e.g. "/covers/9788308049461.jpg", or null when there's no cover.
+	val coverUrl: String?,
 )
 
 // Everything about one book for the details screen.
@@ -33,6 +35,7 @@ fun Book.toSummaryResponse() = BookSummaryResponse(
 	title = title,
 	authors = authors,
 	publishedYear = publishedYear?.toInt(),
+	coverUrl = coverUrl,
 )
 
 fun Book.toDetailsResponse() = BookDetailsResponse(

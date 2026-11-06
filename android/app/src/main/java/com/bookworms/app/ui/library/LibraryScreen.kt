@@ -82,7 +82,7 @@ fun LibraryScreen(
                 LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick) }
                 is LoadState.Ready -> items(books.data, key = { it.isbn }) { book ->
                     AppCard(onClick = { onBookClick(book) }) {
-                        BookRow(title = book.title, subtitle = book.authorAndYear())
+                        BookRow(title = book.title, subtitle = book.authorAndYear(), coverUrl = book.coverUrl)
                     }
                 }
             }

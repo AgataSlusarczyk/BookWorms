@@ -1,5 +1,6 @@
 package com.bookworms.app.data
 
+import com.bookworms.app.BuildConfig
 import com.bookworms.app.data.network.ApiClient
 import com.bookworms.app.data.network.BookDetailsDto
 import com.bookworms.app.data.network.BookSummaryDto
@@ -30,6 +31,7 @@ private fun BookSummaryDto.toBook(): Book? = isbn?.let {
         title = title,
         author = authors.orEmpty(),
         year = publishedYear,
+        coverUrl = serverUrl(coverUrl),
     )
 }
 
@@ -42,7 +44,15 @@ private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
     // The screen shows one genre.
     genre = genres.firstOrNull(),
     description = description,
+    coverUrl = serverUrl(coverUrl),
     copies = emptyList(),
     publicComments = emptyList(),
     groupDiscussions = emptyList(),
 )
+
+// The server sends covers as paths on itself, e.g. "/covers/9788308049461.jpg". Images need the full address.
+private fun serverUrl(path: String?): String? = when {
+    path == null -> null
+    path.startsWith("http://") || path.startsWith("https://") -> path
+    else -> BuildConfig.API_BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
+}

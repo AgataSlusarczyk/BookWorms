@@ -14,6 +14,8 @@ data class Book(
     // In how many of the user's groups someone has a copy. 0 = nobody has it.
     // null = not known: the catalog doesn't show copies (guests, and until we have groups on the server).
     val groupsAvailable: Int? = null,
+    // Full address of the cover image, or null when there's none (and for the sample books).
+    val coverUrl: String? = null,
 )
 
 // "Stanisław Lem · 1961", or only the author when the year isn't known.
