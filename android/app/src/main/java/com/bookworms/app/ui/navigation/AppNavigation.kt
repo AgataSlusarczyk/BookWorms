@@ -81,7 +81,7 @@ private object Routes {
     const val REGISTER = "register"
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
-    // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
+    // {isbn} is filled in with the book to show, e.g. "book_details/9788308075197".
     // The part after "?" is optional: guest=true when someone browses without an account.
     const val BOOK_DETAILS = "book_details/{isbn}?guest={guest}"
     // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.

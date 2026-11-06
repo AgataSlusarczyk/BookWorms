@@ -1,5 +1,0 @@
-# Local development (./gradlew bootRun turns this profile on).
-bookworms:
-  covers:
-    # The sample covers (dev-data/covers) first, then the folder for uploaded ones.
-    locations: classpath:/dev-data/covers/, file:uploads/covers/

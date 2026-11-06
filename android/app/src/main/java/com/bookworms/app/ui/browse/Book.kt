@@ -25,11 +25,11 @@ fun Book.authorAndYear(): String =
 
 // Sample books for previews and for the screens that don't use the server yet.
 val sampleBooks = listOf(
-    Book("9788308049461", "Solaris", "Stanisław Lem", 1961, groupsAvailable = 2),
-    Book("9788308057619", "Niezwyciężony", "Stanisław Lem", 1964, groupsAvailable = 1),
-    Book("9788308060411", "Opowieści o pilocie Pirxie", "Stanisław Lem", 1968, groupsAvailable = 0),
-    Book("9788373271897", "Lalka", "Bolesław Prus", 1890, groupsAvailable = 3),
-    Book("9788375780638", "Problem trzech ciał", "Cixin Liu", 2008, groupsAvailable = 1),
+    Book("9788308075197", "Solaris", "Stanisław Lem", 1961, groupsAvailable = 2),
+    Book("9788308060377", "Niezwyciężony", "Stanisław Lem", 1964, groupsAvailable = 1),
+    Book("9788308033197", "Opowieści o pilocie Pirxie", "Stanisław Lem", 1968, groupsAvailable = 0),
+    Book("9788304027763", "Lalka", "Bolesław Prus", 1890, groupsAvailable = 3),
+    Book("9788381881548", "Problem trzech ciał", "Cixin Liu", 2008, groupsAvailable = 1),
 )
 
 // Books whose title, author or ISBN contains the query. Upper/lower case doesn't matter,

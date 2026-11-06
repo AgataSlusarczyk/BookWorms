@@ -10,7 +10,7 @@ data class BookSummaryResponse(
 	val title: String,
 	val authors: String?,
 	val publishedYear: Int?,
-	// A path on this server, e.g. "/covers/9788308049461.jpg", or null when there's no cover.
+	// A path on this server, e.g. "/covers/9788308075197.jpg", or null when there's no cover.
 	val coverUrl: String?,
 )
 

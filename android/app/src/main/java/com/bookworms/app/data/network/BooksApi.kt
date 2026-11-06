@@ -28,7 +28,7 @@ data class BookSummaryDto(
     val title: String,
     val authors: String? = null,
     val publishedYear: Int? = null,
-    // A path on our server, e.g. "/covers/9788308049461.jpg".
+    // A path on our server, e.g. "/covers/9788308075197.jpg".
     val coverUrl: String? = null,
 )
 

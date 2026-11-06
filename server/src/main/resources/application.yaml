@@ -1,6 +1,11 @@
 spring:
   application:
     name: server
+  http:
+    clients:
+      # For asking other servers, e.g. Open Library for covers – a slow one mustn't hang us.
+      connect-timeout: 10s
+      read-timeout: 20s
   jpa:
     open-in-view: false
     hibernate:
@@ -12,5 +17,7 @@ bookworms:
     secret: ${JWT_SECRET:dev-secret-do-not-use-in-production-0123456789}
     expiration: 7d
   covers:
-    # Folders with cover images, served at /covers/<file>. Covers uploaded later will go here.
-    locations: file:uploads/covers/
+    # Where the server keeps cover images (fetched by ISBN, see CoverService). Served at /covers/<file>.
+    dir: uploads/covers
+    # Optional. Without it covers come only from Open Library. Set GOOGLE_BOOKS_API_KEY to also ask Google Books.
+    google-books-api-key: ${GOOGLE_BOOKS_API_KEY:}
