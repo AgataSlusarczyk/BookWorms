@@ -1,8 +1,11 @@
 package com.bookworms.app.data
 
 import com.bookworms.app.data.network.ApiClient
+import com.bookworms.app.data.network.BookDetailsDto
 import com.bookworms.app.data.network.BookSummaryDto
 import com.bookworms.app.data.network.BooksApi
+import com.bookworms.app.ui.book.BookDetails
+import com.bookworms.app.ui.book.withSampleCopiesAndComments
 import com.bookworms.app.ui.browse.Book
 
 // Books for the ViewModels. They don't need to know the books come from the server.
@@ -14,6 +17,10 @@ class BookRepository(private val api: BooksApi = ApiClient.books) {
 
     suspend fun newest(limit: Int): List<Book> =
         api.getBooks(limit = limit).mapNotNull { it.toBook() }
+
+    // The book from the server. Copies and comments are still sample data (see withSampleCopiesAndComments).
+    suspend fun details(isbn: String): BookDetails =
+        withSampleCopiesAndComments(api.getBookByIsbn(isbn).toBookDetails(isbn))
 }
 
 // null for a book without an ISBN: the app opens book details by ISBN, so it couldn't open this one.
@@ -25,3 +32,17 @@ private fun BookSummaryDto.toBook(): Book? = isbn?.let {
         year = publishedYear,
     )
 }
+
+private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
+    isbn = isbn ?: requestedIsbn,
+    title = title,
+    author = authors.orEmpty(),
+    year = publishedYear,
+    pages = pageCount,
+    // The screen shows one genre.
+    genre = genres.firstOrNull(),
+    description = description,
+    copies = emptyList(),
+    publicComments = emptyList(),
+    groupDiscussions = emptyList(),
+)

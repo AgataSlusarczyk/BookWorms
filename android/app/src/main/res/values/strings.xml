@@ -49,6 +49,32 @@
     <string name="no_copies">no copies</string>
     <string name="load_books_failed">Couldn\'t load the books. Check your connection and try again.</string>
     <string name="try_again">Try again</string>
+    <string name="load_book_failed">Couldn\'t load this book. Check your connection and try again.</string>
+    <!-- Genre codes from the server (see Genres.kt). -->
+    <string name="genre_fantasy">fantasy</string>
+    <string name="genre_sci_fi">science fiction</string>
+    <string name="genre_crime">crime</string>
+    <string name="genre_thriller">thriller</string>
+    <string name="genre_horror">horror</string>
+    <string name="genre_romance">romance</string>
+    <string name="genre_historical_fiction">historical fiction</string>
+    <string name="genre_literary_fiction">literary fiction</string>
+    <string name="genre_classics">classics</string>
+    <string name="genre_poetry">poetry</string>
+    <string name="genre_drama">drama</string>
+    <string name="genre_biography">biography</string>
+    <string name="genre_history">history</string>
+    <string name="genre_reportage">reportage</string>
+    <string name="genre_science">science</string>
+    <string name="genre_philosophy">philosophy</string>
+    <string name="genre_psychology">psychology</string>
+    <string name="genre_business">business</string>
+    <string name="genre_self_help">self-help</string>
+    <string name="genre_travel">travel</string>
+    <string name="genre_children">for children</string>
+    <string name="genre_young_adult">young adult</string>
+    <string name="genre_comics">comics</string>
+    <string name="genre_other">other</string>
     <string name="no_results">No books found. Try a different title, author or ISBN.</string>
     <string name="login_to_borrow">Log in to borrow</string>
 
@@ -56,7 +82,6 @@
     <string name="remove_from_favorites">Remove from favorites</string>
     <string name="more_options">More options</string>
     <!-- %1$d = year, %2$s = number of pages (book_pages), %3$s = ISBN -->
-    <string name="book_meta">%1$d · %2$s · ISBN %3$s</string>
     <plurals name="book_pages">
         <item quantity="one">%d page</item>
         <item quantity="other">%d pages</item>

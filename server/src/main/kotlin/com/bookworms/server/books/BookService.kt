@@ -1,6 +1,8 @@
 package com.bookworms.server.books
 
+import com.bookworms.server.common.ApiException
 import org.springframework.data.domain.PageRequest
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,6 +26,12 @@ class BookService(
 		return bookRepository.search(likePattern(text), isbnDigits, page)
 	}
 
+	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1".
+	@Transactional(readOnly = true)
+	fun findByIsbn(isbn: String): Book =
+		bookRepository.findByIsbn(isbn.filter { it.isDigit() || it == 'X' })
+			?: throw BookNotFoundException()
+
 	// "%text%" in lower case, with % and _ typed by the user treated as plain characters.
 	private fun likePattern(text: String): String {
 		val escaped = text.lowercase()
@@ -37,3 +45,6 @@ class BookService(
 		const val MAX_LIMIT = 100
 	}
 }
+
+class BookNotFoundException :
+	ApiException(HttpStatus.NOT_FOUND, "BOOK_NOT_FOUND", "Book not found")

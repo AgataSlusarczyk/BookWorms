@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.get
 class BookCatalogTest(
 	@Autowired private val mockMvc: MockMvc,
 	@Autowired private val bookRepository: BookRepository,
+	@Autowired private val genreRepository: GenreRepository,
 ) {
 
 	@BeforeEach
@@ -23,7 +24,11 @@ class BookCatalogTest(
 		bookRepository.deleteAll()
 		bookRepository.saveAll(
 			listOf(
-				Book(BookSource.MANUAL, "Solaris", "Stanisław Lem", "9788308049461", publishedYear = 1961),
+				Book(
+					BookSource.MANUAL, "Solaris", "Stanisław Lem", "9788308049461",
+					publisher = "Wydawnictwo Literackie", publishedYear = 1961, pageCount = 224,
+					description = "Stacja badawcza nad oceanem planety.",
+				).apply { genres.add(genreRepository.findByCode("SCI_FI")!!) },
 				Book(BookSource.MANUAL, "Niezwyciężony", "Stanisław Lem", "9788308057619", publishedYear = 1964),
 				Book(BookSource.MANUAL, "Lalka", "Bolesław Prus", "9788373271897", publishedYear = 1890),
 			),
@@ -75,6 +80,27 @@ class BookCatalogTest(
 	fun `limit cuts the list`() {
 		mockMvc.get("/books") { param("limit", "2") }.andExpect {
 			jsonPath("$.length()") { value(2) }
+		}
+	}
+
+	@Test
+	fun `details by ISBN, also typed with dashes, without logging in`() {
+		mockMvc.get("/books/isbn/978-83-08-04946-1").andExpect {
+			status { isOk() }
+			jsonPath("$.title") { value("Solaris") }
+			jsonPath("$.authors") { value("Stanisław Lem") }
+			jsonPath("$.publishedYear") { value(1961) }
+			jsonPath("$.pageCount") { value(224) }
+			jsonPath("$.description") { value("Stacja badawcza nad oceanem planety.") }
+			jsonPath("$.genres[0]") { value("SCI_FI") }
+		}
+	}
+
+	@Test
+	fun `unknown ISBN returns 404`() {
+		mockMvc.get("/books/isbn/9780000000000").andExpect {
+			status { isNotFound() }
+			jsonPath("$.code") { value("BOOK_NOT_FOUND") }
 		}
 	}
 }

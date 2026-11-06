@@ -1,6 +1,7 @@
 package com.bookworms.server.books
 
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import java.util.UUID
@@ -21,4 +22,12 @@ interface BookRepository : JpaRepository<Book, UUID> {
 		""",
 	)
 	fun search(pattern: String, isbnDigits: String, pageable: Pageable): List<Book>
+
+	// Loads the genres too, because the details show them.
+	@EntityGraph(attributePaths = ["genres"])
+	fun findByIsbn(isbn: String): Book?
+}
+
+interface GenreRepository : JpaRepository<Genre, UUID> {
+	fun findByCode(code: String): Genre?
 }
