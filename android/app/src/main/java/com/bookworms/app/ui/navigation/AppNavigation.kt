@@ -3,7 +3,6 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +47,6 @@ import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
-import com.bookworms.app.ui.library.OwnBook
 import com.bookworms.app.ui.library.myGroups
 import com.bookworms.app.ui.library.ownBook
 import com.bookworms.app.ui.library.sampleOwnBooks
@@ -73,25 +71,37 @@ import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 import com.bookworms.app.ui.scan.fetchBookDetailsByIsbn
+import com.bookworms.app.ui.browse.Book
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 
+// The names of the screens the app can go to.
 private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val BROWSE = "browse"
     const val FORGOT_PASSWORD = "forgot_password"
+    // {isbn} is filled in with the book to show, e.g. "book_details/9788308049461".
+    // The part after "?" is optional: guest=true when someone browses without an account.
     const val BOOK_DETAILS = "book_details/{isbn}?guest={guest}"
+    // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.
     const val ADD_COMMENT = "add_comment/{isbn}?group={group}&replyTo={replyTo}"
     const val SCAN_ISBN = "scan_isbn"
     const val INVITE_TO_GROUP = "invite_to_group"
 
+    // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
     const val LOANS = "loans"
     const val LISTS = "lists"
     const val GROUPS = "groups"
     const val PROFILE = "profile"
 
+    // Screens opened from a tab, without the bottom bar.
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
+    // isbn = a book from the app to fill the form in with (none = an empty form).
     const val ADD_BOOK_MANUAL = "add_book_manual?isbn={isbn}"
     const val CREATE_GROUP = "create_group"
     const val JOIN_GROUP = "join_group"
@@ -99,6 +109,7 @@ private object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val CREATE_LIST = "create_list"
     const val LIST_DETAILS = "list_details/{listName}"
+    // {shelf} = Favorites, WantToRead or Read.
     const val SHELF = "shelf/{shelf}"
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
@@ -108,9 +119,11 @@ private object Routes {
     const val EDIT_OWN_BOOK = "edit_own_book/{title}"
 
     fun addBookManual(isbn: String? = null) = if (isbn == null) "add_book_manual" else "add_book_manual?isbn=$isbn"
+
     fun bookDetails(isbn: String, guest: Boolean = false) = if (guest) "book_details/$isbn?guest=true" else "book_details/$isbn"
-    
+
     fun addComment(isbn: String, group: String? = null, replyTo: String? = null): String {
+        // Leaving a part out means "none" – the screen then gets null.
         val options = listOfNotNull(
             group?.let { "group=${Uri.encode(it)}" },
             replyTo?.let { "replyTo=${Uri.encode(it)}" },
@@ -118,6 +131,7 @@ private object Routes {
         return if (options.isEmpty()) "add_comment/$isbn" else "add_comment/$isbn?" + options.joinToString("&")
     }
 
+    // Uri.encode turns spaces and other special characters into a form that fits in a route.
     fun listDetails(listName: String) = "list_details/${Uri.encode(listName)}"
     fun shelf(shelf: Shelf) = "shelf/${shelf.name}"
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
@@ -128,11 +142,16 @@ private object Routes {
     fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
 }
 
+// Holds scanned book details across navigation until Add book consumes it.
+private var scannedBookPrefill: Book? = null
+
 @Composable
 fun AppNavigation() {
+    // Remembers which screen is open and which ones are behind it.
     val navController = rememberNavController()
-    val context = LocalContext.current
 
+    // Switching tabs in the bottom bar: no growing pile of screens, and each tab keeps
+    // its state (scroll position, selected tab) when you come back to it.
     val navigateBottomBar: (String) -> Unit = { route ->
         navController.navigate(route) {
             popUpTo(Routes.LIBRARY) { saveState = true }
@@ -141,6 +160,8 @@ fun AppNavigation() {
         }
     }
 
+    // Temporary – most screens only know a book's title, so we look it up in the sample books.
+    // A title that isn't there (e.g. "Pachnidło") opens the first sample book.
     val openBookByTitle: (String) -> Unit = { title ->
         val book = sampleBooks.find { it.title == title } ?: sampleBooks.first()
         navController.navigate(Routes.bookDetails(book.isbn))
@@ -148,6 +169,7 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) {
+            // Temporary state – moves to a ViewModel when we add the real login.
             var email by rememberSaveable { mutableStateOf("") }
             var password by rememberSaveable { mutableStateOf("") }
 
@@ -158,6 +180,7 @@ fun AppNavigation() {
                 onPasswordChange = { password = it },
                 onLoginClick = {
                     navController.navigate(Routes.LIBRARY) {
+                        // Removes login from the pile, so "back" doesn't return to it.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -169,6 +192,7 @@ fun AppNavigation() {
 
         composable(Routes.BROWSE) {
             var query by rememberSaveable { mutableStateOf("") }
+            // Filters again only when the query changes, not on every redraw of the screen.
             val results = remember(query) { filterBooks(sampleBooks, query) }
 
             BrowseScreen(
@@ -176,12 +200,14 @@ fun AppNavigation() {
                 results = results,
                 onQueryChange = { query = it },
                 onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn, guest = true)) },
+                // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.REGISTER) {
+            // Temporary state – moves to a ViewModel when we add the real sign-up.
             var name by rememberSaveable { mutableStateOf("") }
             var email by rememberSaveable { mutableStateOf("") }
             var password by rememberSaveable { mutableStateOf("") }
@@ -199,17 +225,20 @@ fun AppNavigation() {
                 onRepeatPasswordChange = { repeatPassword = it },
                 termsAccepted = termsAccepted,
                 onTermsAcceptedChange = { termsAccepted = it },
+                // TODO: create the account on the server first. For now it goes straight into the app.
                 onCreateAccountClick = {
                     navController.navigate(Routes.LIBRARY) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
+                // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.FORGOT_PASSWORD) {
+            // Temporary state – moves to a ViewModel when we add the real password reset.
             var email by rememberSaveable { mutableStateOf("") }
             var linkSent by rememberSaveable { mutableStateOf(false) }
 
@@ -217,8 +246,10 @@ fun AppNavigation() {
                 email = email,
                 onEmailChange = { email = it },
                 linkSent = linkSent,
+                // TODO: ask the server to send the email once it can do that.
                 onSendLinkClick = { linkSent = true },
                 onUseDifferentEmailClick = { linkSent = false },
+                // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
@@ -256,6 +287,7 @@ fun AppNavigation() {
         }
 
         composable(Routes.SHELF) { backStackEntry ->
+            // The route has the shelf's name, e.g. "WantToRead"; valueOf turns it back into Shelf.WantToRead.
             val shelf = Shelf.valueOf(backStackEntry.arguments?.getString("shelf") ?: Shelf.Favorites.name)
             ShelfScreen(
                 shelf = shelf,
@@ -274,6 +306,7 @@ fun AppNavigation() {
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
                     navController.navigate(Routes.LOGIN) {
+                        // Clears every screen, so after logging out "back" can't open the app's inside.
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
@@ -282,6 +315,7 @@ fun AppNavigation() {
 
         composable(Routes.CREATE_LIST) {
             CreateListScreen(
+                // Opens the new list. popUpTo takes Create list off the stack, so Back goes to My lists, not here.
                 onCreateClick = { listName ->
                     navController.navigate(Routes.listDetails(listName)) {
                         popUpTo(Routes.CREATE_LIST) { inclusive = true }
@@ -293,6 +327,7 @@ fun AppNavigation() {
         }
 
         composable(Routes.LIST_DETAILS) { backStackEntry ->
+            // The route gives the name back already decoded, e.g. "Holiday reads".
             val listName = backStackEntry.arguments?.getString("listName").orEmpty()
             MyListDetailsScreen(
                 listName = listName,
@@ -307,11 +342,14 @@ fun AppNavigation() {
             val listName = backStackEntry.arguments?.getString("listName").orEmpty()
             EditListScreen(
                 listName = listName,
+                // Opens the list again under its (maybe new) name. popUpTo removes the old list
+                // and this form from the pile, so Back goes to My lists.
                 onSaveClick = { newName ->
                     navController.navigate(Routes.listDetails(newName)) {
                         popUpTo(Routes.LIST_DETAILS) { inclusive = true }
                     }
                 },
+                // The list is gone, so we go all the way back to My lists.
                 onDeleteClick = { navController.popBackStack(Routes.LISTS, inclusive = false) },
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onBackClick = { navController.popBackStack() },
@@ -322,7 +360,9 @@ fun AppNavigation() {
             val listName = backStackEntry.arguments?.getString("listName").orEmpty()
             AddBooksToListScreen(
                 listName = listName,
+                // TODO: the books on this list from the server.
                 isbnsOnList = sampleListBooks.map { it.book.isbn },
+                // TODO: add the books on the server first. For now it just goes back to the list.
                 onAddClick = { navController.popBackStack() },
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onBackClick = { navController.popBackStack() },
@@ -330,13 +370,16 @@ fun AppNavigation() {
         }
 
         composable(Routes.GROUP_DETAILS) { backStackEntry ->
+            // TODO: look the group up on the server. For now only the name comes from the list.
             val groupName = backStackEntry.arguments?.getString("groupName").orEmpty()
             GroupDetailsScreen(
                 groupName = groupName,
+                // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
                 isAdmin = groupName == "Czytelnia 23",
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
                 onEditClick = { navController.navigate(Routes.editGroup(groupName)) },
+                // TODO: leave the group on the server first. For now it just goes back to Groups.
                 onLeaveClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
@@ -345,6 +388,7 @@ fun AppNavigation() {
         composable(Routes.EDIT_GROUP) { backStackEntry ->
             val groupKey = backStackEntry.arguments?.getString("groupName").orEmpty()
             val group = groupInfo(groupKey)
+            // Starts with the group's current details. Temporary state – moves to a ViewModel later.
             var name by rememberSaveable { mutableStateOf(group.name) }
             var description by rememberSaveable { mutableStateOf(group.description) }
             var visibility by rememberSaveable { mutableStateOf(group.visibility) }
@@ -359,17 +403,20 @@ fun AppNavigation() {
                 invitedUsernames = emptyList(),
                 onAddInvite = {},
                 onRemoveInvite = {},
+                // TODO: save the changes on the server first.
                 onCreateGroupClick = {
                     sampleGroups[groupKey] = GroupInfo(name.trim(), description.trim(), visibility)
                     navController.popBackStack()
                 },
                 onBackClick = { navController.popBackStack() },
+                // TODO: delete the group on the server first. For now it just goes back to Groups.
                 onDeleteClick = { navController.popBackStack(Routes.GROUPS, inclusive = false) },
             )
         }
 
         composable(Routes.EDIT_PROFILE) {
             EditProfileScreen(
+                // TODO: save the name and photo on the server first. For now the photo is kept until the app closes.
                 onSaveClick = { photo ->
                     profilePhotoUri = photo
                     navController.popBackStack()
@@ -381,6 +428,7 @@ fun AppNavigation() {
 
         composable(Routes.CHANGE_PASSWORD) {
             ChangePasswordScreen(
+                // TODO: send the passwords to the server first. For now it just goes back to Profile.
                 onSaveClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
@@ -404,6 +452,7 @@ fun AppNavigation() {
                 title = title,
                 onEditClick = { navController.navigate(Routes.editOwnBook(title)) },
                 onOpenBookPageClick = { openBookByTitle(title) },
+                // TODO: remove the book on the server first.
                 onRemoveClick = {
                     sampleOwnBooks.removeAll { it.title == title }
                     navController.popBackStack()
@@ -416,21 +465,24 @@ fun AppNavigation() {
             val title = backStackEntry.arguments?.getString("title").orEmpty()
             val context = LocalContext.current
             AddBookManualScreen(
-                onSaveBook = { titleArg, authorArg, isbnArg, publisherArg, yearArg ->
-                    val index = sampleOwnBooks.indexOfFirst { it.title == title }
-                    if (index >= 0) {
-                        sampleOwnBooks[index] = OwnBook(
-                            title = titleArg,
-                            author = authorArg,
-                            year = yearArg,
-                            isbn = isbnArg,
-                            publisher = publisherArg,
-                            groups = myGroups,
-                        )
-                    }
-                    navController.popBackStack()
-                },
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
+                // TODO: save the changes on the server first.
+                onSaveClick = { edited ->
+                    // Books are told apart by their title for now, so two books can't have the same one.
+                    if (edited.title != title && sampleOwnBooks.any { it.title == edited.title }) {
+                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val index = sampleOwnBooks.indexOfFirst { it.title == title }
+                        if (index >= 0) sampleOwnBooks[index] = edited
+                        // My copy opens again under the (maybe new) title. popUpTo removes the old one
+                        // and this form from the pile, so Back goes to My books.
+                        navController.navigate(Routes.myCopy(edited.title)) {
+                            popUpTo(Routes.MY_COPY) { inclusive = true }
+                        }
+                    }
+                },
+                book = ownBook(title),
             )
         }
 
@@ -440,120 +492,27 @@ fun AppNavigation() {
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
             val context = LocalContext.current
+            // Use scanned data if available, otherwise match from sample books.
+            val initialBook = scannedBookPrefill ?: sampleBooks.find { it.isbn == isbn }
+
             AddBookManualScreen(
-                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) }, // <--- Tutaj uruchamiamy skaner z formularza
+                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                 onBackClick = { navController.popBackStack() },
-                onSaveBook = { titleArg, authorArg, isbnArg, publisherArg, yearArg ->
-                    if (sampleOwnBooks.any { it.title == titleArg }) {
+                // TODO: save the book on the server first.
+                onSaveClick = { newBook ->
+                    scannedBookPrefill = null // Clean up prefill
+                    // Books are told apart by their title for now, so the same title can't be added twice.
+                    if (sampleOwnBooks.any { it.title == newBook.title }) {
                         Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
                     } else {
-                        val newBook = OwnBook(
-                            title = titleArg,
-                            author = authorArg,
-                            year = yearArg,
-                            isbn = isbnArg,
-                            publisher = publisherArg,
-                            groups = myGroups,
-                        )
                         sampleOwnBooks.add(newBook)
                         Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
+                        // Back to where Add book was opened from: My books or the book's page.
                         navController.popBackStack()
                     }
                 },
-            )
-        }
-
-        composable(Routes.JOIN_GROUP) {
-            JoinGroupScreen(
-                onGroupJoined = { groupName ->
-                    navController.navigate(Routes.groupDetails(groupName)) {
-                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
-                    }
-                },
-                onBackClick = { navController.popBackStack() },
-            )
-        }
-
-        composable(Routes.CREATE_GROUP) {
-            var name by rememberSaveable { mutableStateOf("") }
-            var description by rememberSaveable { mutableStateOf("") }
-            var visibility by rememberSaveable { mutableStateOf(GroupVisibility.Private) }
-            var invitedUsernames by rememberSaveable { mutableStateOf(listOf<String>()) }
-
-            CreateGroupScreen(
-                name = name,
-                description = description,
-                onNameChange = { name = it },
-                onDescriptionChange = { description = it },
-                visibility = visibility,
-                onVisibilityChange = { visibility = it },
-                invitedUsernames = invitedUsernames,
-                onAddInvite = { invitedUsernames = invitedUsernames + it },
-                onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                onCreateGroupClick = { navController.popBackStack() },
-                onBackClick = { navController.popBackStack() },
-            )
-        }
-
-        composable(
-            Routes.BOOK_DETAILS,
-            arguments = listOf(navArgument("guest") { type = NavType.BoolType; defaultValue = false }),
-        ) { entry ->
-            val isbn = entry.arguments?.getString("isbn")
-            val isGuest = entry.arguments?.getBoolean("guest") ?: false
-            val book = remember(isbn) { sampleBooks.first { it.isbn == isbn } }
-
-            var isFavorite by rememberSaveable { mutableStateOf(false) }
-            var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
-
-            val details = sampleBookDetailsFor(book)
-            val context = LocalContext.current
-
-            BookDetailsScreen(
-                book = details,
-                isFavorite = isFavorite,
-                readingStatus = readingStatus,
-                onFavoriteClick = { isFavorite = !isFavorite },
-                onReadingStatusChange = { readingStatus = it },
-                requestedFrom = details.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
-                queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
-                onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
-                onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
-                onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
-                onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
-                customLists = sampleCustomLists,
-                onShareClick = { shareBook(context, details) },
-                onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
-                onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
-                onReplyClick = { groupName, comment ->
-                    navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))
-                },
-                onBackClick = { navController.popBackStack() },
-                isGuest = isGuest,
-                onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
-            )
-        }
-
-        composable(
-            Routes.ADD_COMMENT,
-            arguments = listOf(
-                navArgument("group") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("replyTo") { type = NavType.StringType; nullable = true; defaultValue = null },
-            ),
-        ) { entry ->
-            val isbn = entry.arguments?.getString("isbn")
-            val group = entry.arguments?.getString("group")
-            val replyTo = entry.arguments?.getString("replyTo")
-            val book = remember(isbn) { sampleBookDetailsFor(sampleBooks.first { it.isbn == isbn }) }
-
-            AddCommentScreen(
-                bookTitle = book.title,
-                bookAuthor = book.author,
-                groups = book.groupDiscussions.map { it.groupName },
-                initialGroup = group,
-                onPostClick = { _, _, _, _ -> navController.popBackStack() },
-                onBackClick = { navController.popBackStack() },
-                replyingTo = replyTo?.let { book.findGroupComment(it) },
+                // TODO: look the book up on the server. For now only the sample books can fill the form in.
+                prefill = initialBook,
             )
         }
 
@@ -563,29 +522,24 @@ fun AppNavigation() {
 
             LaunchedEffect(scannedIsbn) {
                 val code = scannedIsbn ?: return@LaunchedEffect
-                val fetched = fetchBookDetailsByIsbn(
-                    isbn = code,
-                    ownerName = "Anna K.",
-                    userGroups = myGroups,
-                )
 
-                if (sampleOwnBooks.none { it.isbn == fetched.isbn || it.title == fetched.title }) {
-                    sampleOwnBooks.add(
-                        0,
-                        OwnBook(
-                            title = fetched.title,
-                            author = fetched.author,
-                            year = fetched.year,
-                            isbn = fetched.isbn,
-                            publisher = "OpenLibrary",
-                            groups = myGroups,
-                        ),
+                // Background network request so UI doesn't freeze
+                CoroutineScope(Dispatchers.Main).launch {
+                    val details = fetchBookDetailsByIsbn(isbn = code, ownerName = "", userGroups = emptyList())
+                    
+                    // Populate the global prefill cache with fetched data
+                    scannedBookPrefill = Book(
+                        isbn = details.isbn,
+                        title = details.title,
+                        author = details.author,
+                        year = details.year,
+                        groupsAvailable = 0
                     )
-                    Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
-                }
-
-                navController.navigate(Routes.myCopy(fetched.title)) {
-                    popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    
+                    // Navigate to the form
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
                 }
             }
 
@@ -610,8 +564,119 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.INVITE_TO_GROUP) {
+        composable(Routes.JOIN_GROUP) {
+            JoinGroupScreen(
+                // Opens the new group. popUpTo takes Join group off the stack, so Back goes to Groups, not here.
+                onGroupJoined = { groupName ->
+                    navController.navigate(Routes.groupDetails(groupName)) {
+                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.CREATE_GROUP) {
+            // Temporary state – moves to a ViewModel when groups come from the server.
+            var name by rememberSaveable { mutableStateOf("") }
+            var description by rememberSaveable { mutableStateOf("") }
+            var visibility by rememberSaveable { mutableStateOf(GroupVisibility.Private) }
+            var invitedUsernames by rememberSaveable { mutableStateOf(listOf<String>()) }
+
+            CreateGroupScreen(
+                name = name,
+                description = description,
+                onNameChange = { name = it },
+                onDescriptionChange = { description = it },
+                visibility = visibility,
+                onVisibilityChange = { visibility = it },
+                invitedUsernames = invitedUsernames,
+                onAddInvite = { invitedUsernames = invitedUsernames + it },
+                onRemoveInvite = { invitedUsernames = invitedUsernames - it },
+                // TODO: create the group on the server first. For now it just goes back to Groups.
+                onCreateGroupClick = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            Routes.BOOK_DETAILS,
+            arguments = listOf(navArgument("guest") { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
+            val isGuest = entry.arguments?.getBoolean("guest") ?: false
+            // Temporary – looks the book up in the sample list until books come from the server.
+            val book = remember(isbn) { sampleBooks.find { it.isbn == isbn } ?: sampleBooks.first() }
+
+            // Temporary state – moves to a ViewModel when book details come from the server.
+            var isFavorite by rememberSaveable { mutableStateOf(false) }
+            var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
+
+            val details = sampleBookDetailsFor(book)
             val context = LocalContext.current
+
+            BookDetailsScreen(
+                book = details,
+                isFavorite = isFavorite,
+                readingStatus = readingStatus,
+                onFavoriteClick = { isFavorite = !isFavorite },
+                onReadingStatusChange = { readingStatus = it },
+                // TODO: send requests and queue changes to the server.
+                // For now they go to the shared sample lists, so a request shows up in Loans too.
+                requestedFrom = details.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
+                queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
+                onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
+                onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
+                onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
+                onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
+                customLists = sampleCustomLists,
+                onShareClick = { shareBook(context, details) },
+                // Opens Add book with this book's details already filled in.
+                onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
+                onAddCommentClick = { groupName -> navController.navigate(Routes.addComment(book.isbn, group = groupName)) },
+                onReplyClick = { groupName, comment ->
+                    navController.navigate(Routes.addComment(book.isbn, group = groupName, replyTo = comment.id))
+                },
+                onBackClick = { navController.popBackStack() },
+                isGuest = isGuest,
+                // Login is at the bottom of the pile (under Browse), so we go back down to it.
+                onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
+            )
+        }
+
+        composable(
+            Routes.ADD_COMMENT,
+            arguments = listOf(
+                navArgument("group") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("replyTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { entry ->
+            val isbn = entry.arguments?.getString("isbn")
+            val group = entry.arguments?.getString("group")
+            val replyTo = entry.arguments?.getString("replyTo")
+            // Temporary – looks the book up in the sample list until books come from the server.
+            val book = remember(isbn) {
+                sampleBookDetailsFor(sampleBooks.find { it.isbn == isbn } ?: sampleBooks.first())
+            }
+
+            AddCommentScreen(
+                bookTitle = book.title,
+                bookAuthor = book.author,
+                groups = book.groupDiscussions.map { it.groupName },
+                initialGroup = group,
+                // TODO: show the new comment in Book details once comments come from the server.
+                onPostClick = { _, _, _, _ -> navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+                replyingTo = replyTo?.let { book.findGroupComment(it) },
+            )
+        }
+
+        composable(Routes.INVITE_TO_GROUP) {
+            // Needed for the clipboard and the share menu.
+            val context = LocalContext.current
+
+            // Temporary state – the code comes from the server later. Only the code is kept,
+            // rememberSaveable can't hold the whole GroupInvite.
             var code by rememberSaveable { mutableStateOf(sampleInvite.code) }
             val invite = sampleInvite.withCode(code)
 
