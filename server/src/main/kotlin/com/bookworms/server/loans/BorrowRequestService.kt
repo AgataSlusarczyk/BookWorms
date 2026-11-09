@@ -79,7 +79,7 @@ class BorrowRequestService(
 		borrowingRepository.save(
 			Borrowing(
 				requestId = request.id!!,
-				copyId = request.copy.id!!,
+				copy = request.copy,
 				borrowerId = request.requesterId,
 				dueDate = Instant.now().plus(LOAN_DAYS),
 			),

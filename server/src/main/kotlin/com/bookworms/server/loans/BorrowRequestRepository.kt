@@ -20,5 +20,7 @@ interface BorrowRequestRepository : JpaRepository<BorrowRequest, UUID> {
 
 	fun findByRequesterIdAndIdempotencyKey(requesterId: UUID, idempotencyKey: String): BorrowRequest?
 
+	fun findByCopyIdAndStatus(copyId: UUID, status: RequestStatus): List<BorrowRequest>
+
 	fun existsByCopyIdAndRequesterIdAndStatus(copyId: UUID, requesterId: UUID, status: RequestStatus): Boolean
 }

@@ -6,8 +6,10 @@ import com.bookworms.server.books.BookSource
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.dto.AddCopyRequest
 import com.bookworms.server.copies.dto.EditBookRequest
+import com.bookworms.server.loans.BorrowRequestRepository
 import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
+import com.bookworms.server.loans.RequestStatus
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,6 +22,7 @@ class CopyService(
 	private val copyRepository: BookCopyRepository,
 	private val bookRepository: BookRepository,
 	private val borrowingRepository: BorrowingRepository,
+	private val requestRepository: BorrowRequestRepository,
 ) {
 
 	@Transactional(readOnly = true)
@@ -75,6 +78,7 @@ class CopyService(
 
 	// The row stays with deletedAt set, so phones can learn the book is gone.
 	// A lent-out book can't be removed – someone has it, and it has to come back first.
+	// Requests still waiting for it are rejected, so the people who asked aren't left waiting forever.
 	@Transactional
 	fun removeCopy(ownerId: UUID, copyId: UUID) {
 		val copy = myCopy(ownerId, copyId)
@@ -82,6 +86,8 @@ class CopyService(
 			throw ApiException(HttpStatus.CONFLICT, "COPY_LENT", "This book is lent out right now")
 		}
 		copy.deletedAt = Instant.now()
+		requestRepository.findByCopyIdAndStatus(copyId, RequestStatus.PENDING)
+			.forEach { it.status = RequestStatus.REJECTED }
 	}
 
 	// Someone else's copy answers the same as a missing one, so nobody can guess other people's copies.

@@ -20,11 +20,11 @@ import org.springframework.test.web.servlet.post
 import java.util.UUID
 import kotlin.test.assertEquals
 
-// Agata owns Solaris. Marek and Ola are in her group, Zosia isn't.
+// Asking, lending and giving back. Agata owns Solaris. Marek and Ola are in her group, Zosia isn't.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration::class)
-class BorrowRequestFlowTest(
+class LoanFlowTest(
 	@Autowired private val mockMvc: MockMvc,
 	@Autowired private val jdbc: JdbcTemplate,
 ) {
@@ -177,16 +177,71 @@ class BorrowRequestFlowTest(
 	}
 
 	@Test
-	fun `when the book is back, a waiting request can be accepted`() {
+	fun `both sides see the loan in their tab`() {
+		answer(agata, idOf(send(marek)), "accept")
+
+		mockMvc.get("/me/borrowings") { bearer(marek) }.andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].status") { value("BORROWED") }
+			jsonPath("$[0].book.title") { value("Solaris") }
+			jsonPath("$[0].owner.name") { value("Agata") }
+		}
+		mockMvc.get("/me/lent") { bearer(agata) }.andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].borrower.name") { value("Marek") }
+		}
+		// Not hers, not his.
+		mockMvc.get("/me/borrowings") { bearer(agata) }.andExpect { jsonPath("$.length()") { value(0) } }
+		mockMvc.get("/me/lent") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
+	}
+
+	@Test
+	fun `only the owner marks the book as returned, and only once`() {
+		answer(agata, idOf(send(marek)), "accept")
+		val loan = loanId(agata)
+
+		markReturned(marek, loan).andExpect {
+			status { isNotFound() }
+			jsonPath("$.code") { value("LOAN_NOT_FOUND") }
+		}
+		markReturned(agata, loan).andExpect {
+			status { isOk() }
+			jsonPath("$.status") { value("RETURNED") }
+		}
+		markReturned(agata, loan).andExpect {
+			status { isConflict() }
+			jsonPath("$.code") { value("LOAN_ALREADY_RETURNED") }
+		}
+		// Gone from both tabs.
+		mockMvc.get("/me/borrowings") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
+		mockMvc.get("/me/lent") { bearer(agata) }.andExpect { jsonPath("$.length()") { value(0) } }
+	}
+
+	@Test
+	fun `when the book is back, a waiting request can be accepted and new ones sent`() {
 		val fromMarek = idOf(send(marek))
 		val fromOla = idOf(send(ola))
 		answer(agata, fromMarek, "accept")
 
-		// Giving the book back comes in the next step, so the test marks it returned in the database.
-		jdbc.update("update borrowings set status = 'RETURNED'")
+		markReturned(agata, loanId(agata)).andExpect { status { isOk() } }
 
 		mockMvc.get("/me/requests/received") { bearer(agata) }.andExpect { jsonPath("$[0].canAccept") { value(true) } }
+		// Marek can ask again, now that he gave it back.
+		send(marek).andExpect { status { isCreated() } }
 		answer(agata, fromOla, "accept").andExpect { status { isOk() } }
+	}
+
+	@Test
+	fun `removing a book rejects the requests waiting for it`() {
+		val fromMarek = idOf(send(marek))
+
+		mockMvc.delete("/copies/$solaris") { bearer(agata) }.andExpect { status { isNoContent() } }
+
+		mockMvc.get("/me/requests/sent") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
+		answer(agata, fromMarek, "accept").andExpect {
+			status { isConflict() }
+			jsonPath("$.code") { value("REQUEST_NOT_PENDING") }
+		}
 	}
 
 	@Test
@@ -219,6 +274,13 @@ class BorrowRequestFlowTest(
 
 	private fun answer(token: String, requestId: String, action: String) =
 		mockMvc.post("/requests/$requestId/$action") { bearer(token) }
+
+	private fun markReturned(token: String, loanId: String) =
+		mockMvc.post("/borrowings/$loanId/return") { bearer(token) }
+
+	// The owner's only loan, from the Lent tab.
+	private fun loanId(owner: String): String =
+		idOf(mockMvc.get("/me/lent") { bearer(owner) })
 
 	private fun idOf(result: ResultActionsDsl): String =
 		Regex(""""id":"([^"]+)"""").find(result.andReturn().response.contentAsString)!!.groupValues[1]
