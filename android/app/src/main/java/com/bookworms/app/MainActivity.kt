@@ -1,6 +1,8 @@
 package com.bookworms.app
 
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -22,10 +24,24 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         hideNavigationBar()
+        askForLocalNetworkInDebug()
         setContent {
             BookWormsTheme {
                 AppNavigation()
             }
+        }
+    }
+
+    // Debug builds talk to the server on our computer, which is on the local network. Since Android 16
+    // that needs the user's permission (declared in src/debug/AndroidManifest.xml), or the connection
+    // silently times out. scripts/run-android.sh grants it on its own; from Android Studio, tap Allow once.
+    private fun askForLocalNetworkInDebug() {
+        val permission = "android.permission.ACCESS_LOCAL_NETWORK"
+        if (BuildConfig.DEBUG &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA &&
+            checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(permission), 0)
         }
     }
 

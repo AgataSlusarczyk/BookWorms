@@ -75,9 +75,9 @@ private val sampleMembers = listOf(
 )
 
 private val sampleGroupBooks = listOf(
-    GroupBook("9788308049461", "Solaris", "Stanisław Lem", owner = "Ola", borrowedBy = null),
-    GroupBook("9788373271897", "Lalka", "Bolesław Prus", owner = "Marek", borrowedBy = "Kasia"),
-    GroupBook("9788375780638", "Problem trzech ciał", "Cixin Liu", owner = "Anna", borrowedBy = null),
+    GroupBook("9788308075197", "Solaris", "Stanisław Lem", owner = "Ola", borrowedBy = null),
+    GroupBook("9788304027763", "Lalka", "Bolesław Prus", owner = "Marek", borrowedBy = "Kasia"),
+    GroupBook("9788381881548", "Problem trzech ciał", "Cixin Liu", owner = "Anna", borrowedBy = null),
 )
 
 private val sampleJoinRequests = listOf(

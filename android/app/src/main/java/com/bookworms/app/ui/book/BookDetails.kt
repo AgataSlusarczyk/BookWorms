@@ -1,16 +1,18 @@
 package com.bookworms.app.ui.book
 
-import com.bookworms.app.ui.browse.Book
-
 // Everything the book details screen shows about one book.
 data class BookDetails(
     val isbn: String,
     val title: String,
     val author: String,
-    val year: Int,
-    val pages: Int,
-    val genre: String,
-    val description: String,
+    // The server may not know these, so they're null then and the screen leaves them out.
+    val year: Int?,
+    val pages: Int?,
+    // A genre code from the server, e.g. "SCI_FI" – genreName() turns it into a name.
+    val genre: String?,
+    val description: String?,
+    // Full address of the cover image, or null when there's none.
+    val coverUrl: String? = null,
     // Copies that people in the user's groups own.
     val copies: List<BookCopy>,
     // Everyone sees these, even people without an account.
@@ -83,7 +85,7 @@ val sampleBookDetails = BookDetails(
     author = "Stanisław Lem",
     year = 1961,
     pages = 224,
-    genre = "science fiction",
+    genre = "SCI_FI",
     description = "Stacja badawcza nad oceanem planety, który odpowiada na ludzkie pytania " +
         "w sposób niemożliwy do rozszyfrowania.",
     copies = listOf(
@@ -116,11 +118,10 @@ val sampleBookDetails = BookDetails(
     ),
 )
 
-// Temporary: the sample details above, but with the title, author, year and ISBN
-// of the book the user tapped, so each book in the list opens its own page.
-fun sampleBookDetailsFor(book: Book) = sampleBookDetails.copy(
-    isbn = book.isbn,
-    title = book.title,
-    author = book.author,
-    year = book.year,
+// Temporary: the copies, comments and group discussions above, for every book from the server.
+// TODO: these from the server too, once it has users, groups and copies.
+fun withSampleCopiesAndComments(book: BookDetails) = book.copy(
+    copies = sampleBookDetails.copies,
+    publicComments = sampleBookDetails.publicComments,
+    groupDiscussions = sampleBookDetails.groupDiscussions,
 )

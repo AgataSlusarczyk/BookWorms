@@ -1,22 +1,35 @@
 package com.bookworms.app.ui.browse
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.bookworms.app.R
+
 // One book in the search results.
 data class Book(
     val isbn: String,
     val title: String,
     val author: String,
-    val year: Int,
+    // null when the server doesn't know it.
+    val year: Int?,
     // In how many of the user's groups someone has a copy. 0 = nobody has it.
-    val groupsAvailable: Int,
+    // null = not known: the catalog doesn't show copies (guests, and until we have groups on the server).
+    val groupsAvailable: Int? = null,
+    // Full address of the cover image, or null when there's none (and for the sample books).
+    val coverUrl: String? = null,
 )
 
-// Temporary data until the app gets books from the server.
+// "Stanisław Lem · 1961", or only the author when the year isn't known.
+@Composable
+fun Book.authorAndYear(): String =
+    year?.let { stringResource(R.string.book_author_year, author, it) } ?: author
+
+// Sample books for previews and for the screens that don't use the server yet.
 val sampleBooks = listOf(
-    Book("9788308049461", "Solaris", "Stanisław Lem", 1961, groupsAvailable = 2),
-    Book("9788308057619", "Niezwyciężony", "Stanisław Lem", 1964, groupsAvailable = 1),
-    Book("9788308060411", "Opowieści o pilocie Pirxie", "Stanisław Lem", 1968, groupsAvailable = 0),
-    Book("9788373271897", "Lalka", "Bolesław Prus", 1890, groupsAvailable = 3),
-    Book("9788375780638", "Problem trzech ciał", "Cixin Liu", 2008, groupsAvailable = 1),
+    Book("9788308075197", "Solaris", "Stanisław Lem", 1961, groupsAvailable = 2),
+    Book("9788308060377", "Niezwyciężony", "Stanisław Lem", 1964, groupsAvailable = 1),
+    Book("9788308033197", "Opowieści o pilocie Pirxie", "Stanisław Lem", 1968, groupsAvailable = 0),
+    Book("9788304027763", "Lalka", "Bolesław Prus", 1890, groupsAvailable = 3),
+    Book("9788381881548", "Problem trzech ciał", "Cixin Liu", 2008, groupsAvailable = 1),
 )
 
 // Books whose title, author or ISBN contains the query. Upper/lower case doesn't matter,
