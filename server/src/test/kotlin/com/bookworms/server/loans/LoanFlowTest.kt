@@ -65,7 +65,7 @@ class LoanFlowTest(
 	@AfterEach
 	fun cleanDatabase() {
 		for (table in listOf(
-			"borrowings", "borrow_requests", "copy_group_visibility", "book_copies",
+			"availability_watchers", "borrowings", "borrow_requests", "copy_group_visibility", "book_copies",
 			"group_members", "groups", "books", "users",
 		)) {
 			jdbc.update("delete from $table")
@@ -274,6 +274,68 @@ class LoanFlowTest(
 
 	private fun answer(token: String, requestId: String, action: String) =
 		mockMvc.post("/requests/$requestId/$action") { bearer(token) }
+
+	@Test
+	fun `an available book has no queue – you just ask`() {
+		joinQueue(marek).andExpect {
+			status { isConflict() }
+			jsonPath("$.code") { value("COPY_AVAILABLE") }
+		}
+		joinQueue(zosia).andExpect { status { isNotFound() } }
+		joinQueue(agata).andExpect { jsonPath("$.code") { value("OWN_COPY") } }
+	}
+
+	@Test
+	fun `while the book is lent, people queue up in order`() {
+		answer(agata, idOf(send(marek)), "accept")
+
+		joinQueue(ola).andExpect {
+			status { isOk() }
+			jsonPath("$.position") { value(1) }
+			jsonPath("$.book.title") { value("Solaris") }
+		}
+		// Joining again just gives the same place back.
+		joinQueue(ola).andExpect { jsonPath("$.position") { value(1) } }
+		mockMvc.get("/me/queue") { bearer(ola) }.andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].position") { value(1) }
+		}
+
+		mockMvc.delete("/copies/$solaris/queue") { bearer(ola) }.andExpect { status { isNoContent() } }
+		mockMvc.get("/me/queue") { bearer(ola) }.andExpect { jsonPath("$.length()") { value(0) } }
+	}
+
+	@Test
+	fun `when the book is back, the queue is cleared`() {
+		answer(agata, idOf(send(marek)), "accept")
+		joinQueue(ola)
+
+		markReturned(agata, loanId(agata))
+
+		mockMvc.get("/me/queue") { bearer(ola) }.andExpect { jsonPath("$.length()") { value(0) } }
+	}
+
+	@Test
+	fun `an unavailable book can be queued for until the owner makes it available`() {
+		setAvailability("UNAVAILABLE")
+		joinQueue(marek).andExpect { jsonPath("$.position") { value(1) } }
+		joinQueue(ola).andExpect { jsonPath("$.position") { value(2) } }
+
+		setAvailability("AVAILABLE")
+
+		mockMvc.get("/me/queue") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
+		mockMvc.get("/me/queue") { bearer(ola) }.andExpect { jsonPath("$.length()") { value(0) } }
+	}
+
+	private fun joinQueue(token: String) =
+		mockMvc.post("/copies/$solaris/queue") { bearer(token) }
+
+	private fun setAvailability(availability: String) =
+		mockMvc.patch("/copies/$solaris") {
+			bearer(agata)
+			contentType = MediaType.APPLICATION_JSON
+			content = """{"availability": "$availability"}"""
+		}.andExpect { status { isOk() } }
 
 	private fun markReturned(token: String, loanId: String) =
 		mockMvc.post("/borrowings/$loanId/return") { bearer(token) }

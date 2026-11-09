@@ -9,6 +9,7 @@ import com.bookworms.server.copies.dto.EditBookRequest
 import com.bookworms.server.loans.BorrowRequestRepository
 import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
+import com.bookworms.server.loans.QueueRepository
 import com.bookworms.server.loans.RequestStatus
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -23,6 +24,7 @@ class CopyService(
 	private val bookRepository: BookRepository,
 	private val borrowingRepository: BorrowingRepository,
 	private val requestRepository: BorrowRequestRepository,
+	private val queueRepository: QueueRepository,
 ) {
 
 	@Transactional(readOnly = true)
@@ -56,6 +58,12 @@ class CopyService(
 	fun changeAvailability(ownerId: UUID, copyId: UUID, availability: Availability): BookCopy {
 		val copy = myCopy(ownerId, copyId)
 		copy.availability = availability
+		if (availability == Availability.AVAILABLE &&
+			!borrowingRepository.existsByCopyIdAndStatusNot(copyId, BorrowingStatus.RETURNED)
+		) {
+			// TODO: tell the people waiting once notifications are on the server.
+			queueRepository.deleteById_CopyId(copyId)
+		}
 		return copy
 	}
 
@@ -88,6 +96,23 @@ class CopyService(
 		copy.deletedAt = Instant.now()
 		requestRepository.findByCopyIdAndStatus(copyId, RequestStatus.PENDING)
 			.forEach { it.status = RequestStatus.REJECTED }
+		queueRepository.deleteById_CopyId(copyId)
+	}
+
+	// Someone else's copy that this user can see – it's in one of their groups. Used for asking and for the queue.
+	// A copy they can't see answers the same as a missing one.
+	@Transactional(readOnly = true)
+	fun othersCopy(userId: UUID, copyId: UUID): BookCopy {
+		val copy = copyRepository.findWithBookById(copyId)
+		if (copy == null || copy.deletedAt != null ||
+			(copy.ownerId != userId && !copyRepository.isVisibleTo(copyId, userId))
+		) {
+			throw ApiException(HttpStatus.NOT_FOUND, "COPY_NOT_FOUND", "Copy not found")
+		}
+		if (copy.ownerId == userId) {
+			throw ApiException(HttpStatus.BAD_REQUEST, "OWN_COPY", "This is your own book")
+		}
+		return copy
 	}
 
 	// Someone else's copy answers the same as a missing one, so nobody can guess other people's copies.

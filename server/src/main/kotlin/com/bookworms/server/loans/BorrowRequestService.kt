@@ -3,7 +3,7 @@ package com.bookworms.server.loans
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.Availability
 import com.bookworms.server.copies.BookCopy
-import com.bookworms.server.copies.BookCopyRepository
+import com.bookworms.server.copies.CopyService
 import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.loans.dto.RequestBookResponse
 import com.bookworms.server.loans.dto.RequestResponse
@@ -24,7 +24,7 @@ import java.util.UUID
 @Service
 class BorrowRequestService(
 	private val requestRepository: BorrowRequestRepository,
-	private val copyRepository: BookCopyRepository,
+	private val copyService: CopyService,
 	private val borrowingRepository: BorrowingRepository,
 	private val userRepository: UserRepository,
 ) {
@@ -37,16 +37,7 @@ class BorrowRequestService(
 			return describe(listOf(it), requesterId).single()
 		}
 
-		val copy = copyRepository.findWithBookById(copyId)
-		// A copy you can't see in any of your groups answers the same as a missing one.
-		if (copy == null || copy.deletedAt != null ||
-			(copy.ownerId != requesterId && !copyRepository.isVisibleTo(copyId, requesterId))
-		) {
-			throw ApiException(HttpStatus.NOT_FOUND, "COPY_NOT_FOUND", "Copy not found")
-		}
-		if (copy.ownerId == requesterId) {
-			throw ApiException(HttpStatus.BAD_REQUEST, "OWN_COPY", "You can't borrow your own book")
-		}
+		val copy = copyService.othersCopy(requesterId, copyId)
 		checkCanBeLent(copy)
 		if (requestRepository.existsByCopyIdAndRequesterIdAndStatus(copyId, requesterId, RequestStatus.PENDING)) {
 			throw ApiException(HttpStatus.CONFLICT, "REQUEST_ALREADY_SENT", "You already asked for this book")
