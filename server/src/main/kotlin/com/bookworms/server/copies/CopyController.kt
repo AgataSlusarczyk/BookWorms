@@ -1,5 +1,6 @@
 package com.bookworms.server.copies
 
+import com.bookworms.server.common.userId
 import com.bookworms.server.copies.dto.AddCopyRequest
 import com.bookworms.server.copies.dto.ChangeAvailabilityRequest
 import com.bookworms.server.copies.dto.CopyResponse
@@ -63,6 +64,3 @@ class CopyController(
 		copyService.removeCopy(jwt.userId(), id)
 	}
 }
-
-// The token keeps the user's id as its subject (see TokenService).
-private fun Jwt.userId(): UUID = UUID.fromString(subject)
