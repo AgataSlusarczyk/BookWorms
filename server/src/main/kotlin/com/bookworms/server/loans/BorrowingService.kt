@@ -1,6 +1,7 @@
 package com.bookworms.server.loans
 
 import com.bookworms.server.common.ApiException
+import com.bookworms.server.copies.Availability
 import com.bookworms.server.loans.dto.LoanResponse
 import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.loans.dto.RequestBookResponse
@@ -17,6 +18,7 @@ import java.util.UUID
 class BorrowingService(
 	private val borrowingRepository: BorrowingRepository,
 	private val userRepository: UserRepository,
+	private val queueRepository: QueueRepository,
 ) {
 
 	// "Borrowing": books I have from other people.
@@ -42,6 +44,11 @@ class BorrowingService(
 		}
 		borrowing.status = BorrowingStatus.RETURNED
 		borrowing.returnConfirmedByOwnerAt = Instant.now()
+		// Back and available – the people waiting can ask now. (If the owner made it unavailable, they keep waiting.)
+		if (borrowing.copy.availability == Availability.AVAILABLE) {
+			// TODO: tell the people waiting once notifications are on the server.
+			queueRepository.deleteById_CopyId(borrowing.copy.id!!)
+		}
 		return describe(listOf(borrowing)).single()
 	}
 
