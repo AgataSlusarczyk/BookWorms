@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -29,20 +30,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.PlaceholderGray
 
 @Composable
-fun GroupsScreen(
+internal fun GroupsScreen(
+    groups: LoadState<List<GroupSummary>>,
+    onRetryClick: () -> Unit,
     onNavigate: (String) -> Unit = {},
     onCreateGroupClick: () -> Unit = {},
     onJoinGroupClick: () -> Unit = {},
-    onGroupClick: (String) -> Unit = {},
+    onGroupClick: (GroupSummary) -> Unit = {},
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -74,22 +80,29 @@ fun GroupsScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            item { SectionHeader(stringResource(R.string.profile_my_groups_count, 2)) }
-            item {
-                GroupCard(
-                    name = "Czytelnia 23",
-                    members = pluralStringResource(R.plurals.members, 14, 14),
-                    role = stringResource(R.string.role_admin),
-                    onClick = { onGroupClick("Czytelnia 23") },
-                )
-            }
-            item {
-                GroupCard(
-                    name = "Rodzina",
-                    members = pluralStringResource(R.plurals.members, 5, 5),
-                    role = stringResource(R.string.role_member),
-                    onClick = { onGroupClick("Rodzina") },
-                )
+            when (groups) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_groups_failed), onRetryClick) }
+                is LoadState.Ready -> {
+                    item { SectionHeader(stringResource(R.string.profile_my_groups_count, groups.data.size)) }
+                    if (groups.data.isEmpty()) {
+                        item {
+                            Text(
+                                stringResource(R.string.groups_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(groups.data, key = { it.id }) { group ->
+                        GroupCard(
+                            name = group.name,
+                            members = pluralStringResource(R.plurals.members, group.memberCount, group.memberCount),
+                            role = stringResource(if (group.isAdmin) R.string.role_admin else R.string.role_member),
+                            onClick = { onGroupClick(group) },
+                        )
+                    }
+                }
             }
         }
     }
@@ -99,7 +112,7 @@ fun GroupsScreen(
 @Composable
 private fun GroupCard(name: String, members: String, role: String, onClick: () -> Unit) {
     AppCard(onClick = onClick) {
-           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
             Box(modifier = Modifier.size(40.dp).background(PlaceholderGray, CircleShape))
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -122,6 +135,14 @@ private fun GroupCard(name: String, members: String, role: String, onClick: () -
 @Composable
 private fun GroupsScreenPreview() {
     BookWormsTheme {
-        GroupsScreen()
+        GroupsScreen(
+            groups = LoadState.Ready(
+                listOf(
+                    GroupSummary("1", "Czytelnia 23", memberCount = 14, isAdmin = true),
+                    GroupSummary("2", "Rodzina", memberCount = 5, isAdmin = false),
+                ),
+            ),
+            onRetryClick = {},
+        )
     }
 }

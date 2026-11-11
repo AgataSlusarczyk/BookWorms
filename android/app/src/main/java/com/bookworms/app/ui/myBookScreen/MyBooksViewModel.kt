@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookworms.app.R
 import com.bookworms.app.data.CopyLentException
+import com.bookworms.app.data.GroupsRepository
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.MyBooksRepository
 import com.bookworms.app.data.load
+import com.bookworms.app.ui.groups.GroupSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -30,10 +32,17 @@ internal sealed interface MyBooksEvent {
 
 // The user's books from the server. Shared by My books, My copy and Edit book (see AppNavigation),
 // so a change made on one of them shows on the others right away.
-internal class MyBooksViewModel(private val repository: MyBooksRepository = MyBooksRepository()) : ViewModel() {
+internal class MyBooksViewModel(
+    private val repository: MyBooksRepository = MyBooksRepository(),
+    private val groupsRepository: GroupsRepository = GroupsRepository(),
+) : ViewModel() {
 
     private val _books = MutableStateFlow<LoadState<List<OwnBook>>>(LoadState.Loading)
     val books: StateFlow<LoadState<List<OwnBook>>> = _books.asStateFlow()
+
+    // The user's groups, for "Visible in" on My copy. Loaded next to the books.
+    private val _groups = MutableStateFlow<LoadState<List<GroupSummary>>>(LoadState.Loading)
+    val groups: StateFlow<LoadState<List<GroupSummary>>> = _groups.asStateFlow()
 
     // true while a change is on its way to the server – the buttons and switches wait for it.
     private val _saving = MutableStateFlow(false)
@@ -48,8 +57,19 @@ internal class MyBooksViewModel(private val repository: MyBooksRepository = MyBo
 
     fun refresh() {
         _books.value = LoadState.Loading
+        _groups.value = LoadState.Loading
         viewModelScope.launch {
             _books.value = load { repository.myBooks() }
+        }
+        viewModelScope.launch {
+            _groups.value = load { groupsRepository.myGroups() }
+        }
+    }
+
+    fun refreshGroups() {
+        _groups.value = LoadState.Loading
+        viewModelScope.launch {
+            _groups.value = load { groupsRepository.myGroups() }
         }
     }
 
@@ -59,6 +79,12 @@ internal class MyBooksViewModel(private val repository: MyBooksRepository = MyBo
     fun setAvailable(book: OwnBook, available: Boolean) = save {
         val changed = repository.setAvailable(book, available)
         replace(changed)
+    }
+
+    // A switch under "Visible in": the group is added to or taken from the book.
+    fun setVisibleIn(book: OwnBook, groupId: String, visible: Boolean) = save {
+        val groupIds = if (visible) book.groupIds + groupId else book.groupIds - groupId
+        replace(repository.setGroups(book, groupIds))
     }
 
     fun editBook(book: OwnBook, form: BookForm) = save {

@@ -30,6 +30,7 @@ object ApiClient {
     val books: BooksApi = retrofit.create(BooksApi::class.java)
     val copies: CopiesApi = retrofit.create(CopiesApi::class.java)
     val loans: LoansApi = retrofit.create(LoansApi::class.java)
+    val groups: GroupsApi = retrofit.create(GroupsApi::class.java)
 
     // Sends the login token with every request, so the server knows who asks.
     private fun withToken(chain: Interceptor.Chain): Response {

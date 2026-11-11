@@ -15,9 +15,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.BookCover
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.groups.GroupSummary
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.StatusTag
 import com.bookworms.app.ui.components.mistedBackground
@@ -33,9 +37,13 @@ import com.bookworms.app.ui.theme.StatusGreenBg
 @Composable
 internal fun MyCopyScreen(
     book: OwnBook,
-    // true while a change is on its way to the server – the switch and Remove wait for it.
+    // The user's groups, for "Visible in".
+    groups: LoadState<List<GroupSummary>>,
+    // true while a change is on its way to the server – the switches and Remove wait for it.
     saving: Boolean,
     onAvailableChange: (Boolean) -> Unit,
+    onVisibleInChange: (groupId: String, visible: Boolean) -> Unit,
+    onRetryGroupsClick: () -> Unit,
     // null = the book is from the catalog, so it can't be edited (no pencil).
     onEditClick: (() -> Unit)?,
     // null = the book has no ISBN, so it has no page to open.
@@ -43,8 +51,6 @@ internal fun MyCopyScreen(
     onRemoveClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
-    // TODO: save on the server once groups are there. For now the switches last until the screen is closed.
-    var visibleIn by rememberSaveable { mutableStateOf(myGroups) }
     var showRemoveDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -73,17 +79,7 @@ internal fun MyCopyScreen(
             WhereItIsCard(book)
 
             SectionHeader(stringResource(R.string.visible_in), Modifier.padding(top = 4.dp))
-            AppCard {
-                myGroups.forEachIndexed { index, group ->
-                    if (index > 0) HorizontalDivider(color = CardBorder)
-                    SwitchRow(
-                        text = group,
-                        checked = group in visibleIn,
-                        onCheckedChange = { checked -> visibleIn = if (checked) visibleIn + group else visibleIn - group },
-                    )
-                }
-            }
-            HintText(stringResource(if (visibleIn.isEmpty()) R.string.visible_to_nobody else R.string.visible_in_hint))
+            VisibleInCard(book, groups, saving, onVisibleInChange, onRetryGroupsClick)
 
             AppCard {
                 SwitchRow(
@@ -144,6 +140,41 @@ internal fun MyCopyScreen(
                 }
             },
         )
+    }
+}
+
+// A switch for each of the user's groups, with a hint under it.
+@Composable
+private fun VisibleInCard(
+    book: OwnBook,
+    groups: LoadState<List<GroupSummary>>,
+    saving: Boolean,
+    onVisibleInChange: (groupId: String, visible: Boolean) -> Unit,
+    onRetryClick: () -> Unit,
+) {
+    when (groups) {
+        LoadState.Loading -> LoadingIndicator()
+        LoadState.Failed -> LoadFailedMessage(stringResource(R.string.load_groups_failed), onRetryClick)
+        is LoadState.Ready -> {
+            if (groups.data.isEmpty()) {
+                HintText(stringResource(R.string.visible_in_no_groups))
+                return
+            }
+            AppCard {
+                groups.data.forEachIndexed { index, group ->
+                    if (index > 0) HorizontalDivider(color = CardBorder)
+                    SwitchRow(
+                        text = group.name,
+                        checked = group.id in book.groupIds,
+                        onCheckedChange = { checked -> onVisibleInChange(group.id, checked) },
+                        enabled = !saving,
+                    )
+                }
+            }
+            // Only the groups the user is still in count – an old id from a group they left doesn't.
+            val visible = groups.data.any { it.id in book.groupIds }
+            HintText(stringResource(if (visible) R.string.visible_in_hint else R.string.visible_to_nobody))
+        }
     }
 }
 
@@ -216,9 +247,17 @@ private fun HintText(text: String, modifier: Modifier = Modifier) {
 private fun MyCopyScreenPreview() {
     BookWormsTheme {
         MyCopyScreen(
-            book = previewOwnBooks[1],
+            book = previewOwnBooks[1].copy(groupIds = setOf("g1")),
+            groups = LoadState.Ready(
+                listOf(
+                    GroupSummary("g1", "Czytelnia 23", memberCount = 14, isAdmin = true),
+                    GroupSummary("g2", "Rodzina", memberCount = 5, isAdmin = false),
+                ),
+            ),
             saving = false,
             onAvailableChange = {},
+            onVisibleInChange = { _, _ -> },
+            onRetryGroupsClick = {},
             onEditClick = null,
             onOpenBookPageClick = {},
             onRemoveClick = {},

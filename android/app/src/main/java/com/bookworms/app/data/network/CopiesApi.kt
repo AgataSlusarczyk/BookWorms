@@ -25,6 +25,10 @@ interface CopiesApi {
     @PATCH("copies/{id}")
     suspend fun changeAvailability(@Path("id") id: String, @Body request: ChangeAvailabilityRequestDto): CopyDto
 
+    // "Visible in" on My copy. Only the user's own groups – any other answers 400 (code NOT_GROUP_MEMBER).
+    @PUT("copies/{id}/groups")
+    suspend fun changeGroups(@Path("id") id: String, @Body request: ChangeGroupsRequestDto): CopyDto
+
     // Only for a book the user typed in by hand (canEditBook) – otherwise 403 (code BOOK_NOT_EDITABLE).
     @PUT("copies/{id}/book")
     suspend fun editBook(@Path("id") id: String, @Body request: EditBookRequestDto): CopyDto
@@ -43,6 +47,8 @@ data class CopyDto(
     val book: CopyBookDto,
     // true = the user typed this book in by hand, so they can edit it.
     val canEditBook: Boolean = false,
+    // The user's groups that can see it.
+    val groupIds: List<String> = emptyList(),
 )
 
 @Serializable
@@ -77,4 +83,9 @@ data class EditBookRequestDto(
 @Serializable
 data class ChangeAvailabilityRequestDto(
     val availability: String,
+)
+
+@Serializable
+data class ChangeGroupsRequestDto(
+    val groupIds: List<String>,
 )

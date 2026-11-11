@@ -21,6 +21,8 @@ internal data class OwnBook(
     val availableToBorrow: Boolean = true,
     // true = the user typed the book in by hand, so they can edit it. Catalog books are shared, so they can't.
     val canEditBook: Boolean = false,
+    // The user's groups that can see it ("Visible in" on My copy).
+    val groupIds: Set<String> = emptySet(),
     val lentTo: String? = null,
     val lentSince: LocalDate? = null,
     val returnBy: LocalDate? = null,
@@ -43,10 +45,6 @@ internal fun OwnBook.toForm() = BookForm(
     publisher = publisher.orEmpty(),
     year = year,
 )
-
-// TODO: the groups the user is in, from the server. Until then "Visible in" on My copy only shows these
-// and its switches aren't saved – the server shows a new book in all the owner's groups.
-internal val myGroups = listOf("Czytelnia 23", "Rodzina")
 
 // "Andrzej Sapkowski · 1994", or only the author when the year wasn't filled in.
 @Composable

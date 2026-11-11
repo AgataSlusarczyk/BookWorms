@@ -43,19 +43,19 @@ import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.CreateGroupViewModel
+import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupEvent
+import com.bookworms.app.ui.groups.GroupsViewModel
+import com.bookworms.app.ui.groups.JoinGroupViewModel
 import com.bookworms.app.ui.groups.GroupDetailsScreen
-import com.bookworms.app.ui.groups.GroupInfo
-import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.groups.JoinGroupScreen
-import com.bookworms.app.ui.groups.groupInfo
-import com.bookworms.app.ui.groups.sampleGroups
+import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
+import com.bookworms.app.ui.group.RecentMember
+import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.copyInviteCode
-import com.bookworms.app.ui.group.newInviteCode
-import com.bookworms.app.ui.group.withCode
-import com.bookworms.app.ui.group.sampleInvite
-import com.bookworms.app.ui.group.sampleRecentMembers
 import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
@@ -88,6 +88,8 @@ import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
+import kotlinx.coroutines.flow.Flow
+import java.time.format.DateTimeFormatter
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -101,7 +103,7 @@ private object Routes {
     // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.
     const val ADD_COMMENT = "add_comment/{isbn}?group={group}&replyTo={replyTo}"
     const val SCAN_ISBN = "scan_isbn"
-    const val INVITE_TO_GROUP = "invite_to_group"
+    const val INVITE_TO_GROUP = "invite_to_group/{groupId}"
 
     // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
@@ -125,8 +127,9 @@ private object Routes {
     const val SHELF = "shelf/{shelf}"
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
-    const val GROUP_DETAILS = "group_details/{groupName}"
-    const val EDIT_GROUP = "edit_group/{groupName}"
+    // {groupId} = the group's id on the server.
+    const val GROUP_DETAILS = "group_details/{groupId}"
+    const val EDIT_GROUP = "edit_group/{groupId}"
     // {copyId} = the copy's id on the server.
     const val MY_COPY = "my_copy/{copyId}"
     const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
@@ -149,8 +152,9 @@ private object Routes {
     fun shelf(shelf: Shelf) = "shelf/${shelf.name}"
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
-    fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
-    fun editGroup(groupName: String) = "edit_group/${Uri.encode(groupName)}"
+    fun groupDetails(groupId: String) = "group_details/$groupId"
+    fun editGroup(groupId: String) = "edit_group/$groupId"
+    fun inviteToGroup(groupId: String) = "invite_to_group/$groupId"
     fun myCopy(copyId: String) = "my_copy/$copyId"
     fun editOwnBook(copyId: String) = "edit_own_book/$copyId"
 }
@@ -345,11 +349,17 @@ fun AppNavigation() {
         }
 
         composable(Routes.GROUPS) {
+            val viewModel: GroupsViewModel = viewModel()
+            val groups by viewModel.groups.collectAsState()
+            // Each time the tab opens – a group may have been made, joined or left since.
+            LaunchedEffect(Unit) { viewModel.refresh() }
             GroupsScreen(
+                groups = groups,
+                onRetryClick = viewModel::refresh,
                 onNavigate = navigateBottomBar,
                 onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
                 onJoinGroupClick = { navController.navigate(Routes.JOIN_GROUP) },
-                onGroupClick = { groupName -> navController.navigate(Routes.groupDetails(groupName)) },
+                onGroupClick = { group -> navController.navigate(Routes.groupDetails(group.id)) },
             )
         }
 
@@ -449,49 +459,66 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.GROUP_DETAILS) { backStackEntry ->
-            // TODO: look the group up on the server. For now only the name comes from the list.
-            val groupName = backStackEntry.arguments?.getString("groupName").orEmpty()
-            GroupDetailsScreen(
-                groupName = groupName,
-                // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
-                isAdmin = groupName == "Czytelnia 23",
-                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
-                onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
-                onEditClick = { navController.navigate(Routes.editGroup(groupName)) },
-                // TODO: leave the group on the server first. For now it just goes back to Groups.
-                onLeaveClick = { navController.popBackStack() },
+        composable(Routes.GROUP_DETAILS) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val books by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            HandleGroupEvents(viewModel.events, navController)
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-            )
+            ) { group ->
+                GroupDetailsScreen(
+                    group = group,
+                    books = books,
+                    saving = saving,
+                    onRetryBooksClick = viewModel::refresh,
+                    onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                    onInviteClick = group.inviteCode?.let { { navController.navigate(Routes.inviteToGroup(group.id)) } },
+                    onEditClick = { navController.navigate(Routes.editGroup(group.id)) },
+                    onMakeAdmin = viewModel::makeAdmin,
+                    onRemoveMember = viewModel::removeMember,
+                    onLeaveClick = viewModel::leave,
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
         }
 
-        composable(Routes.EDIT_GROUP) { backStackEntry ->
-            val groupKey = backStackEntry.arguments?.getString("groupName").orEmpty()
-            val group = groupInfo(groupKey)
-            // Starts with the group's current details. Temporary state – moves to a ViewModel later.
-            var name by rememberSaveable { mutableStateOf(group.name) }
-            var description by rememberSaveable { mutableStateOf(group.description) }
-            var visibility by rememberSaveable { mutableStateOf(group.visibility) }
+        composable(Routes.EDIT_GROUP) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            HandleGroupEvents(viewModel.events, navController)
 
-            CreateGroupScreen(
-                name = name,
-                description = description,
-                onNameChange = { name = it },
-                onDescriptionChange = { description = it },
-                visibility = visibility,
-                onVisibilityChange = { visibility = it },
-                invitedUsernames = emptyList(),
-                onAddInvite = {},
-                onRemoveInvite = {},
-                // TODO: save the changes on the server first.
-                onCreateGroupClick = {
-                    sampleGroups[groupKey] = GroupInfo(name.trim(), description.trim(), visibility)
-                    navController.popBackStack()
-                },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                // TODO: delete the group on the server first. For now it just goes back to Groups.
-                onDeleteClick = { navController.popBackStack(Routes.GROUPS, inclusive = false) },
-            )
+            ) { group ->
+                // Starts with the group's current details.
+                var name by rememberSaveable { mutableStateOf(group.name) }
+                var description by rememberSaveable { mutableStateOf(group.description) }
+                var membersCanInvite by rememberSaveable { mutableStateOf(group.membersCanInvite) }
+
+                CreateGroupScreen(
+                    name = name,
+                    description = description,
+                    onNameChange = { name = it },
+                    onDescriptionChange = { description = it },
+                    // Back on Group details once the server saved it (GroupEvent.Saved).
+                    onCreateGroupClick = { viewModel.update(name, description, membersCanInvite) },
+                    onBackClick = { navController.popBackStack() },
+                    saving = saving,
+                    membersCanInvite = membersCanInvite,
+                    onMembersCanInviteChange = { membersCanInvite = it },
+                    onDeleteClick = viewModel::delete,
+                )
+            }
         }
 
         composable(Routes.EDIT_PROFILE) {
@@ -535,6 +562,7 @@ fun AppNavigation() {
             val viewModel = myBooksViewModel(navController, entry)
             val state by viewModel.books.collectAsState()
             val saving by viewModel.saving.collectAsState()
+            val groups by viewModel.groups.collectAsState()
             ShowMyBooksErrors(viewModel)
 
             LoadStateScreen(
@@ -551,8 +579,11 @@ fun AppNavigation() {
                 }
                 MyCopyScreen(
                     book = book,
+                    groups = groups,
                     saving = saving,
                     onAvailableChange = { viewModel.setAvailable(book, it) },
+                    onVisibleInChange = { groupId, visible -> viewModel.setVisibleIn(book, groupId, visible) },
+                    onRetryGroupsClick = viewModel::refreshGroups,
                     onEditClick = if (book.canEditBook) {
                         { navController.navigate(Routes.editOwnBook(book.id)) }
                     } else {
@@ -639,37 +670,40 @@ fun AppNavigation() {
         }
 
         composable(Routes.JOIN_GROUP) {
+            val viewModel: JoinGroupViewModel = viewModel()
+            val found by viewModel.found.collectAsState()
+            val notFound by viewModel.notFound.collectAsState()
+            val busy by viewModel.saving.collectAsState()
+            // Opens the new group. Join group goes off the stack, so Back goes to Groups, not here.
+            HandleGroupEvents(viewModel.events, navController, closeOnOpen = Routes.JOIN_GROUP)
+
             JoinGroupScreen(
-                // Opens the new group. popUpTo takes Join group off the stack, so Back goes to Groups, not here.
-                onGroupJoined = { groupName ->
-                    navController.navigate(Routes.groupDetails(groupName)) {
-                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
-                    }
-                },
+                found = found,
+                notFound = notFound,
+                busy = busy,
+                onCodeChange = viewModel::onCodeChange,
+                onFindClick = viewModel::find,
+                onJoinClick = viewModel::join,
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.CREATE_GROUP) {
-            // Temporary state – moves to a ViewModel when groups come from the server.
+            val viewModel: CreateGroupViewModel = viewModel()
+            val saving by viewModel.saving.collectAsState()
             var name by rememberSaveable { mutableStateOf("") }
             var description by rememberSaveable { mutableStateOf("") }
-            var visibility by rememberSaveable { mutableStateOf(GroupVisibility.Private) }
-            var invitedUsernames by rememberSaveable { mutableStateOf(listOf<String>()) }
+            // Opens the new group. Create group goes off the stack, so Back goes to Groups, not here.
+            HandleGroupEvents(viewModel.events, navController, closeOnOpen = Routes.CREATE_GROUP)
 
             CreateGroupScreen(
                 name = name,
                 description = description,
                 onNameChange = { name = it },
                 onDescriptionChange = { description = it },
-                visibility = visibility,
-                onVisibilityChange = { visibility = it },
-                invitedUsernames = invitedUsernames,
-                onAddInvite = { invitedUsernames = invitedUsernames + it },
-                onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it just goes back to Groups.
-                onCreateGroupClick = { navController.popBackStack() },
+                onCreateGroupClick = { viewModel.create(name, description) },
                 onBackClick = { navController.popBackStack() },
+                saving = saving,
             )
         }
 
@@ -769,23 +803,40 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.INVITE_TO_GROUP) {
+        composable(Routes.INVITE_TO_GROUP) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val saving by viewModel.saving.collectAsState()
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
+            HandleGroupEvents(viewModel.events, navController)
 
-            // Temporary state – the code comes from the server later. Only the code is kept,
-            // rememberSaveable can't hold the whole GroupInvite.
-            var code by rememberSaveable { mutableStateOf(sampleInvite.code) }
-            val invite = sampleInvite.withCode(code)
-
-            InviteToGroupScreen(
-                invite = invite,
-                recentMembers = sampleRecentMembers,
-                onCopyCodeClick = { copyInviteCode(context, invite.code) },
-                onShareLinkClick = { shareInviteLink(context, invite) },
-                onGenerateNewCodeClick = { code = newInviteCode() },
-                onCloseClick = { navController.popBackStack() },
-            )
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { group ->
+                val code = group.inviteCode
+                if (code == null) {
+                    // The admin stopped letting members invite in the meantime.
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                    return@LoadStateScreen
+                }
+                val invite = GroupInvite(groupName = group.name, code = code, link = inviteLink(code))
+                InviteToGroupScreen(
+                    invite = invite,
+                    // The newest members first – the server sends the earliest first.
+                    recentMembers = group.members.asReversed().take(RecentMembersCount).map {
+                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin)
+                    },
+                    onCopyCodeClick = { copyInviteCode(context, invite.code) },
+                    onShareLinkClick = { shareInviteLink(context, invite) },
+                    onGenerateNewCodeClick = viewModel::newInviteCode,
+                    onCloseClick = { navController.popBackStack() },
+                    saving = saving,
+                )
+            }
         }
     }
 }
@@ -822,3 +873,41 @@ private fun CloseWhenGone(navController: NavController, entry: NavBackStackEntry
         if (navController.currentBackStackEntry == entry) navController.popBackStack()
     }
 }
+
+// Group details, Edit group and Invite share one ViewModel – the one of Group details, which is always under the
+// other two. So a change saved on one of them shows on the others right away.
+@Composable
+private fun groupDetailsViewModel(navController: NavController, entry: NavBackStackEntry): GroupDetailsViewModel {
+    val owner = remember(entry) {
+        if (entry.destination.route == Routes.GROUP_DETAILS) entry else navController.getBackStackEntry(Routes.GROUP_DETAILS)
+    }
+    val groupId = owner.arguments?.getString("groupId").orEmpty()
+    return viewModel(owner) { GroupDetailsViewModel(groupId) }
+}
+
+// What to do after a group change: open a group, go back, or show what went wrong.
+// closeOnOpen = the screen that goes off the stack when a group opens (Create group, Join group).
+@Composable
+private fun HandleGroupEvents(events: Flow<GroupEvent>, navController: NavController, closeOnOpen: String? = null) {
+    val context = LocalContext.current
+    LaunchedEffect(events) {
+        events.collect { event ->
+            when (event) {
+                is GroupEvent.Opened -> navController.navigate(Routes.groupDetails(event.groupId)) {
+                    if (closeOnOpen != null) popUpTo(closeOnOpen) { inclusive = true }
+                }
+                GroupEvent.Saved -> navController.popBackStack()
+                // Left or deleted: back to the Groups tab, which loads the list again.
+                GroupEvent.Gone -> if (!navController.popBackStack(Routes.GROUPS, inclusive = false)) {
+                    navController.navigate(Routes.GROUPS) { popUpTo(Routes.LIBRARY) }
+                }
+                is GroupEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+// How many of the newest members Invite shows.
+private const val RecentMembersCount = 5
+
+private val JoinedDate = DateTimeFormatter.ofPattern("dd.MM.yyyy")

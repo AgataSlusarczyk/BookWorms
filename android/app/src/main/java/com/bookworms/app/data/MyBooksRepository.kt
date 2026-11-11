@@ -3,6 +3,7 @@ package com.bookworms.app.data
 import com.bookworms.app.data.network.AddCopyRequestDto
 import com.bookworms.app.data.network.ApiClient
 import com.bookworms.app.data.network.ChangeAvailabilityRequestDto
+import com.bookworms.app.data.network.ChangeGroupsRequestDto
 import com.bookworms.app.data.network.CopiesApi
 import com.bookworms.app.data.network.CopyDto
 import com.bookworms.app.data.network.EditBookRequestDto
@@ -59,6 +60,12 @@ class MyBooksRepository(
         return copy.toOwnBook(loan = null).withLoanOf(book)
     }
 
+    // The groups that see the book from now on. Empty = only the user.
+    internal suspend fun setGroups(book: OwnBook, groupIds: Set<String>): OwnBook {
+        val copy = copies.changeGroups(book.id, ChangeGroupsRequestDto(groupIds.toList()))
+        return copy.toOwnBook(loan = null).withLoanOf(book)
+    }
+
     internal suspend fun editBook(book: OwnBook, form: BookForm): OwnBook {
         val copy = copies.editBook(
             book.id,
@@ -100,6 +107,7 @@ private fun CopyDto.toOwnBook(loan: LoanDto?) = OwnBook(
     // UNAVAILABLE and LOST both mean nobody can borrow it.
     availableToBorrow = availability == "AVAILABLE",
     canEditBook = canEditBook,
+    groupIds = groupIds.toSet(),
     lentTo = loan?.borrower?.name,
     lentSince = loan?.since?.let(::localDate),
     returnBy = loan?.dueDate?.let(::localDate),
