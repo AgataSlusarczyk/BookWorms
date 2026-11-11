@@ -3,6 +3,7 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,9 +19,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.bookworms.app.R
+import com.bookworms.app.data.AuthRepository
+import com.bookworms.app.data.auth.Session
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
+import com.bookworms.app.ui.auth.LoginError
 import com.bookworms.app.ui.auth.LoginScreen
+import com.bookworms.app.ui.auth.LoginViewModel
+import com.bookworms.app.ui.auth.RegisterError
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.auth.RegisterViewModel
 import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.BookDetailsViewModel
@@ -162,23 +169,52 @@ fun AppNavigation() {
         navController.navigate(Routes.bookDetails(book.isbn))
     }
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
-        composable(Routes.LOGIN) {
-            // Temporary state – moves to a ViewModel when we add the real login.
-            var email by rememberSaveable { mutableStateOf("") }
-            var password by rememberSaveable { mutableStateOf("") }
+    val user by Session.user.collectAsState()
+    // Remembered together with the first screen, so a logout that happens before the check below runs
+    // (e.g. the first request of the Library already got 401) is still noticed.
+    var wasLoggedIn by remember { mutableStateOf(user != null) }
 
-            LoginScreen(
-                email = email,
-                password = password,
-                onEmailChange = { email = it },
-                onPasswordChange = { password = it },
-                onLoginClick = {
+    // Someone who logged in before goes straight to the Library. Checked once, when the app opens.
+    val startDestination = remember { if (wasLoggedIn) Routes.LIBRARY else Routes.LOGIN }
+
+    // The server stopped accepting the token (see ApiClient) – back to login, with no way "back" into the app.
+    LaunchedEffect(user) {
+        if (wasLoggedIn && user == null && navController.currentDestination?.route != Routes.LOGIN) {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
+        wasLoggedIn = user != null
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Routes.LOGIN) {
+            val viewModel: LoginViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
+
+            // The server accepted the email and password.
+            LaunchedEffect(state.loggedIn) {
+                if (state.loggedIn) {
                     navController.navigate(Routes.LIBRARY) {
                         // Removes login from the pile, so "back" doesn't return to it.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                }
+            }
+
+            LoginScreen(
+                email = state.email,
+                password = state.password,
+                onEmailChange = viewModel::onEmailChange,
+                onPasswordChange = viewModel::onPasswordChange,
+                errorMessage = when (state.error) {
+                    LoginError.InvalidCredentials -> stringResource(R.string.error_login_invalid)
+                    LoginError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
+                    null -> null
                 },
+                loggingIn = state.loggingIn,
+                loginEnabled = state.canLogIn,
+                onLoginClick = viewModel::login,
                 onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onBrowseWithoutAccountClick = { navController.navigate(Routes.BROWSE) },
@@ -204,30 +240,42 @@ fun AppNavigation() {
         }
 
         composable(Routes.REGISTER) {
-            // Temporary state – moves to a ViewModel when we add the real sign-up.
-            var name by rememberSaveable { mutableStateOf("") }
-            var email by rememberSaveable { mutableStateOf("") }
-            var password by rememberSaveable { mutableStateOf("") }
-            var repeatPassword by rememberSaveable { mutableStateOf("") }
-            var termsAccepted by rememberSaveable { mutableStateOf(false) }
+            val viewModel: RegisterViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
 
-            RegisterScreen(
-                name = name,
-                email = email,
-                password = password,
-                repeatPassword = repeatPassword,
-                onNameChange = { name = it },
-                onEmailChange = { email = it },
-                onPasswordChange = { password = it },
-                onRepeatPasswordChange = { repeatPassword = it },
-                termsAccepted = termsAccepted,
-                onTermsAcceptedChange = { termsAccepted = it },
-                // TODO: create the account on the server first. For now it goes straight into the app.
-                onCreateAccountClick = {
+            // The account is created and the user is logged in.
+            LaunchedEffect(state.registered) {
+                if (state.registered) {
                     navController.navigate(Routes.LIBRARY) {
+                        // Removes sign-up and login from the pile, so "back" doesn't return to them.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                }
+            }
+
+            RegisterScreen(
+                name = state.name,
+                email = state.email,
+                password = state.password,
+                repeatPassword = state.repeatPassword,
+                onNameChange = viewModel::onNameChange,
+                onEmailChange = viewModel::onEmailChange,
+                onPasswordChange = viewModel::onPasswordChange,
+                onRepeatPasswordChange = viewModel::onRepeatPasswordChange,
+                termsAccepted = state.termsAccepted,
+                onTermsAcceptedChange = viewModel::onTermsAcceptedChange,
+                emailError = if (state.emailInvalid) stringResource(R.string.error_email_invalid) else null,
+                passwordError = if (state.passwordTooWeak) stringResource(R.string.error_password_too_weak) else null,
+                repeatPasswordError = if (state.passwordsDontMatch) stringResource(R.string.error_passwords_dont_match) else null,
+                errorMessage = when (state.error) {
+                    RegisterError.EmailTaken -> stringResource(R.string.error_email_taken)
+                    RegisterError.InvalidData -> stringResource(R.string.error_sign_up_invalid)
+                    RegisterError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
+                    null -> null
                 },
+                creatingAccount = state.creatingAccount,
+                createAccountEnabled = state.canCreateAccount,
+                onCreateAccountClick = viewModel::createAccount,
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
@@ -299,6 +347,8 @@ fun AppNavigation() {
 
         composable(Routes.PROFILE) {
             ProfileScreen(
+                userName = user?.name.orEmpty(),
+                userEmail = user?.email.orEmpty(),
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
@@ -306,6 +356,7 @@ fun AppNavigation() {
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
+                    AuthRepository().logout()
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
                         popUpTo(navController.graph.id) { inclusive = true }

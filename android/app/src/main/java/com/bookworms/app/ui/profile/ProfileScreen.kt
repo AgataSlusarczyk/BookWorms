@@ -33,6 +33,8 @@ import com.bookworms.app.ui.theme.CardBorder
 
 @Composable
 fun ProfileScreen(
+    userName: String,
+    userEmail: String,
     onNavigate: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMyBooks: () -> Unit = {},
@@ -61,9 +63,9 @@ fun ProfileScreen(
                     Spacer(Modifier.width(16.dp))
                     // weight(1f) pushes the pencil to the right edge.
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Anna Kowalska", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(userName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(
-                            "anna.kowalska@mail.com",
+                            userEmail,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -198,6 +200,6 @@ private fun ExportDataItem() {
 @Composable
 private fun ProfileScreenPreview() {
     BookWormsTheme {
-        ProfileScreen()
+        ProfileScreen(userName = "Anna Kowalska", userEmail = "anna.kowalska@mail.com")
     }
 }

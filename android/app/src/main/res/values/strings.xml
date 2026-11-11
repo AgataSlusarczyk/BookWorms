@@ -11,6 +11,8 @@
     <string name="hide_password">Hide password</string>
     <string name="login_button">Log in</string>
     <string name="forgot_password">Forgot password?</string>
+    <string name="error_login_invalid">Wrong email or password</string>
+    <string name="error_server_unreachable">Couldn\'t reach the server. Check your connection and try again.</string>
     <string name="no_account">Don\'t have an account?</string>
     <string name="sign_up">Sign up</string>
     <string name="browse_without_account">Browse without an account</string>
@@ -22,6 +24,8 @@
     <string name="accept_terms">I accept the terms of service</string>
     <string name="create_account_button">Create account</string>
     <string name="have_account">Already have an account?</string>
+    <string name="error_email_taken">An account with this email already exists. Log in instead.</string>
+    <string name="error_sign_up_invalid">The server didn\'t accept these details. Check the form and try again.</string>
 
     <string name="reset_password_title">Reset password</string>
     <string name="reset_password_subtitle">Enter the email you signed up with and we\'ll send you a link to set a new password.</string>
