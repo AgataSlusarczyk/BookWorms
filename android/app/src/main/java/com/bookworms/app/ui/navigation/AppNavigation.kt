@@ -77,6 +77,7 @@ import com.bookworms.app.ui.lists.ShelfScreen
 import com.bookworms.app.ui.lists.sampleCustomLists
 import com.bookworms.app.ui.lists.sampleListBooks
 import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.loans.LoansViewModel
 import com.bookworms.app.ui.loans.QueueSpot
 import com.bookworms.app.ui.loans.cancelRequest
 import com.bookworms.app.ui.loans.hasSentRequest
@@ -320,7 +321,27 @@ fun AppNavigation() {
         }
 
         composable(Routes.LOANS) {
-            LoansScreen(onNavigate = navigateBottomBar, onBookClick = openBookByTitle)
+            val viewModel: LoansViewModel = viewModel()
+            val loans by viewModel.loans.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            val context = LocalContext.current
+
+            // Each time the tab opens – a request may have come in since it was last seen.
+            LaunchedEffect(Unit) { viewModel.refresh() }
+            LaunchedEffect(viewModel) {
+                viewModel.errors.collect { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+            }
+
+            LoansScreen(
+                loans = loans,
+                saving = saving,
+                onRetryClick = viewModel::refresh,
+                onMarkReturned = viewModel::markReturned,
+                onAccept = viewModel::accept,
+                onReject = viewModel::reject,
+                onNavigate = navigateBottomBar,
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+            )
         }
 
         composable(Routes.GROUPS) {

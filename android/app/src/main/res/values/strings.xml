@@ -365,6 +365,8 @@
     <string name="my_books_empty">No books yet. Add the ones you can lend to your friends.</string>
     <string name="status_not_available">Not available</string>
     <string name="isbn_length_hint">ISBN has 10 or 13 digits</string>
+    <string name="load_loans_failed">Couldn\'t load your loans. Check your connection and try again.</string>
+    <string name="error_request_changed">This request can\'t be answered anymore – the list is up to date now.</string>
     <string name="error_save_failed">Couldn\'t save. Check your connection and try again.</string>
 
     <!-- Add book -->
