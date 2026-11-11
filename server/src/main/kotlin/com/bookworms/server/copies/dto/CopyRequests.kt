@@ -3,6 +3,7 @@ package com.bookworms.server.copies.dto
 import com.bookworms.server.copies.Availability
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
+import java.util.UUID
 
 // "I have this book" – what the Add book form sends.
 data class AddCopyRequest(
@@ -41,4 +42,9 @@ data class EditBookRequest(
 
 data class ChangeAvailabilityRequest(
 	val availability: Availability,
+)
+
+// "Visible in" on My copy: the groups that can see the copy. Empty = only the owner sees it.
+data class ChangeGroupsRequest(
+	val groupIds: Set<UUID>,
 )

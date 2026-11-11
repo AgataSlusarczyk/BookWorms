@@ -13,6 +13,8 @@ data class CopyResponse(
 	val book: CopyBookResponse,
 	// true = the owner typed this book in by hand, so the app can show Edit book.
 	val canEditBook: Boolean,
+	// The owner's groups that can see it ("Visible in" on My copy).
+	val groupIds: List<UUID>,
 	val createdAt: Instant,
 	val updatedAt: Instant,
 )
@@ -29,7 +31,7 @@ data class CopyBookResponse(
 	val coverUrl: String?,
 )
 
-fun BookCopy.toResponse() = CopyResponse(
+fun BookCopy.toResponse(groupIds: List<UUID>) = CopyResponse(
 	id = id!!,
 	availability = availability,
 	book = CopyBookResponse(
@@ -42,6 +44,7 @@ fun BookCopy.toResponse() = CopyResponse(
 		coverUrl = book.coverUrl,
 	),
 	canEditBook = book.source == BookSource.MANUAL && book.createdBy == ownerId,
+	groupIds = groupIds,
 	createdAt = createdAt,
 	updatedAt = updatedAt,
 )
