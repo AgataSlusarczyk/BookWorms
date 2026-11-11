@@ -362,7 +362,10 @@
     <string name="remove_action">Remove</string>
     <string name="edit_book_title">Edit book</string>
     <string name="book_added">Added to My books</string>
-    <string name="already_in_my_books">You already have a book with this title in My books.</string>
+    <string name="my_books_empty">No books yet. Add the ones you can lend to your friends.</string>
+    <string name="status_not_available">Not available</string>
+    <string name="isbn_length_hint">ISBN has 10 or 13 digits</string>
+    <string name="error_save_failed">Couldn\'t save. Check your connection and try again.</string>
 
     <!-- Add book -->
     <string name="add_book_title">Add book</string>

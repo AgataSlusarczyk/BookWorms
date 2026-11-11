@@ -8,11 +8,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -59,8 +62,11 @@ import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.LibraryViewModel
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
-import com.bookworms.app.ui.library.ownBook
-import com.bookworms.app.ui.library.sampleOwnBooks
+import com.bookworms.app.ui.library.AddBookEvent
+import com.bookworms.app.ui.library.AddBookViewModel
+import com.bookworms.app.ui.library.MyBooksEvent
+import com.bookworms.app.ui.library.MyBooksViewModel
+import com.bookworms.app.ui.library.toForm
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.EditListScreen
@@ -120,8 +126,9 @@ private object Routes {
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
     const val GROUP_DETAILS = "group_details/{groupName}"
     const val EDIT_GROUP = "edit_group/{groupName}"
-    const val MY_COPY = "my_copy/{title}"
-    const val EDIT_OWN_BOOK = "edit_own_book/{title}"
+    // {copyId} = the copy's id on the server.
+    const val MY_COPY = "my_copy/{copyId}"
+    const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
 
     fun addBookManual(isbn: String? = null) = if (isbn == null) "add_book_manual" else "add_book_manual?isbn=$isbn"
 
@@ -143,8 +150,8 @@ private object Routes {
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
     fun editGroup(groupName: String) = "edit_group/${Uri.encode(groupName)}"
-    fun myCopy(title: String) = "my_copy/${Uri.encode(title)}"
-    fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
+    fun myCopy(copyId: String) = "my_copy/$copyId"
+    fun editOwnBook(copyId: String) = "edit_own_book/$copyId"
 }
 
 @Composable
@@ -490,52 +497,80 @@ fun AppNavigation() {
             NotificationsScreen(onBackClick = { navController.popBackStack() })
         }
 
-        composable(Routes.MY_BOOKS) {
+        composable(Routes.MY_BOOKS) { entry ->
+            val viewModel = myBooksViewModel(navController, entry)
+            val books by viewModel.books.collectAsState()
             MyBooksScreen(
+                books = books,
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
                 onAddBookClick = { navController.navigate(Routes.addBookManual()) },
-                onBookClick = { title -> navController.navigate(Routes.myCopy(title)) },
+                onBookClick = { book -> navController.navigate(Routes.myCopy(book.id)) },
             )
         }
 
-        composable(Routes.MY_COPY) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title").orEmpty()
-            MyCopyScreen(
-                title = title,
-                onEditClick = { navController.navigate(Routes.editOwnBook(title)) },
-                onOpenBookPageClick = { openBookByTitle(title) },
-                // TODO: remove the book on the server first.
-                onRemoveClick = {
-                    sampleOwnBooks.removeAll { it.title == title }
-                    navController.popBackStack()
-                },
-                onBackClick = { navController.popBackStack() },
-            )
-        }
+        composable(Routes.MY_COPY) { entry ->
+            val copyId = entry.arguments?.getString("copyId").orEmpty()
+            val viewModel = myBooksViewModel(navController, entry)
+            val state by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            ShowMyBooksErrors(viewModel)
 
-        composable(Routes.EDIT_OWN_BOOK) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title").orEmpty()
-            val context = LocalContext.current
-            AddBookManualScreen(
-                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_books_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                // TODO: save the changes on the server first.
-                onSaveClick = { edited ->
-                    // Books are told apart by their title for now, so two books can't have the same one.
-                    if (edited.title != title && sampleOwnBooks.any { it.title == edited.title }) {
-                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
+            ) { books ->
+                val book = books.find { it.id == copyId }
+                if (book == null) {
+                    // Removed (here, or on another phone) – back to My books.
+                    CloseWhenGone(navController, entry)
+                    return@LoadStateScreen
+                }
+                MyCopyScreen(
+                    book = book,
+                    saving = saving,
+                    onAvailableChange = { viewModel.setAvailable(book, it) },
+                    onEditClick = if (book.canEditBook) {
+                        { navController.navigate(Routes.editOwnBook(book.id)) }
                     } else {
-                        val index = sampleOwnBooks.indexOfFirst { it.title == title }
-                        if (index >= 0) sampleOwnBooks[index] = edited
-                        // My copy opens again under the (maybe new) title. popUpTo removes the old one
-                        // and this form from the pile, so Back goes to My books.
-                        navController.navigate(Routes.myCopy(edited.title)) {
-                            popUpTo(Routes.MY_COPY) { inclusive = true }
-                        }
-                    }
-                },
-                book = ownBook(title),
-            )
+                        null
+                    },
+                    onOpenBookPageClick = book.isbn?.let { isbn -> { navController.navigate(Routes.bookDetails(isbn)) } },
+                    onRemoveClick = { viewModel.remove(book) },
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
+        }
+
+        composable(Routes.EDIT_OWN_BOOK) { entry ->
+            val copyId = entry.arguments?.getString("copyId").orEmpty()
+            val viewModel = myBooksViewModel(navController, entry)
+            val state by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            ShowMyBooksErrors(viewModel, onEdited = { navController.popBackStack() })
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_books_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { books ->
+                val book = books.find { it.id == copyId }
+                if (book == null) {
+                    CloseWhenGone(navController, entry)
+                    return@LoadStateScreen
+                }
+                AddBookManualScreen(
+                    onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                    onBackClick = { navController.popBackStack() },
+                    // Back on My copy once the server saved it (onEdited above).
+                    onSaveClick = { form -> viewModel.editBook(book, form) },
+                    editing = book.toForm(),
+                    saving = saving,
+                )
+            }
         }
 
         composable(
@@ -543,25 +578,43 @@ fun AppNavigation() {
             arguments = listOf(navArgument("isbn") { type = NavType.StringType; nullable = true; defaultValue = null }),
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
+            val viewModel = viewModel { AddBookViewModel(isbn) }
+            val prefill by viewModel.prefill.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            // My books may be open underneath (also when Add book was opened from a book's page on the way).
+            // Then the new book goes straight onto its list.
+            val myBooksEntry = remember(entry) { runCatching { navController.getBackStackEntry(Routes.MY_BOOKS) }.getOrNull() }
+            val myBooks = myBooksEntry?.let { viewModel(it) { MyBooksViewModel() } }
             val context = LocalContext.current
-            AddBookManualScreen(
-                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
-                onBackClick = { navController.popBackStack() },
-                // TODO: save the book on the server first.
-                onSaveClick = { newBook ->
-                    // Books are told apart by their title for now, so the same title can't be added twice.
-                    if (sampleOwnBooks.any { it.title == newBook.title }) {
-                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
-                    } else {
-                        sampleOwnBooks.add(newBook)
-                        Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
-                        // Back to where Add book was opened from: My books or the book's page.
-                        navController.popBackStack()
+
+            LaunchedEffect(viewModel) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is AddBookEvent.Added -> {
+                            myBooks?.added(event.book)
+                            Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
+                            // Back to where Add book was opened from: My books or the book's page.
+                            navController.popBackStack()
+                        }
+                        is AddBookEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     }
-                },
-                // TODO: look the book up on the server. For now only the sample books can fill the form in.
-                prefill = sampleBooks.find { it.isbn == isbn },
-            )
+                }
+            }
+
+            LoadStateScreen(
+                state = prefill,
+                failedMessage = stringResource(R.string.load_book_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { form ->
+                AddBookManualScreen(
+                    onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                    onBackClick = { navController.popBackStack() },
+                    onSaveClick = viewModel::save,
+                    prefill = form,
+                    saving = saving,
+                )
+            }
         }
 
         composable(Routes.JOIN_GROUP) {
@@ -713,5 +766,38 @@ fun AppNavigation() {
                 onCloseClick = { navController.popBackStack() },
             )
         }
+    }
+}
+
+// My books, My copy and Edit book share one ViewModel – the one of My books, which is always under the other two.
+// So a change saved on one of them shows on the others right away.
+@Composable
+private fun myBooksViewModel(navController: NavController, entry: NavBackStackEntry): MyBooksViewModel {
+    val owner = remember(entry) {
+        if (entry.destination.route == Routes.MY_BOOKS) entry else navController.getBackStackEntry(Routes.MY_BOOKS)
+    }
+    return viewModel(owner) { MyBooksViewModel() }
+}
+
+// Shows what went wrong with a change (a short Toast). onEdited = what to do when Edit book was saved.
+@Composable
+private fun ShowMyBooksErrors(viewModel: MyBooksViewModel, onEdited: () -> Unit = {}) {
+    val context = LocalContext.current
+    val currentOnEdited by rememberUpdatedState(onEdited)
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                MyBooksEvent.Edited -> currentOnEdited()
+                is MyBooksEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+// The book this screen shows is no longer in My books – close the screen (once, even while it slides away).
+@Composable
+private fun CloseWhenGone(navController: NavController, entry: NavBackStackEntry) {
+    LaunchedEffect(entry) {
+        if (navController.currentBackStackEntry == entry) navController.popBackStack()
     }
 }
