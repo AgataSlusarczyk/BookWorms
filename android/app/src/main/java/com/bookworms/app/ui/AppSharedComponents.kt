@@ -12,12 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.bookworms.app.R
 import com.bookworms.app.ui.theme.CardBorder
 import com.bookworms.app.ui.theme.PlaceholderGray
@@ -99,6 +101,26 @@ fun BookCoverPlaceholder(modifier: Modifier = Modifier) {
     )
 }
 
+// The book's cover from the server, cut to fit. The gray box shows while it loads,
+// when it can't be loaded, and for books without a cover (url = null).
+@Composable
+fun BookCover(url: String?, modifier: Modifier = Modifier) {
+    if (url == null) {
+        BookCoverPlaceholder(modifier)
+        return
+    }
+    AsyncImage(
+        model = url,
+        // The title is right next to it, so a screen reader doesn't need to read the cover.
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+            .size(width = 48.dp, height = 64.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(PlaceholderGray),
+    )
+}
+
 // Card row with a cover, title, a gray line under it, and optional chips at the bottom.
 // Used for books on Library, Loans, My lists and My books.
 @Composable
@@ -106,11 +128,13 @@ fun BookRow(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
+    // null = the gray box (books without a cover, and sample books).
+    coverUrl: String? = null,
     trailing: @Composable () -> Unit = {},
     chips: (@Composable RowScope.() -> Unit)? = null,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.padding(12.dp)) {
-        BookCoverPlaceholder()
+        BookCover(coverUrl)
         Spacer(Modifier.width(12.dp))
         // weight(1f) takes the free space, so anything in trailing goes to the right edge.
         Column(modifier = Modifier.weight(1f)) {

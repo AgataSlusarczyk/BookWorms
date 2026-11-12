@@ -35,17 +35,10 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.PasswordVisibilityButton
 import com.bookworms.app.ui.auth.authFieldColors
+import com.bookworms.app.ui.auth.isStrongPassword
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
-
-private const val MinPasswordLength = 10
-
-// The same rules as on the sign-up screen: at least 10 characters, a digit and a special character.
-private fun isStrongPassword(password: String) =
-    password.length >= MinPasswordLength &&
-        password.any(Char::isDigit) &&
-        password.any { !it.isLetterOrDigit() }
 
 @Composable
 fun ChangePasswordScreen(

@@ -20,38 +20,40 @@ import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
-import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
+// Also the Edit book form: pass the book as editing, and the fields start filled in. Its ISBN can't be changed.
+// prefill = a book from the catalog ("I own this book" on Book details): still adding, but the fields start filled in.
 @Composable
 internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt dostępności OwnBook
     onScanIsbnClick: () -> Unit,
     onBackClick: () -> Unit,
-    onSaveClick: (OwnBook) -> Unit,
-    // The user's copy, passed in when tapping "Edit book". null when adding a new book.
-    book: OwnBook? = null,
-    // Prefills the form when tapping "I own this book" or scanning an ISBN.
-    prefill: Book? = null,
+    // Gets the book as it is on the form.
+    onSaveClick: (BookForm) -> Unit = {},
+    editing: BookForm? = null,
+    prefill: BookForm? = null,
+    // true while the book is on its way to the server – Save waits for it.
+    saving: Boolean = false,
 ) {
-    val isEdit = book != null
-    var title by rememberSaveable(book, prefill) { mutableStateOf(book?.title ?: prefill?.title ?: "") }
-    var author by rememberSaveable(book, prefill) { mutableStateOf(book?.author ?: prefill?.author ?: "") }
-    var isbn by rememberSaveable(book, prefill) { mutableStateOf(book?.isbn ?: prefill?.isbn ?: "") }
-    var publisher by rememberSaveable(book, prefill) { mutableStateOf(book?.publisher ?: "") }
-    var year by rememberSaveable(book, prefill) {
-        val y = book?.year ?: prefill?.year ?: 0
-        mutableStateOf(if (y > 0) y.toString() else "")
-    }
+    val start = editing ?: prefill ?: BookForm()
+    // rememberSaveable, so typed text survives rotating the phone.
+    var title by rememberSaveable { mutableStateOf(start.title) }
+    var author by rememberSaveable { mutableStateOf(start.author) }
+    var isbn by rememberSaveable { mutableStateOf(start.isbn) }
+    var publisher by rememberSaveable { mutableStateOf(start.publisher) }
+    var year by rememberSaveable { mutableStateOf(start.year?.toString().orEmpty()) }
+    // The server takes old 10-digit ISBNs and new 13-digit ones.
+    val isbnValid = isbn.isEmpty() || isbn.length == 10 || isbn.length == 13
 
     Scaffold(
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
-                title = stringResource(if (isEdit) R.string.edit_book_title else R.string.add_book_title),
+                title = stringResource(if (editing == null) R.string.add_book_title else R.string.edit_book_title),
                 onBackClick = onBackClick,
             )
         },
@@ -65,18 +67,9 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-            // Scanner isn't needed when we're already editing an existing book.
-            if (!isEdit) {
-                AppCard(onClick = onScanIsbnClick) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
-                        Icon(painterResource(R.drawable.ic_barcode_scan), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(stringResource(R.string.scan_isbn_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(R.string.scan_isbn_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
+            // Only when adding a new book – an edited or prefilled book already has its details.
+            if (editing == null && prefill == null) {
+                ScanIsbnCard(onClick = onScanIsbnClick)
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                     HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
@@ -103,8 +96,19 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
             BookInputField(
                 label = stringResource(R.string.isbn_label),
                 value = isbn,
-                onValueChange = { newValue ->
-                    isbn = newValue.filter { it.isDigit() || it == '-' || it.equals('X', ignoreCase = true) }.take(17)
+                // ISBN is digits only (plus an X at the end of old 10-digit ones), so we keep just those.
+                onValueChange = { isbn = it.filter { c -> c.isDigit() || c == 'X' || c == 'x' }.uppercase().take(13) },
+                keyboardType = KeyboardType.Number,
+                // The server keeps the ISBN of a saved book for good, so editing can't change it.
+                enabled = editing == null,
+                error = if (isbnValid) null else stringResource(R.string.isbn_length_hint),
+                // The barcode icon at the end opens the scanner too, right where the ISBN goes.
+                trailingIcon = if (editing != null) null else {
+                    {
+                        IconButton(onClick = onScanIsbnClick) {
+                            Icon(painterResource(R.drawable.ic_barcode_scan), contentDescription = stringResource(R.string.scan_isbn_title))
+                        }
+                    }
                 },
                 keyboardType = KeyboardType.Number,
                 trailingIcon = {
@@ -140,20 +144,20 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
 
             Button(
                 onClick = {
-                    val edited = OwnBook(
-                        title = title.trim(),
-                        author = author.trim(),
-                        year = year.toIntOrNull() ?: 0,
-                        isbn = isbn.trim(),
-                        publisher = publisher.trim(),
-                        // In edit mode we keep the original data (e.g. who borrowed it).
-                        groups = book?.groups ?: myGroups,
-                        lentTo = book?.lentTo,
-                        lentSince = book?.lentSince,
-                        returnBy = book?.returnBy,
+                    onSaveClick(
+                        BookForm(
+                            title = title.trim(),
+                            author = author.trim(),
+                            isbn = isbn,
+                            publisher = publisher.trim(),
+                            year = year.toIntOrNull(),
+                        ),
                     )
                     onSaveClick(edited)
                 },
+                // Title and author are the minimum to tell books apart.
+                enabled = title.isNotBlank() && author.isNotBlank() && isbnValid && !saving,
+                shape = FieldShape,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -161,7 +165,15 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                 // The title and author are minimum requirements for a book.
                 enabled = title.isNotBlank() && author.isNotBlank(),
             ) {
-                Text(stringResource(R.string.save_action))
+                if (saving) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = LocalContentColor.current,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    Text(stringResource(R.string.save_action))
+                }
             }
         }
     }
@@ -174,7 +186,10 @@ private fun BookInputField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
-    trailingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+    // Shown in red under the field. null = the field is fine.
+    error: String? = null,
 ) {
     Box(modifier = modifier) {
         LabeledField(label = label) {
@@ -186,7 +201,12 @@ private fun BookInputField(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 colors = authFieldColors(),
-                trailingIcon = trailingIcon
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                trailingIcon = trailingIcon,
+                enabled = enabled,
+                isError = error != null,
+                supportingText = error?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

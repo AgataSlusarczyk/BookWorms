@@ -1,0 +1,72 @@
+package com.bookworms.app.data
+
+import com.bookworms.app.BuildConfig
+import com.bookworms.app.data.network.ApiClient
+import com.bookworms.app.data.network.BookDetailsDto
+import com.bookworms.app.data.network.BookSummaryDto
+import com.bookworms.app.data.network.BooksApi
+import com.bookworms.app.ui.book.BookDetails
+import com.bookworms.app.ui.book.withSampleCopiesAndComments
+import com.bookworms.app.ui.browse.Book
+import com.bookworms.app.ui.library.BookForm
+
+// Books for the ViewModels. They don't need to know the books come from the server.
+class BookRepository(private val api: BooksApi = ApiClient.books) {
+
+    // Books whose title, author or ISBN contains the query. An empty query gives the newest books.
+    suspend fun search(query: String): List<Book> =
+        api.getBooks(query = query.trim().ifEmpty { null }).mapNotNull { it.toBook() }
+
+    suspend fun newest(limit: Int): List<Book> =
+        api.getBooks(limit = limit).mapNotNull { it.toBook() }
+
+    // The book from the server. Copies and comments are still sample data (see withSampleCopiesAndComments).
+    suspend fun details(isbn: String): BookDetails =
+        withSampleCopiesAndComments(api.getBookByIsbn(isbn).toBookDetails(isbn))
+
+    // The book's details for the Add book form ("I own this book" on Book details).
+    internal suspend fun formFor(isbn: String): BookForm {
+        val book = api.getBookByIsbn(isbn)
+        return BookForm(
+            title = book.title,
+            author = book.authors.orEmpty(),
+            // The form keeps digits only.
+            isbn = (book.isbn ?: isbn).filter { it.isDigit() || it == 'X' },
+            publisher = book.publisher.orEmpty(),
+            year = book.publishedYear,
+        )
+    }
+}
+
+// null for a book without an ISBN: the app opens book details by ISBN, so it couldn't open this one.
+private fun BookSummaryDto.toBook(): Book? = isbn?.let {
+    Book(
+        isbn = it,
+        title = title,
+        author = authors.orEmpty(),
+        year = publishedYear,
+        coverUrl = serverUrl(coverUrl),
+    )
+}
+
+private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
+    isbn = isbn ?: requestedIsbn,
+    title = title,
+    author = authors.orEmpty(),
+    year = publishedYear,
+    pages = pageCount,
+    // The screen shows one genre.
+    genre = genres.firstOrNull(),
+    description = description,
+    coverUrl = serverUrl(coverUrl),
+    copies = emptyList(),
+    publicComments = emptyList(),
+    groupDiscussions = emptyList(),
+)
+
+// The server sends covers as paths on itself, e.g. "/covers/9788308075197.jpg". Images need the full address.
+internal fun serverUrl(path: String?): String? = when {
+    path == null -> null
+    path.startsWith("http://") || path.startsWith("https://") -> path
+    else -> BuildConfig.API_BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
+}

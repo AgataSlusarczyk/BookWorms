@@ -3,8 +3,11 @@ package com.bookworms.app.ui.loans
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 
-// Someone asked to borrow a book. person = who asked (Requests) or whose book it is (Borrowing).
-internal data class LoanRequest(val id: Int, val title: String, val person: String, val hoursAgo: Int)
+// Sample data for Book details and Notifications. Loans gets the real ones from the server (LoansViewModel).
+// TODO: replace once the server sends the copies of a book (with their ids) and notifications.
+
+// Someone asked to borrow a book. person = who asked, or whose book it is (sent requests).
+internal data class SampleRequest(val id: Int, val title: String, val person: String, val hoursAgo: Int)
 
 // The user waits for a copy someone else has borrowed now. owner = whose copy it is.
 internal data class QueueSpot(val title: String, val owner: String)
@@ -12,18 +15,17 @@ internal data class QueueSpot(val title: String, val owner: String)
 // How long a book is lent for when the owner says yes.
 internal const val LoanDays = 14
 
-// TODO: the user's requests and queues from the server.
-// Kept outside the screens, so "Borrow" on Book details shows up in Loans under "Waiting for an answer".
+// "Borrow" on Book details. The copies there are sample ones, with no id to send to the server,
+// so these requests stay on the phone and don't show up in Loans.
 internal val sentRequests = mutableStateListOf(
-    LoanRequest(11, "Bieguni", "Anna K.", hoursAgo = 5),
+    SampleRequest(11, "Bieguni", "Anna K.", hoursAgo = 5),
 )
 
 internal val queueSpots = mutableStateListOf<QueueSpot>()
 
-// Others asking to borrow the user's books. They can be answered in Loans and in Notifications.
+// The request shown in Notifications.
 internal val incomingRequests = listOf(
-    LoanRequest(31, "Solaris", "Krzysiek P.", hoursAgo = 2),
-    LoanRequest(32, "Lalka", "Ola N.", hoursAgo = 26),
+    SampleRequest(31, "Solaris", "Krzysiek P.", hoursAgo = 2),
 )
 
 // The user's answers so far: request id → true = accepted, false = rejected.
@@ -34,7 +36,7 @@ internal fun hasSentRequest(title: String, owner: String) = sentRequests.any { i
 internal fun sendRequest(title: String, owner: String) {
     // A new id that no other request has yet.
     val id = (sentRequests.maxOfOrNull { it.id } ?: 100) + 1
-    sentRequests.add(0, LoanRequest(id, title, owner, hoursAgo = 0))
+    sentRequests.add(0, SampleRequest(id, title, owner, hoursAgo = 0))
 }
 
 internal fun cancelRequest(title: String, owner: String) {

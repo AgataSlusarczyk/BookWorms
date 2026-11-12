@@ -15,14 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,12 +41,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.AvatarPlaceholder
 import com.bookworms.app.ui.components.BookRow
-import com.bookworms.app.ui.components.ButtonShape
-import com.bookworms.app.ui.components.SectionHeader
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.SegmentedTabs
 import com.bookworms.app.ui.components.StatusTag
 import com.bookworms.app.ui.components.mistedBackground
@@ -58,67 +57,36 @@ import com.bookworms.app.ui.theme.PlaceholderGray
 import com.bookworms.app.ui.theme.StatusBlueBg
 import com.bookworms.app.ui.theme.StatusGreen
 import com.bookworms.app.ui.theme.StatusGreenBg
-
-// Temporary data until groups come from the server.
-private data class GroupMember(val name: String, val username: String, val isAdmin: Boolean)
-
-// borrowedBy is null while the book is on the owner's shelf.
-private data class GroupBook(val isbn: String, val title: String, val author: String, val owner: String, val borrowedBy: String?)
-
-private data class JoinRequest(val name: String, val username: String, val time: String)
-
-private val sampleMembers = listOf(
-    GroupMember("Anna Kowalska", "anna_k", isAdmin = true),
-    GroupMember("Ola Nowak", "ola", isAdmin = false),
-    GroupMember("Marek Wiśniewski", "marek_w", isAdmin = false),
-    GroupMember("Kasia Zielińska", "kasia.z", isAdmin = false),
-)
-
-private val sampleGroupBooks = listOf(
-    GroupBook("9788308049461", "Solaris", "Stanisław Lem", owner = "Ola", borrowedBy = null),
-    GroupBook("9788373271897", "Lalka", "Bolesław Prus", owner = "Marek", borrowedBy = "Kasia"),
-    GroupBook("9788375780638", "Problem trzech ciał", "Cixin Liu", owner = "Anna", borrowedBy = null),
-)
-
-private val sampleJoinRequests = listOf(
-    JoinRequest("Tomek Lewandowski", "tomek_l", "2 h"),
-)
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private enum class GroupTab(val label: Int) {
     Books(R.string.tab_group_books),
     Members(R.string.tab_group_members),
 }
 
+private val JoinedDate = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
 @Composable
-fun GroupDetailsScreen(
-    // The name from the Groups list. The name shown comes from the group's details, so a rename shows up here.
-    groupName: String,
-    // Only the admin sees join requests and can edit the group and its members.
-    isAdmin: Boolean,
+internal fun GroupDetailsScreen(
+    group: GroupDetails,
+    books: LoadState<List<GroupBook>>,
+    // true while a change is on its way to the server – the buttons wait for it.
+    saving: Boolean,
+    onRetryBooksClick: () -> Unit,
     onBookClick: (isbn: String) -> Unit,
-    onInviteClick: () -> Unit,
+    // null = the user can't invite (an ordinary member, and the admin didn't allow it).
+    onInviteClick: (() -> Unit)?,
     onEditClick: () -> Unit,
+    onMakeAdmin: (GroupMember) -> Unit,
+    onRemoveMember: (GroupMember) -> Unit,
     onLeaveClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val group = groupInfo(groupName)
-
-    // What the admin did on this screen, kept as usernames so it survives turning the phone.
-    // TODO: send each change to the server instead.
-    var acceptedRequests by rememberSaveable { mutableStateOf(listOf<String>()) }
-    var rejectedRequests by rememberSaveable { mutableStateOf(listOf<String>()) }
-    var newAdmins by rememberSaveable { mutableStateOf(listOf<String>()) }
-    var removedMembers by rememberSaveable { mutableStateOf(listOf<String>()) }
-    // Who the "Remove from group?" dialog asks about, or null when it's closed.
+    // Who the "Remove from group?" dialog asks about (their id), or null when it's closed.
     var memberToRemove by rememberSaveable { mutableStateOf<String?>(null) }
-
-    val joinRequests = sampleJoinRequests.filter { it.username !in acceptedRequests && it.username !in rejectedRequests }
-    // An accepted request makes the person a member.
-    val members = (sampleMembers + sampleJoinRequests.filter { it.username in acceptedRequests }
-        .map { GroupMember(it.name, it.username, isAdmin = false) })
-        .filter { it.username !in removedMembers }
-        .map { if (it.username in newAdmins) it.copy(isAdmin = true) else it }
+    var confirmLeave by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -129,12 +97,14 @@ fun GroupDetailsScreen(
                 title = group.name,
                 onBackClick = onBackClick,
                 actions = {
-                    if (isAdmin) {
+                    if (group.isAdmin) {
                         IconButton(onClick = onEditClick) {
                             Icon(painterResource(R.drawable.ic_edit), contentDescription = stringResource(R.string.edit_group_title))
                         }
                     }
-                    TextButton(onClick = onInviteClick) { Text(stringResource(R.string.invite_action)) }
+                    if (onInviteClick != null) {
+                        TextButton(onClick = onInviteClick) { Text(stringResource(R.string.invite_action)) }
+                    }
                 },
             )
         },
@@ -146,23 +116,7 @@ fun GroupDetailsScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            item { GroupHeader(group = group, memberCount = members.size) }
-
-            if (isAdmin && joinRequests.isNotEmpty()) {
-                item {
-                    SectionHeader(
-                        stringResource(R.string.join_requests_count, joinRequests.size),
-                        Modifier.padding(top = 4.dp),
-                    )
-                }
-                items(joinRequests, key = { it.username }) { request ->
-                    JoinRequestCard(
-                        request,
-                        onAccept = { acceptedRequests = acceptedRequests + request.username },
-                        onReject = { rejectedRequests = rejectedRequests + request.username },
-                    )
-                }
-            }
+            item { GroupHeader(group) }
 
             item {
                 SegmentedTabs(
@@ -173,23 +127,39 @@ fun GroupDetailsScreen(
             }
 
             when (GroupTab.entries[selectedTab]) {
-                GroupTab.Books -> items(sampleGroupBooks, key = { it.isbn }) { book ->
-                    GroupBookCard(book, onClick = { onBookClick(book.isbn) })
+                GroupTab.Books -> when (books) {
+                    LoadState.Loading -> item { LoadingIndicator() }
+                    LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryBooksClick) }
+                    is LoadState.Ready -> {
+                        if (books.data.isEmpty()) {
+                            item {
+                                Text(
+                                    stringResource(R.string.group_books_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        items(books.data, key = { it.copyId }) { book ->
+                            GroupBookCard(book, onClick = book.isbn?.let { isbn -> { onBookClick(isbn) } })
+                        }
+                    }
                 }
-                GroupTab.Members -> items(members, key = { it.username }) { member ->
+                GroupTab.Members -> items(group.members, key = { it.id }) { member ->
                     MemberCard(
                         member,
                         // The admin can manage members, but not other admins.
-                        canManage = isAdmin && !member.isAdmin,
-                        onMakeAdmin = { newAdmins = newAdmins + member.username },
-                        onRemove = { memberToRemove = member.username },
+                        canManage = group.isAdmin && !member.isAdmin && !saving,
+                        onMakeAdmin = { onMakeAdmin(member) },
+                        onRemove = { memberToRemove = member.id },
                     )
                 }
             }
 
             item {
                 TextButton(
-                    onClick = onLeaveClick,
+                    onClick = { confirmLeave = true },
+                    enabled = !saving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -201,7 +171,7 @@ fun GroupDetailsScreen(
     }
 
     // Asks first, so nobody gets removed by a slip of the finger.
-    members.find { it.username == memberToRemove }?.let { member ->
+    group.members.find { it.id == memberToRemove }?.let { member ->
         AlertDialog(
             onDismissRequest = { memberToRemove = null },
             title = { Text(stringResource(R.string.remove_member_title, member.name, group.name)) },
@@ -209,8 +179,8 @@ fun GroupDetailsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        removedMembers = removedMembers + member.username
                         memberToRemove = null
+                        onRemoveMember(member)
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {
@@ -224,11 +194,36 @@ fun GroupDetailsScreen(
             },
         )
     }
+
+    // Leaving takes the user's books out of the group, so it asks first too.
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(stringResource(R.string.leave_group_title, group.name)) },
+            text = { Text(stringResource(R.string.leave_group_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmLeave = false
+                        onLeaveClick()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.leave_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLeave = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
-// Group picture, name, "4 members · Private" and the description.
+// Group picture, name, "4 members" and the description.
 @Composable
-private fun GroupHeader(group: GroupInfo, memberCount: Int) {
+private fun GroupHeader(group: GroupDetails) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarPlaceholder(size = 56.dp)
@@ -236,11 +231,7 @@ private fun GroupHeader(group: GroupInfo, memberCount: Int) {
             Column {
                 Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    text = stringResource(
-                        R.string.group_members_visibility,
-                        pluralStringResource(R.plurals.members, memberCount, memberCount),
-                        stringResource(group.visibility.title),
-                    ),
+                    text = pluralStringResource(R.plurals.members, group.members.size, group.members.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -252,58 +243,35 @@ private fun GroupHeader(group: GroupInfo, memberCount: Int) {
     }
 }
 
-// Someone used the invite code and waits for the admin – the same buttons as for borrow requests.
+// A book someone in the group owns: blue "Borrowed by X", green "Available" or gray "Not available".
 @Composable
-private fun JoinRequestCard(request: JoinRequest, onAccept: () -> Unit, onReject: () -> Unit) {
-    AppCard {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-            AvatarPlaceholder()
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(request.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "@${request.username} · ${request.time}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-        ) {
-            OutlinedButton(onClick = onReject, shape = ButtonShape, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.action_reject))
-            }
-            Button(onClick = onAccept, shape = ButtonShape, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.action_accept))
-            }
-        }
-    }
-}
-
-// A book someone in the group owns: green "Available", or blue "Borrowed by X".
-@Composable
-private fun GroupBookCard(book: GroupBook, onClick: () -> Unit) {
+private fun GroupBookCard(book: GroupBook, onClick: (() -> Unit)?) {
     AppCard(onClick = onClick) {
-        BookRow(title = book.title, subtitle = stringResource(R.string.book_by_owner, book.author, book.owner)) {
-            if (book.borrowedBy == null) {
-                StatusTag(stringResource(R.string.status_available), dotColor = StatusGreen, backgroundColor = StatusGreenBg, textColor = StatusGreen)
-            } else {
-                StatusTag(
+        BookRow(
+            title = book.title,
+            subtitle = stringResource(R.string.book_by_owner, book.author, book.owner),
+            coverUrl = book.coverUrl,
+        ) {
+            when {
+                book.borrowedBy != null -> StatusTag(
                     stringResource(R.string.status_borrowed_by, book.borrowedBy),
                     dotColor = BrandBlue,
                     backgroundColor = StatusBlueBg,
                     textColor = BrandBlue,
                 )
+                book.available -> StatusTag(
+                    stringResource(R.string.status_available),
+                    dotColor = StatusGreen,
+                    backgroundColor = StatusGreenBg,
+                    textColor = StatusGreen,
+                )
+                else -> StatusTag(stringResource(R.string.status_not_available))
             }
         }
     }
 }
 
-// Picture, name, @username and the role on the right. The admin's role is blue, so it stands out.
+// Picture, name, when they joined and the role on the right. The admin's role is blue, so it stands out.
 // With canManage there's also a ⋮ menu: Make admin and Remove from group.
 @Composable
 private fun MemberCard(member: GroupMember, canManage: Boolean, onMakeAdmin: () -> Unit, onRemove: () -> Unit) {
@@ -313,7 +281,11 @@ private fun MemberCard(member: GroupMember, canManage: Boolean, onMakeAdmin: () 
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(member.name, style = MaterialTheme.typography.titleMedium)
-                Text("@${member.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.member_joined, member.joined.format(JoinedDate)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 text = stringResource(if (member.isAdmin) R.string.role_admin else R.string.role_member),
@@ -358,13 +330,34 @@ private fun MemberMenu(memberName: String, onMakeAdmin: () -> Unit, onRemove: ()
 @Preview(device = "id:pixel_8")
 @Composable
 private fun GroupDetailsScreenPreview() {
+    val today = LocalDate.now()
     BookWormsTheme {
         GroupDetailsScreen(
-            groupName = "Czytelnia 23",
-            isAdmin = true,
+            group = GroupDetails(
+                id = "1",
+                name = "Czytelnia 23",
+                description = "Sci-fi fans from work. We meet every first Thursday.",
+                isAdmin = true,
+                membersCanInvite = false,
+                inviteCode = "K7QM-3XTP",
+                members = listOf(
+                    GroupMember("a", "Anna Kowalska", isAdmin = true, joined = today.minusDays(40)),
+                    GroupMember("o", "Ola Nowak", isAdmin = false, joined = today.minusDays(3)),
+                ),
+            ),
+            books = LoadState.Ready(
+                listOf(
+                    GroupBook("c1", null, "Solaris", "Stanisław Lem", null, owner = "Ola", borrowedBy = null, available = true),
+                    GroupBook("c2", null, "Lalka", "Bolesław Prus", null, owner = "Anna", borrowedBy = "Ola", available = true),
+                ),
+            ),
+            saving = false,
+            onRetryBooksClick = {},
             onBookClick = {},
             onInviteClick = {},
             onEditClick = {},
+            onMakeAdmin = {},
+            onRemoveMember = {},
             onLeaveClick = {},
             onBackClick = {},
         )

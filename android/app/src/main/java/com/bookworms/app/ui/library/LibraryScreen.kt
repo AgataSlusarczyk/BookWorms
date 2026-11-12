@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.browse.Book
@@ -39,16 +40,23 @@ import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.AppBottomBar
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
-import com.bookworms.app.ui.components.BookCoverPlaceholder
+import com.bookworms.app.ui.browse.Book
+import com.bookworms.app.ui.browse.authorAndYear
+import com.bookworms.app.ui.browse.sampleBooks
+import com.bookworms.app.ui.components.BookRow
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
 fun LibraryScreen(
-    books: List<Book> = sampleBooks,
-    onBookClick: (Book) -> Unit = {},
-    onScanIsbnClick: () -> Unit = {},
+    // The newest books from the server (LibraryViewModel).
+    books: LoadState<List<Book>>,
+    onRetryClick: () -> Unit,
     onNavigate: (String) -> Unit = {},
+    onBookClick: (Book) -> Unit = {},
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val filteredBooks = remember(searchQuery, books) { filterBooks(books, searchQuery) }
@@ -105,34 +113,14 @@ fun LibraryScreen(
                 )
             }
 
-            items(filteredBooks, key = { it.isbn }) { book ->
-                LibraryBookCard(book = book, onClick = { onBookClick(book) })
-            }
-        }
-    }
-}
-
-@Composable
-fun LibraryBookCard(book: Book, onClick: () -> Unit) {
-    AppCard(onClick = onClick) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-        ) {
-            BookCoverPlaceholder()
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.book_author_year, book.author, book.year),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            when (books) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick) }
+                is LoadState.Ready -> items(books.data, key = { it.isbn }) { book ->
+                    AppCard(onClick = { onBookClick(book) }) {
+                        BookRow(title = book.title, subtitle = book.authorAndYear(), coverUrl = book.coverUrl)
+                    }
+                }
             }
         }
     }
@@ -142,6 +130,6 @@ fun LibraryBookCard(book: Book, onClick: () -> Unit) {
 @Composable
 private fun LibraryScreenPreview() {
     BookWormsTheme {
-        LibraryScreen()
+        LibraryScreen(books = LoadState.Ready(sampleBooks), onRetryClick = {})
     }
 }

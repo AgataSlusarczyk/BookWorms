@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,8 +31,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -52,6 +60,14 @@ fun RegisterScreen(
     onRepeatPasswordChange: (String) -> Unit,
     termsAccepted: Boolean,
     onTermsAcceptedChange: (Boolean) -> Unit,
+    // Errors under the fields, null = the field is fine.
+    emailError: String?,
+    passwordError: String?,
+    repeatPasswordError: String?,
+    // An error from the server above the button, null = none.
+    errorMessage: String?,
+    creatingAccount: Boolean,
+    createAccountEnabled: Boolean,
     onCreateAccountClick: () -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -59,6 +75,7 @@ fun RegisterScreen(
 ) {
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var repeatPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = modifier
@@ -84,6 +101,7 @@ fun RegisterScreen(
                 singleLine = true,
                 shape = FieldShape,
                 colors = authFieldColors(),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -97,7 +115,9 @@ fun RegisterScreen(
                 singleLine = true,
                 shape = FieldShape,
                 colors = authFieldColors(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                isError = emailError != null,
+                supportingText = emailError?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -118,9 +138,12 @@ fun RegisterScreen(
                         onToggle = { passwordVisible = !passwordVisible },
                     )
                 },
-                // Small gray text under the field.
-                supportingText = { Text(stringResource(R.string.password_hint)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                isError = passwordError != null,
+                // Small gray text under the field – the rules, or what's missing in red.
+                supportingText = { Text(passwordError ?: stringResource(R.string.password_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                // "Next" would otherwise stop at the eye icon – go down to "Repeat password" instead.
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -141,7 +164,11 @@ fun RegisterScreen(
                         onToggle = { repeatPasswordVisible = !repeatPasswordVisible },
                     )
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                isError = repeatPasswordError != null,
+                supportingText = repeatPasswordError?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                // "Done" on the keyboard creates the account, like the button.
+                keyboardActions = KeyboardActions(onDone = { if (createAccountEnabled) onCreateAccountClick() }),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -169,18 +196,35 @@ fun RegisterScreen(
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(16.dp))
+        }
 
         Button(
             onClick = onCreateAccountClick,
-            // You can't create an account until you accept the terms.
-            enabled = termsAccepted,
+            // Only once the form is filled in correctly and the terms are accepted.
+            enabled = createAccountEnabled,
             shape = FieldShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
         ) {
-            Text(stringResource(R.string.create_account_button))
+            if (creatingAccount) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    color = LocalContentColor.current,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Text(stringResource(R.string.create_account_button))
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -216,6 +260,12 @@ private fun RegisterScreenPreview() {
             onRepeatPasswordChange = {},
             termsAccepted = true,
             onTermsAcceptedChange = {},
+            emailError = null,
+            passwordError = null,
+            repeatPasswordError = null,
+            errorMessage = null,
+            creatingAccount = false,
+            createAccountEnabled = false,
             onCreateAccountClick = {},
             onLoginClick = {},
             onBackClick = {},

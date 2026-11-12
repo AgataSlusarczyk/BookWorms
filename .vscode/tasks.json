@@ -1,0 +1,67 @@
+{
+  // Run with Cmd+Shift+P → "Tasks: Run Task", or Cmd+Shift+B for "Start everything" (Ctrl instead of Cmd on Windows).
+  // The "windows" parts are for PowerShell, the default terminal there.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Database: start",
+      "detail": "Postgres in Docker on localhost:5434 (bookworms / secret)",
+      "type": "shell",
+      "command": "docker compose up -d --wait",
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database: stop",
+      "type": "shell",
+      "command": "docker compose stop",
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database: reset (deletes all data)",
+      "detail": "Starts from an empty database – Flyway runs all migrations again",
+      "type": "shell",
+      "command": "docker compose down -v && docker compose up -d --wait",
+      "windows": { "command": "docker compose down -v; docker compose up -d --wait" },
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Server: run",
+      "detail": "Database + Spring Boot on http://localhost:8080",
+      "type": "shell",
+      "command": "./gradlew bootRun",
+      "windows": { "command": ".\\gradlew.bat bootRun" },
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "dependsOn": "Database: start",
+      "isBackground": true,
+      // Tells VS Code the server is ready once Spring prints "Started ServerApplication".
+      "problemMatcher": {
+        "owner": "spring-boot",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "Starting ServerApplication",
+          "endsPattern": "Started ServerApplication"
+        }
+      }
+    },
+    {
+      "label": "Android: run on emulator",
+      "detail": "Starts the emulator if nothing is connected, installs the app and opens it",
+      "type": "shell",
+      "command": "./scripts/run-android.sh",
+      "windows": { "command": ".\\scripts\\run-android.cmd" },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start everything",
+      "detail": "Database + server and the emulator with the app, at the same time",
+      "dependsOn": ["Server: run", "Android: run on emulator"],
+      "dependsOrder": "parallel",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

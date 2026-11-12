@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.auth
 
+import android.util.Patterns
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,17 @@ internal val FieldShape = RoundedCornerShape(8.dp)
 
 // 3–20 letters, digits, dots or underscores, e.g. "ola" or "marek_w".
 internal val UsernamePattern = Regex("[A-Za-z0-9._]{3,20}")
+
+private const val MinPasswordLength = 10
+
+// For signing up and changing the password: at least 10 characters, a digit and a special character.
+internal fun isStrongPassword(password: String) =
+    password.length >= MinPasswordLength &&
+        password.any(Char::isDigit) &&
+        password.any { !it.isLetterOrDigit() }
+
+// Spaces at the ends are easy to type by accident, so they don't count.
+internal fun isValidEmail(email: String) = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
 
 @Composable
 internal fun LabeledField(label: String, field: @Composable () -> Unit) {

@@ -62,6 +62,7 @@ import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.loans.LoanDays
@@ -164,11 +165,13 @@ fun BookDetailsScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Text(
-            text = book.description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        book.description?.let { description ->
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         SectionDivider()
 
@@ -383,12 +386,7 @@ private fun GuestLoginCard(onLoginClick: () -> Unit) {
 @Composable
 private fun BookHeader(book: BookDetails) {
     Row {
-        // TODO: show the real cover when books come from the server.
-        Box(
-            modifier = Modifier
-                .size(width = 96.dp, height = 136.dp)
-                .background(PlaceholderGray, RoundedCornerShape(8.dp)),
-        )
+        BookCover(book.coverUrl, Modifier.size(width = 96.dp, height = 136.dp))
 
         Spacer(Modifier.width(16.dp))
 
@@ -404,13 +402,11 @@ private fun BookHeader(book: BookDetails) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
+            // "1961 · 224 pages · ISBN 978…", leaving out what the server doesn't know.
+            val pages = book.pages?.let { pluralStringResource(R.plurals.book_pages, it, it) }
             Text(
-                text = stringResource(
-                    R.string.book_meta,
-                    book.year,
-                    pluralStringResource(R.plurals.book_pages, book.pages, book.pages),
-                    book.isbn,
-                ),
+                text = listOfNotNull(book.year?.toString(), pages, stringResource(R.string.isbn_value, book.isbn))
+                    .joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -433,7 +429,7 @@ private fun BookHeader(book: BookDetails) {
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill(text = book.genre)
+                book.genre?.let { genreName(it) }?.let { Pill(text = it) }
                 Pill(text = pluralStringResource(R.plurals.book_copies, book.copies.size, book.copies.size))
             }
         }
