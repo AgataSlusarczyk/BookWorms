@@ -33,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +54,8 @@ fun InviteToGroupScreen(
     onGenerateNewCodeClick: () -> Unit,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // true while the new code is on its way – the button waits for it.
+    saving: Boolean = false,
 ) {
     // A new code turns the old one off, so people who got it can't join anymore – worth asking first.
     var confirmNewCode by rememberSaveable { mutableStateOf(false) }
@@ -141,6 +142,7 @@ fun InviteToGroupScreen(
 
         TextButton(
             onClick = { confirmNewCode = true },
+            enabled = !saving,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 8.dp),
@@ -150,7 +152,7 @@ fun InviteToGroupScreen(
     }
 }
 
-// The big code in the middle, with how long and how many times it can be used.
+// The big code in the middle. It works until someone makes a new one.
 @Composable
 private fun InviteCodeCard(invite: GroupInvite) {
     OutlinedCard(
@@ -177,11 +179,7 @@ private fun InviteCodeCard(invite: GroupInvite) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(
-                    R.string.invite_validity,
-                    pluralStringResource(R.plurals.invite_days_valid, invite.daysValid, invite.daysValid),
-                    pluralStringResource(R.plurals.invite_uses_left, invite.usesLeft, invite.usesLeft),
-                ),
+                text = stringResource(R.string.invite_code_works_until_new),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -224,7 +222,7 @@ private fun MemberCard(member: RecentMember) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Pill(text = stringResource(R.string.member_role))
+            Pill(text = stringResource(if (member.isAdmin) R.string.role_admin else R.string.member_role))
         }
     }
 }
@@ -234,8 +232,8 @@ private fun MemberCard(member: RecentMember) {
 private fun InviteToGroupScreenPreview() {
     BookWormsTheme {
         InviteToGroupScreen(
-            invite = sampleInvite,
-            recentMembers = sampleRecentMembers,
+            invite = GroupInvite("Czytelnia 23", "K7QM-3XTP", inviteLink("K7QM-3XTP")),
+            recentMembers = listOf(RecentMember("Marek Wrona", joined = "11.11.2026"), RecentMember("Ola Nowak", joined = "10.11.2026")),
             onCopyCodeClick = {},
             onShareLinkClick = {},
             onGenerateNewCodeClick = {},

@@ -5,7 +5,10 @@ import com.bookworms.server.books.BookRepository
 import com.bookworms.server.books.BookSource
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.dto.AddCopyRequest
+import com.bookworms.server.copies.dto.CopyResponse
 import com.bookworms.server.copies.dto.EditBookRequest
+import com.bookworms.server.copies.dto.toResponse
+import com.bookworms.server.groups.GroupMemberRepository
 import com.bookworms.server.loans.BorrowRequestRepository
 import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
@@ -25,16 +28,18 @@ class CopyService(
 	private val borrowingRepository: BorrowingRepository,
 	private val requestRepository: BorrowRequestRepository,
 	private val queueRepository: QueueRepository,
+	private val visibilityRepository: CopyGroupVisibilityRepository,
+	private val memberRepository: GroupMemberRepository,
 ) {
 
 	@Transactional(readOnly = true)
-	fun myCopies(ownerId: UUID): List<BookCopy> =
-		copyRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(ownerId)
+	fun myCopies(ownerId: UUID): List<CopyResponse> =
+		describe(copyRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(ownerId))
 
 	// A book with this ISBN already in the catalog gets the new copy, so copies of one book stay together.
 	// Otherwise (or without an ISBN) the book is added to the catalog first, as typed in by this user.
 	@Transactional
-	fun addCopy(ownerId: UUID, request: AddCopyRequest): BookCopy {
+	fun addCopy(ownerId: UUID, request: AddCopyRequest): CopyResponse {
 		val isbn = request.isbn?.let { toIsbn13(it) }
 		val book = isbn?.let { bookRepository.findByIsbn(it) }
 			?: bookRepository.save(
@@ -51,11 +56,11 @@ class CopyService(
 		// Flushed now, because the next query is plain SQL and needs the copy's row to be in the database already.
 		val copy = copyRepository.saveAndFlush(BookCopy(book = book, ownerId = ownerId))
 		copyRepository.showInAllOwnersGroups(copy.id!!, ownerId)
-		return copy
+		return describe(copy)
 	}
 
 	@Transactional
-	fun changeAvailability(ownerId: UUID, copyId: UUID, availability: Availability): BookCopy {
+	fun changeAvailability(ownerId: UUID, copyId: UUID, availability: Availability): CopyResponse {
 		val copy = myCopy(ownerId, copyId)
 		copy.availability = availability
 		if (availability == Availability.AVAILABLE &&
@@ -64,12 +69,29 @@ class CopyService(
 			// TODO: tell the people waiting once notifications are on the server.
 			queueRepository.deleteById_CopyId(copyId)
 		}
-		return copy
+		return describe(copy)
+	}
+
+	// The groups that see the copy from now on. Taking a group away doesn't touch loans or requests already made.
+	@Transactional
+	fun changeGroups(ownerId: UUID, copyId: UUID, groupIds: Set<UUID>): CopyResponse {
+		val copy = myCopy(ownerId, copyId)
+		val myGroups = memberRepository.findById_UserIdOrderByJoinedAtAsc(ownerId).map { it.id.groupId }.toSet()
+		if (!myGroups.containsAll(groupIds)) {
+			throw ApiException(HttpStatus.BAD_REQUEST, "NOT_GROUP_MEMBER", "You can only show your books in your own groups")
+		}
+		visibilityRepository.deleteById_CopyId(copyId)
+		// Flushed first, so the old rows are gone before the same ones are added again.
+		visibilityRepository.flush()
+		visibilityRepository.saveAll(groupIds.map { CopyGroupVisibility(CopyGroupVisibilityId(copyId, it)) })
+		// The visibility rows aren't the copy's, so updatedAt is moved by hand – phones need to see the change.
+		copy.updatedAt = Instant.now()
+		return describe(copy)
 	}
 
 	// Only a book this user typed in by hand – a catalog book is shared, so changing it would change it for everyone.
 	@Transactional
-	fun editBook(ownerId: UUID, copyId: UUID, request: EditBookRequest): BookCopy {
+	fun editBook(ownerId: UUID, copyId: UUID, request: EditBookRequest): CopyResponse {
 		val copy = myCopy(ownerId, copyId)
 		val book = copy.book
 		if (book.source != BookSource.MANUAL || book.createdBy != ownerId) {
@@ -81,7 +103,7 @@ class CopyService(
 		book.publishedYear = request.publishedYear?.toShort()
 		// The book's row isn't the copy's, so the copy's updatedAt is moved by hand – phones need to see the change.
 		copy.updatedAt = Instant.now()
-		return copy
+		return describe(copy)
 	}
 
 	// The row stays with deletedAt set, so phones can learn the book is gone.
@@ -114,6 +136,15 @@ class CopyService(
 		}
 		return copy
 	}
+
+	// Copies for the app, each with the groups that see it – one query for all of them.
+	private fun describe(copies: List<BookCopy>): List<CopyResponse> {
+		val groupsOf = visibilityRepository.findById_CopyIdIn(copies.map { it.id!! })
+			.groupBy({ it.id.copyId }, { it.id.groupId })
+		return copies.map { it.toResponse(groupsOf[it.id].orEmpty()) }
+	}
+
+	private fun describe(copy: BookCopy): CopyResponse = describe(listOf(copy)).single()
 
 	// Someone else's copy answers the same as a missing one, so nobody can guess other people's copies.
 	private fun myCopy(ownerId: UUID, copyId: UUID): BookCopy {

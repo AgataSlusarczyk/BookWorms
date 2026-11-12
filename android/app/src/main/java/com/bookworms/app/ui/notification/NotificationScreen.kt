@@ -38,7 +38,7 @@ private var allRead by mutableStateOf(false)
 
 @Composable
 fun NotificationsScreen(onBackClick: () -> Unit = {}) {
-    // The borrow request in the sample is a real one from Loans, so answering it here also answers it there.
+    // TODO: the requests from the server (as in Loans). For now a sample one, answered only on this phone.
     val request = incomingRequests.first { it.id == 31 }
     val answer = requestAnswers[request.id]
     // An answered request counts as read.

@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -51,6 +56,10 @@ fun LoginScreen(
     password: String,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    // null = no error to show.
+    errorMessage: String?,
+    loggingIn: Boolean,
+    loginEnabled: Boolean,
     onLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     onRegisterClick: () -> Unit,
@@ -70,6 +79,9 @@ fun LoginScreen(
             password = password,
             onEmailChange = onEmailChange,
             onPasswordChange = onPasswordChange,
+            errorMessage = errorMessage,
+            loggingIn = loggingIn,
+            loginEnabled = loginEnabled,
             onLoginClick = onLoginClick,
             onForgotPasswordClick = onForgotPasswordClick,
             onRegisterClick = onRegisterClick,
@@ -84,6 +96,10 @@ private fun LoginForm(
     password: String,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    // null = no error to show.
+    errorMessage: String?,
+    loggingIn: Boolean,
+    loginEnabled: Boolean,
     onLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     onRegisterClick: () -> Unit,
@@ -127,7 +143,7 @@ private fun LoginForm(
                     singleLine = true,
                     shape = FieldShape,
                     colors = authFieldColors(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -148,8 +164,19 @@ private fun LoginForm(
                             onToggle = { passwordVisible = !passwordVisible },
                         )
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    // "Done" on the keyboard logs in, like the button.
+                    keyboardActions = KeyboardActions(onDone = { if (loginEnabled) onLoginClick() }),
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (errorMessage != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
 
@@ -157,12 +184,21 @@ private fun LoginForm(
 
             Button(
                 onClick = onLoginClick,
+                enabled = loginEnabled,
                 shape = FieldShape,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text(stringResource(R.string.login_button))
+                if (loggingIn) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = LocalContentColor.current,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    Text(stringResource(R.string.login_button))
+                }
             }
 
             TextButton(
@@ -240,6 +276,9 @@ private fun LoginScreenPreview() {
             password = "secret-password",
             onEmailChange = {},
             onPasswordChange = {},
+            errorMessage = null,
+            loggingIn = false,
+            loginEnabled = true,
             onLoginClick = {},
             onForgotPasswordClick = {},
             onRegisterClick = {},

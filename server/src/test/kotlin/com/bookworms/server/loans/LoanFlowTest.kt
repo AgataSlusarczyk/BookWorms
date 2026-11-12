@@ -17,7 +17,6 @@ import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
-import java.util.UUID
 import kotlin.test.assertEquals
 
 // Asking, lending and giving back. Agata owns Solaris. Marek and Ola are in her group, Zosia isn't.
@@ -42,14 +41,19 @@ class LoanFlowTest(
 		marek = registerAndLogIn("Marek", "marek@example.com")
 		ola = registerAndLogIn("Ola", "ola@example.com")
 		zosia = registerAndLogIn("Zosia", "zosia@example.com")
-		// Groups aren't on the server yet, so the test makes one straight in the database.
-		val group = UUID.randomUUID()
-		jdbc.update(
-			"insert into groups (id, name, invite_code, created_by) values (?, 'Czytelnia', 'ABC123', ?)",
-			group, userId("agata@example.com"),
-		)
-		for (email in listOf("agata@example.com", "marek@example.com", "ola@example.com")) {
-			jdbc.update("insert into group_members (user_id, group_id) values (?, ?)", userId(email), group)
+		// Agata makes the group, Marek and Ola join it with its code.
+		val created = mockMvc.post("/groups") {
+			bearer(agata)
+			contentType = MediaType.APPLICATION_JSON
+			content = """{"name": "Czytelnia"}"""
+		}.andExpect { status { isCreated() } }.andReturn().response.contentAsString
+		val code = Regex(""""inviteCode":"([^"]+)"""").find(created)!!.groupValues[1]
+		for (token in listOf(marek, ola)) {
+			mockMvc.post("/groups/join") {
+				bearer(token)
+				contentType = MediaType.APPLICATION_JSON
+				content = """{"code": "$code"}"""
+			}.andExpect { status { isOk() } }
 		}
 		// Added after joining the group, so it's visible there.
 		solaris = idOf(
@@ -346,9 +350,6 @@ class LoanFlowTest(
 
 	private fun idOf(result: ResultActionsDsl): String =
 		Regex(""""id":"([^"]+)"""").find(result.andReturn().response.contentAsString)!!.groupValues[1]
-
-	private fun userId(email: String): UUID =
-		jdbc.queryForObject("select id from users where email = ?", UUID::class.java, email)!!
 
 	private fun registerAndLogIn(name: String, email: String): String {
 		mockMvc.post("/auth/register") {
