@@ -345,7 +345,6 @@
     <string name="isbn_label">ISBN</string>
     <string name="publisher_label">Publisher</string>
     <string name="year_label">Year</string>
-    <string name="action_save">Save</string>
     <string name="save_action">Save</string>
     <string name="scan_isbn_subtitle">Point the camera at the barcode – the details fill in themselves</string>
     <string name="or_fill_in_yourself">or fill in yourself</string>

@@ -37,13 +37,11 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
     prefill: Book? = null,
 ) {
     val isEdit = book != null
-    // Prefill gets the title from the book we're editing or from the one tapped in the app.
-    var title by rememberSaveable { mutableStateOf(book?.title ?: prefill?.title ?: "") }
-    var author by rememberSaveable { mutableStateOf(book?.author ?: prefill?.author ?: "") }
-    var isbn by rememberSaveable { mutableStateOf(book?.isbn ?: prefill?.isbn ?: "") }
-    var publisher by rememberSaveable { mutableStateOf(book?.publisher ?: "") }
-    // The form is empty when year = 0.
-    var year by rememberSaveable {
+    var title by rememberSaveable(book, prefill) { mutableStateOf(book?.title ?: prefill?.title ?: "") }
+    var author by rememberSaveable(book, prefill) { mutableStateOf(book?.author ?: prefill?.author ?: "") }
+    var isbn by rememberSaveable(book, prefill) { mutableStateOf(book?.isbn ?: prefill?.isbn ?: "") }
+    var publisher by rememberSaveable(book, prefill) { mutableStateOf(book?.publisher ?: "") }
+    var year by rememberSaveable(book, prefill) {
         val y = book?.year ?: prefill?.year ?: 0
         mutableStateOf(if (y > 0) y.toString() else "")
     }
@@ -105,8 +103,21 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
             BookInputField(
                 label = stringResource(R.string.isbn_label),
                 value = isbn,
-                // Only digits and dashes are allowed in an ISBN.
-                onValueChange = { isbn = it.filter { ch -> ch.isDigit() || ch == '-' } },
+                onValueChange = { newValue ->
+                    isbn = newValue.filter { it.isDigit() || it == '-' || it.equals('X', ignoreCase = true) }.take(17)
+                },
+                keyboardType = KeyboardType.Number,
+                trailingIcon = {
+                    if (!isEdit) {
+                        IconButton(onClick = onScanIsbnClick) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_barcode_scan),
+                                contentDescription = stringResource(R.string.scan_isbn_title),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 BookInputField(
@@ -163,8 +174,9 @@ private fun BookInputField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
+    trailingIcon: @Composable (() -> Unit)? = null,
 ) {
-    Box(modifier = modifier) { // <--- Box przyjmuje Modifier dla układu formularza
+    Box(modifier = modifier) {
         LabeledField(label = label) {
             OutlinedTextField(
                 value = value,
@@ -174,6 +186,7 @@ private fun BookInputField(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 colors = authFieldColors(),
+                trailingIcon = trailingIcon
             )
         }
     }

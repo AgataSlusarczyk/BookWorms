@@ -143,7 +143,7 @@ private object Routes {
 }
 
 // Holds scanned book details across navigation until Add book consumes it.
-private var scannedBookPrefill: Book? = null
+private var scannedBookPrefill by mutableStateOf<Book?>(null)
 
 @Composable
 fun AppNavigation() {
@@ -497,11 +497,12 @@ fun AppNavigation() {
 
             AddBookManualScreen(
                 onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
-                onBackClick = { navController.popBackStack() },
+                onBackClick = { 
+                    scannedBookPrefill = null
+                    navController.popBackStack() },
                 // TODO: save the book on the server first.
                 onSaveClick = { newBook ->
-                    scannedBookPrefill = null // Clean up prefill
-                    // Books are told apart by their title for now, so the same title can't be added twice.
+                    scannedBookPrefill = null
                     if (sampleOwnBooks.any { it.title == newBook.title }) {
                         Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
                     } else {
@@ -520,23 +521,24 @@ fun AppNavigation() {
             var scannedIsbn by rememberSaveable { mutableStateOf<String?>(null) }
             val context = LocalContext.current
 
-            LaunchedEffect(scannedIsbn) {
+           LaunchedEffect(scannedIsbn) {
                 val code = scannedIsbn ?: return@LaunchedEffect
-
-                // Background network request so UI doesn't freeze
-                CoroutineScope(Dispatchers.Main).launch {
-                    val details = fetchBookDetailsByIsbn(isbn = code, ownerName = "", userGroups = emptyList())
-                    
-                    // Populate the global prefill cache with fetched data
-                    scannedBookPrefill = Book(
-                        isbn = details.isbn,
-                        title = details.title,
-                        author = details.author,
-                        year = details.year,
-                        groupsAvailable = 0
-                    )
-                    
-                    // Navigate to the form
+                
+                val details = fetchBookDetailsByIsbn(isbn = code, ownerName = "", userGroups = emptyList())
+                
+                scannedBookPrefill = Book(
+                    isbn = details.isbn,
+                    title = details.title,
+                    author = details.author,
+                    year = details.year,
+                    groupsAvailable = 0
+                )
+                
+                
+                val previousRoute = navController.previousBackStackEntry?.destination?.route
+                if (previousRoute?.startsWith("add_book_manual") == true) {
+                    navController.popBackStack()
+                } else {
                     navController.navigate(Routes.addBookManual()) {
                         popUpTo(Routes.SCAN_ISBN) { inclusive = true }
                     }
