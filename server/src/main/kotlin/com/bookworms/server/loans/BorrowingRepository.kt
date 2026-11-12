@@ -16,6 +16,9 @@ interface BorrowingRepository : JpaRepository<Borrowing, UUID> {
 	@EntityGraph(attributePaths = ["copy", "copy.book"])
 	fun findWithCopyById(id: UUID): Borrowing?
 
+	@EntityGraph(attributePaths = ["copy", "copy.book"])
+	fun findWithCopyByIdIn(ids: Collection<UUID>): List<Borrowing>
+
 	// "Borrowing": books I have from other people. The one to give back soonest first.
 	@EntityGraph(attributePaths = ["copy", "copy.book"])
 	fun findByBorrowerIdAndStatusNotOrderByDueDateAsc(borrowerId: UUID, status: BorrowingStatus): List<Borrowing>

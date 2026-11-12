@@ -10,6 +10,9 @@ interface BorrowRequestRepository : JpaRepository<BorrowRequest, UUID> {
 	@EntityGraph(attributePaths = ["copy", "copy.book"])
 	fun findWithCopyById(id: UUID): BorrowRequest?
 
+	@EntityGraph(attributePaths = ["copy", "copy.book"])
+	fun findWithCopyByIdIn(ids: Collection<UUID>): List<BorrowRequest>
+
 	// "Waiting for an answer": what I asked for.
 	@EntityGraph(attributePaths = ["copy", "copy.book"])
 	fun findByRequesterIdAndStatusOrderByCreatedAtDesc(requesterId: UUID, status: RequestStatus): List<BorrowRequest>

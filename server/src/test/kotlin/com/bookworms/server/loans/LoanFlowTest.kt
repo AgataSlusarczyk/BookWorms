@@ -69,7 +69,7 @@ class LoanFlowTest(
 	@AfterEach
 	fun cleanDatabase() {
 		for (table in listOf(
-			"availability_watchers", "borrowings", "borrow_requests", "copy_group_visibility", "book_copies",
+			"notifications", "availability_watchers", "borrowings", "borrow_requests", "copy_group_visibility", "book_copies",
 			"group_members", "groups", "books", "users",
 		)) {
 			jdbc.update("delete from $table")
@@ -330,6 +330,73 @@ class LoanFlowTest(
 		mockMvc.get("/me/queue") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
 		mockMvc.get("/me/queue") { bearer(ola) }.andExpect { jsonPath("$.length()") { value(0) } }
 	}
+
+	@Test
+	fun `the owner hears about a request, and the one who asked hears the answer`() {
+		val fromMarek = idOf(send(marek))
+
+		notifications(agata).andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].type") { value("BORROW_REQUESTED") }
+			jsonPath("$[0].referenceId") { value(fromMarek) }
+			jsonPath("$[0].bookTitle") { value("Solaris") }
+			jsonPath("$[0].person.name") { value("Marek") }
+			jsonPath("$[0].read") { value(false) }
+		}
+
+		answer(agata, fromMarek, "accept")
+		notifications(marek).andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].type") { value("REQUEST_ACCEPTED") }
+			jsonPath("$[0].person.name") { value("Agata") }
+		}
+	}
+
+	@Test
+	fun `saying no, taking a request back and removing the book are told too`() {
+		answer(agata, idOf(send(ola)), "reject")
+		notifications(ola).andExpect { jsonPath("$[0].type") { value("REQUEST_REJECTED") } }
+
+		answer(marek, idOf(send(marek)), "cancel")
+		// The newest first.
+		notifications(agata).andExpect {
+			jsonPath("$[0].type") { value("REQUEST_CANCELED") }
+			jsonPath("$[0].person.name") { value("Marek") }
+		}
+
+		send(marek)
+		mockMvc.delete("/copies/$solaris") { bearer(agata) }
+		notifications(marek).andExpect { jsonPath("$[0].type") { value("REQUEST_REJECTED") } }
+	}
+
+	@Test
+	fun `after the return, the borrower and the queue are told`() {
+		answer(agata, idOf(send(marek)), "accept")
+		joinQueue(ola)
+
+		markReturned(agata, loanId(agata))
+
+		notifications(marek).andExpect { jsonPath("$[0].type") { value("RETURN_CONFIRMED") } }
+		notifications(ola).andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].type") { value("COPY_AVAILABLE") }
+			jsonPath("$[0].referenceId") { value(solaris) }
+			jsonPath("$[0].person.name") { value("Agata") }
+		}
+	}
+
+	@Test
+	fun `mark as read marks only my notifications`() {
+		answer(agata, idOf(send(marek)), "reject")
+
+		mockMvc.post("/me/notifications/read") { bearer(agata) }.andExpect { status { isNoContent() } }
+
+		notifications(agata).andExpect { jsonPath("$[0].read") { value(true) } }
+		notifications(marek).andExpect { jsonPath("$[0].read") { value(false) } }
+	}
+
+	private fun notifications(token: String) =
+		mockMvc.get("/me/notifications") { bearer(token) }
 
 	private fun joinQueue(token: String) =
 		mockMvc.post("/copies/$solaris/queue") { bearer(token) }

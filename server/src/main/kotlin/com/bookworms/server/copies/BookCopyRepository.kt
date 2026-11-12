@@ -16,6 +16,9 @@ interface BookCopyRepository : JpaRepository<BookCopy, UUID> {
 	@EntityGraph(attributePaths = ["book"])
 	fun findWithBookById(id: UUID): BookCopy?
 
+	@EntityGraph(attributePaths = ["book"])
+	fun findWithBookByIdIn(ids: Collection<UUID>): List<BookCopy>
+
 	// The copies of a group's library, newest first, with their books. Removed ones are skipped.
 	@EntityGraph(attributePaths = ["book"])
 	fun findByIdInAndDeletedAtIsNullOrderByCreatedAtDesc(ids: Collection<UUID>): List<BookCopy>

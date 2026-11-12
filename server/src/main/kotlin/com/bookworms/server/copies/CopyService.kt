@@ -14,6 +14,8 @@ import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
 import com.bookworms.server.loans.QueueRepository
 import com.bookworms.server.loans.RequestStatus
+import com.bookworms.server.notifications.NotificationService
+import com.bookworms.server.notifications.NotificationType
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,6 +32,7 @@ class CopyService(
 	private val queueRepository: QueueRepository,
 	private val visibilityRepository: CopyGroupVisibilityRepository,
 	private val memberRepository: GroupMemberRepository,
+	private val notificationService: NotificationService,
 ) {
 
 	@Transactional(readOnly = true)
@@ -66,8 +69,7 @@ class CopyService(
 		if (availability == Availability.AVAILABLE &&
 			!borrowingRepository.existsByCopyIdAndStatusNot(copyId, BorrowingStatus.RETURNED)
 		) {
-			// TODO: tell the people waiting once notifications are on the server.
-			queueRepository.deleteById_CopyId(copyId)
+			notificationService.releaseQueue(copyId)
 		}
 		return describe(copy)
 	}
@@ -108,7 +110,7 @@ class CopyService(
 
 	// The row stays with deletedAt set, so phones can learn the book is gone.
 	// A lent-out book can't be removed – someone has it, and it has to come back first.
-	// Requests still waiting for it are rejected, so the people who asked aren't left waiting forever.
+	// Requests still waiting for it are rejected, so the people who asked aren't left waiting forever – and they're told.
 	@Transactional
 	fun removeCopy(ownerId: UUID, copyId: UUID) {
 		val copy = myCopy(ownerId, copyId)
@@ -117,7 +119,11 @@ class CopyService(
 		}
 		copy.deletedAt = Instant.now()
 		requestRepository.findByCopyIdAndStatus(copyId, RequestStatus.PENDING)
-			.forEach { it.status = RequestStatus.REJECTED }
+			.forEach {
+				it.status = RequestStatus.REJECTED
+				notificationService.notify(it.requesterId, NotificationType.REQUEST_REJECTED, it.id!!)
+			}
+		// The book is gone, so the people waiting are just taken off the queue – there's nothing to tell them it's back.
 		queueRepository.deleteById_CopyId(copyId)
 	}
 
