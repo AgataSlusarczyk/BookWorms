@@ -28,7 +28,7 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 // Also the Edit book form: pass the book as editing, and the fields start filled in. Its ISBN can't be changed.
 // prefill = a book from the catalog ("I own this book" on Book details): still adding, but the fields start filled in.
 @Composable
-internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt dostępności OwnBook
+internal fun AddBookManualScreen(
     onScanIsbnClick: () -> Unit,
     onBackClick: () -> Unit,
     // Gets the book as it is on the form.
@@ -40,11 +40,11 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
 ) {
     val start = editing ?: prefill ?: BookForm()
     // rememberSaveable, so typed text survives rotating the phone.
-    var title by rememberSaveable { mutableStateOf(start.title) }
-    var author by rememberSaveable { mutableStateOf(start.author) }
-    var isbn by rememberSaveable { mutableStateOf(start.isbn) }
-    var publisher by rememberSaveable { mutableStateOf(start.publisher) }
-    var year by rememberSaveable { mutableStateOf(start.year?.toString().orEmpty()) }
+    var title by rememberSaveable(editing, prefill) { mutableStateOf(start.title) }
+    var author by rememberSaveable(editing, prefill) { mutableStateOf(start.author) }
+    var isbn by rememberSaveable(editing, prefill) { mutableStateOf(start.isbn) }
+    var publisher by rememberSaveable(editing, prefill) { mutableStateOf(start.publisher) }
+    var year by rememberSaveable(editing, prefill) { mutableStateOf(start.year?.toString().orEmpty()) }
     // The server takes old 10-digit ISBNs and new 13-digit ones.
     val isbnValid = isbn.isEmpty() || isbn.length == 10 || isbn.length == 13
 
@@ -77,7 +77,7 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                         stringResource(R.string.or_fill_in_yourself),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp),
                     )
                     HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 }
@@ -110,18 +110,6 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                         }
                     }
                 },
-                keyboardType = KeyboardType.Number,
-                trailingIcon = {
-                    if (!isEdit) {
-                        IconButton(onClick = onScanIsbnClick) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_barcode_scan),
-                                contentDescription = stringResource(R.string.scan_isbn_title),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 BookInputField(
@@ -153,7 +141,6 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                             year = year.toIntOrNull(),
                         ),
                     )
-                    onSaveClick(edited)
                 },
                 // Title and author are the minimum to tell books apart.
                 enabled = title.isNotBlank() && author.isNotBlank() && isbnValid && !saving,
@@ -161,9 +148,6 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = FieldShape,
-                // The title and author are minimum requirements for a book.
-                enabled = title.isNotBlank() && author.isNotBlank(),
             ) {
                 if (saving) {
                     CircularProgressIndicator(
@@ -174,6 +158,32 @@ internal fun AddBookManualScreen( // <--- Słowo 'internal' rozwiązuje konflikt
                 } else {
                     Text(stringResource(R.string.save_action))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanIsbnCard(onClick: () -> Unit) {
+    AppCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.ic_barcode_scan),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.scan_isbn_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.scan_isbn_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -198,15 +208,13 @@ private fun BookInputField(
                 onValueChange = onValueChange,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                modifier = Modifier.fillMaxWidth(),
-                shape = FieldShape,
-                colors = authFieldColors(),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 trailingIcon = trailingIcon,
                 enabled = enabled,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
+                shape = FieldShape,
+                colors = authFieldColors(),
             )
         }
     }

@@ -37,35 +37,37 @@ import com.bookworms.app.ui.book.BookDetailsViewModel
 import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.shareBook
+import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.components.profilePhotoUri
-import com.bookworms.app.ui.groups.CreateGroupScreen
-import com.bookworms.app.ui.groups.CreateGroupViewModel
-import com.bookworms.app.ui.groups.GroupDetailsViewModel
-import com.bookworms.app.ui.groups.GroupEvent
-import com.bookworms.app.ui.groups.GroupsViewModel
-import com.bookworms.app.ui.groups.JoinGroupViewModel
-import com.bookworms.app.ui.groups.GroupDetailsScreen
-import com.bookworms.app.ui.groups.GroupsScreen
-import com.bookworms.app.ui.groups.JoinGroupScreen
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.RecentMember
-import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.copyInviteCode
+import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.shareInviteLink
+import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.CreateGroupViewModel
+import com.bookworms.app.ui.groups.GroupDetailsScreen
+import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupEvent
+import com.bookworms.app.ui.groups.GroupsScreen
+import com.bookworms.app.ui.groups.GroupsViewModel
+import com.bookworms.app.ui.groups.JoinGroupScreen
+import com.bookworms.app.ui.groups.JoinGroupViewModel
+import com.bookworms.app.ui.library.AddBookEvent
 import com.bookworms.app.ui.library.AddBookManualScreen
+import com.bookworms.app.ui.library.AddBookViewModel
+import com.bookworms.app.ui.library.BookForm
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.LibraryViewModel
-import com.bookworms.app.ui.library.MyBooksScreen
-import com.bookworms.app.ui.library.MyCopyScreen
-import com.bookworms.app.ui.library.AddBookEvent
-import com.bookworms.app.ui.library.AddBookViewModel
 import com.bookworms.app.ui.library.MyBooksEvent
+import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyBooksViewModel
+import com.bookworms.app.ui.library.MyCopyScreen
 import com.bookworms.app.ui.library.toForm
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
@@ -88,6 +90,7 @@ import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
+import com.bookworms.app.ui.scan.fetchBookDetailsByIsbn
 import kotlinx.coroutines.flow.Flow
 import java.time.format.DateTimeFormatter
 
@@ -160,7 +163,7 @@ private object Routes {
 }
 
 // Holds scanned book details across navigation until Add book consumes it.
-private var scannedBookPrefill by mutableStateOf<Book?>(null)
+private var scannedBookPrefill by mutableStateOf<BookForm?>(null)
 
 @Composable
 fun AppNavigation() {
@@ -646,6 +649,7 @@ fun AppNavigation() {
                 viewModel.events.collect { event ->
                     when (event) {
                         is AddBookEvent.Added -> {
+                            scannedBookPrefill = null
                             myBooks?.added(event.book)
                             Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
                             // Back to where Add book was opened from: My books or the book's page.
@@ -660,13 +664,22 @@ fun AppNavigation() {
                 state = prefill,
                 failedMessage = stringResource(R.string.load_book_failed),
                 onRetryClick = viewModel::refresh,
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    scannedBookPrefill = null
+                    navController.popBackStack()
+                },
             ) { form ->
                 AddBookManualScreen(
                     onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
-                    onBackClick = { navController.popBackStack() },
-                    onSaveClick = viewModel::save,
-                    prefill = form,
+                    onBackClick = {
+                        scannedBookPrefill = null
+                        navController.popBackStack()
+                    },
+                    onSaveClick = { savedForm ->
+                        scannedBookPrefill = null
+                        viewModel.save(savedForm)
+                    },
+                    prefill = scannedBookPrefill ?: form,
                     saving = saving,
                 )
             }
@@ -794,14 +807,61 @@ fun AppNavigation() {
             }
         }
 
-        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
-        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
+        // Opened from Add book. Reads a barcode and fills in the Add book form.
         composable(Routes.SCAN_ISBN) {
+            var scannedIsbn by remember { mutableStateOf<String?>(null) }
+
+            LaunchedEffect(scannedIsbn) {
+                val code = scannedIsbn ?: return@LaunchedEffect
+                val details = fetchBookDetailsByIsbn(
+                    isbn = code,
+                    ownerName = user?.name.orEmpty(),
+                    userGroups = emptyList(),
+                )
+                scannedBookPrefill = BookForm(
+                    isbn = details.isbn,
+                    title = details.title,
+                    author = details.author,
+                    year = details.year?.takeIf { it > 0 },
+                )
+
+                val previousRoute = navController.previousBackStackEntry?.destination?.route
+                if (previousRoute?.startsWith("add_book_manual") == true) {
+                    navController.popBackStack()
+                } else {
+                    navController.navigate(Routes.addBookManual()) {
+                        popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                    }
+                }
+            }
+
             ScanIsbnScreen(
-                // Temporary – a sample code until the camera can read barcodes.
-                recognizedIsbn = "978-83-08-04815-3",
-                onEnterIsbnManuallyClick = { navController.popBackStack() },
-                onAddWithoutIsbnClick = { navController.popBackStack() },
+                recognizedIsbn = scannedIsbn,
+                onIsbnRecognized = { code: String ->
+                    if (scannedIsbn == null) {
+                        scannedIsbn = code
+                    }
+                },
+                onEnterIsbnManuallyClick = {
+                    val previousRoute = navController.previousBackStackEntry?.destination?.route
+                    if (previousRoute?.startsWith("add_book_manual") == true) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Routes.addBookManual()) {
+                            popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                        }
+                    }
+                },
+                onAddWithoutIsbnClick = {
+                    val previousRoute = navController.previousBackStackEntry?.destination?.route
+                    if (previousRoute?.startsWith("add_book_manual") == true) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Routes.addBookManual()) {
+                            popUpTo(Routes.SCAN_ISBN) { inclusive = true }
+                        }
+                    }
+                },
                 onCloseClick = { navController.popBackStack() },
             )
         }
