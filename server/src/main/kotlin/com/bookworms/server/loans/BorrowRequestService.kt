@@ -7,6 +7,8 @@ import com.bookworms.server.copies.CopyService
 import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.loans.dto.RequestBookResponse
 import com.bookworms.server.loans.dto.RequestResponse
+import com.bookworms.server.notifications.NotificationService
+import com.bookworms.server.notifications.NotificationType
 import com.bookworms.server.users.UserRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -27,6 +29,7 @@ class BorrowRequestService(
 	private val copyService: CopyService,
 	private val borrowingRepository: BorrowingRepository,
 	private val userRepository: UserRepository,
+	private val notificationService: NotificationService,
 ) {
 
 	@Transactional
@@ -44,6 +47,7 @@ class BorrowRequestService(
 		}
 
 		val request = requestRepository.save(BorrowRequest(copy = copy, requesterId = requesterId, idempotencyKey = key))
+		notificationService.notify(copy.ownerId, NotificationType.BORROW_REQUESTED, request.id!!)
 		return describe(listOf(request), requesterId).single()
 	}
 
@@ -67,6 +71,7 @@ class BorrowRequestService(
 		val request = pendingRequest(requestId) { it.copy.ownerId == ownerId }
 		checkCanBeLent(request.copy)
 		request.status = RequestStatus.ACCEPTED
+		notificationService.notify(request.requesterId, NotificationType.REQUEST_ACCEPTED, request.id!!)
 		borrowingRepository.save(
 			Borrowing(
 				requestId = request.id!!,
@@ -82,6 +87,7 @@ class BorrowRequestService(
 	fun reject(ownerId: UUID, requestId: UUID): RequestResponse {
 		val request = pendingRequest(requestId) { it.copy.ownerId == ownerId }
 		request.status = RequestStatus.REJECTED
+		notificationService.notify(request.requesterId, NotificationType.REQUEST_REJECTED, request.id!!)
 		return describe(listOf(request), ownerId).single()
 	}
 
@@ -90,6 +96,7 @@ class BorrowRequestService(
 	fun cancel(requesterId: UUID, requestId: UUID): RequestResponse {
 		val request = pendingRequest(requestId) { it.requesterId == requesterId }
 		request.status = RequestStatus.CANCELED
+		notificationService.notify(request.copy.ownerId, NotificationType.REQUEST_CANCELED, request.id!!)
 		return describe(listOf(request), requesterId).single()
 	}
 

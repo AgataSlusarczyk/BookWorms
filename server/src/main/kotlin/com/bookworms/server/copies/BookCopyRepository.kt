@@ -16,6 +16,9 @@ interface BookCopyRepository : JpaRepository<BookCopy, UUID> {
 	@EntityGraph(attributePaths = ["book"])
 	fun findWithBookById(id: UUID): BookCopy?
 
+	@EntityGraph(attributePaths = ["book"])
+	fun findWithBookByIdIn(ids: Collection<UUID>): List<BookCopy>
+
 	// TODO: use the group entities instead of plain SQL once groups are on the server.
 	// A new book starts visible in all the owner's groups. Choosing the groups comes with the groups on the server.
 	@Modifying
