@@ -8,6 +8,7 @@ import com.bookworms.app.data.network.BooksApi
 import com.bookworms.app.ui.book.BookDetails
 import com.bookworms.app.ui.book.withSampleCopiesAndComments
 import com.bookworms.app.ui.browse.Book
+import com.bookworms.app.ui.library.BookForm
 
 // Books for the ViewModels. They don't need to know the books come from the server.
 class BookRepository(private val api: BooksApi = ApiClient.books) {
@@ -22,6 +23,19 @@ class BookRepository(private val api: BooksApi = ApiClient.books) {
     // The book from the server. Copies and comments are still sample data (see withSampleCopiesAndComments).
     suspend fun details(isbn: String): BookDetails =
         withSampleCopiesAndComments(api.getBookByIsbn(isbn).toBookDetails(isbn))
+
+    // The book's details for the Add book form ("I own this book" on Book details).
+    internal suspend fun formFor(isbn: String): BookForm {
+        val book = api.getBookByIsbn(isbn)
+        return BookForm(
+            title = book.title,
+            author = book.authors.orEmpty(),
+            // The form keeps digits only.
+            isbn = (book.isbn ?: isbn).filter { it.isDigit() || it == 'X' },
+            publisher = book.publisher.orEmpty(),
+            year = book.publishedYear,
+        )
+    }
 }
 
 // null for a book without an ISBN: the app opens book details by ISBN, so it couldn't open this one.
@@ -51,7 +65,7 @@ private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
 )
 
 // The server sends covers as paths on itself, e.g. "/covers/9788308075197.jpg". Images need the full address.
-private fun serverUrl(path: String?): String? = when {
+internal fun serverUrl(path: String?): String? = when {
     path == null -> null
     path.startsWith("http://") || path.startsWith("https://") -> path
     else -> BuildConfig.API_BASE_URL.trimEnd('/') + "/" + path.trimStart('/')

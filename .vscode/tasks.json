@@ -1,5 +1,6 @@
 {
-  // Run with Cmd+Shift+P → "Tasks: Run Task", or Cmd+Shift+B for "Start everything".
+  // Run with Cmd+Shift+P → "Tasks: Run Task", or Cmd+Shift+B for "Start everything" (Ctrl instead of Cmd on Windows).
+  // The "windows" parts are for PowerShell, the default terminal there.
   "version": "2.0.0",
   "tasks": [
     {
@@ -22,6 +23,7 @@
       "detail": "Starts from an empty database – Flyway runs all migrations again",
       "type": "shell",
       "command": "docker compose down -v && docker compose up -d --wait",
+      "windows": { "command": "docker compose down -v; docker compose up -d --wait" },
       "options": { "cwd": "${workspaceFolder}/server" },
       "problemMatcher": []
     },
@@ -30,6 +32,7 @@
       "detail": "Database + Spring Boot on http://localhost:8080",
       "type": "shell",
       "command": "./gradlew bootRun",
+      "windows": { "command": ".\\gradlew.bat bootRun" },
       "options": { "cwd": "${workspaceFolder}/server" },
       "dependsOn": "Database: start",
       "isBackground": true,
@@ -48,6 +51,7 @@
       "detail": "Starts the emulator if nothing is connected, installs the app and opens it",
       "type": "shell",
       "command": "./scripts/run-android.sh",
+      "windows": { "command": ".\\scripts\\run-android.cmd" },
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },

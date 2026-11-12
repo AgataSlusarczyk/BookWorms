@@ -3,9 +3,9 @@ package com.bookworms.server.copies
 import com.bookworms.server.common.userId
 import com.bookworms.server.copies.dto.AddCopyRequest
 import com.bookworms.server.copies.dto.ChangeAvailabilityRequest
+import com.bookworms.server.copies.dto.ChangeGroupsRequest
 import com.bookworms.server.copies.dto.CopyResponse
 import com.bookworms.server.copies.dto.EditBookRequest
-import com.bookworms.server.copies.dto.toResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -29,7 +29,7 @@ class CopyController(
 
 	@GetMapping("/me/copies")
 	fun myCopies(@AuthenticationPrincipal jwt: Jwt): List<CopyResponse> =
-		copyService.myCopies(jwt.userId()).map { it.toResponse() }
+		copyService.myCopies(jwt.userId())
 
 	@PostMapping("/me/copies")
 	@ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +37,7 @@ class CopyController(
 		@AuthenticationPrincipal jwt: Jwt,
 		@Valid @RequestBody request: AddCopyRequest,
 	): CopyResponse =
-		copyService.addCopy(jwt.userId(), request).toResponse()
+		copyService.addCopy(jwt.userId(), request)
 
 	@PatchMapping("/copies/{id}")
 	fun changeAvailability(
@@ -45,7 +45,16 @@ class CopyController(
 		@PathVariable id: UUID,
 		@RequestBody request: ChangeAvailabilityRequest,
 	): CopyResponse =
-		copyService.changeAvailability(jwt.userId(), id, request.availability).toResponse()
+		copyService.changeAvailability(jwt.userId(), id, request.availability)
+
+	// Only the user's own groups – any other answers 400 (code NOT_GROUP_MEMBER).
+	@PutMapping("/copies/{id}/groups")
+	fun changeGroups(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestBody request: ChangeGroupsRequest,
+	): CopyResponse =
+		copyService.changeGroups(jwt.userId(), id, request.groupIds)
 
 	@PutMapping("/copies/{id}/book")
 	fun editBook(
@@ -53,7 +62,7 @@ class CopyController(
 		@PathVariable id: UUID,
 		@Valid @RequestBody request: EditBookRequest,
 	): CopyResponse =
-		copyService.editBook(jwt.userId(), id, request).toResponse()
+		copyService.editBook(jwt.userId(), id, request)
 
 	@DeleteMapping("/copies/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)

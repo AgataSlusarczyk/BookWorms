@@ -19,8 +19,11 @@ interface BookCopyRepository : JpaRepository<BookCopy, UUID> {
 	@EntityGraph(attributePaths = ["book"])
 	fun findWithBookByIdIn(ids: Collection<UUID>): List<BookCopy>
 
-	// TODO: use the group entities instead of plain SQL once groups are on the server.
-	// A new book starts visible in all the owner's groups. Choosing the groups comes with the groups on the server.
+	// The copies of a group's library, newest first, with their books. Removed ones are skipped.
+	@EntityGraph(attributePaths = ["book"])
+	fun findByIdInAndDeletedAtIsNullOrderByCreatedAtDesc(ids: Collection<UUID>): List<BookCopy>
+
+	// A new book starts visible in all the owner's groups. My copy can change that (PUT /copies/{id}/groups).
 	@Modifying
 	@Query(
 		value = """
@@ -31,7 +34,6 @@ interface BookCopyRepository : JpaRepository<BookCopy, UUID> {
 	)
 	fun showInAllOwnersGroups(copyId: UUID, ownerId: UUID)
 
-	// TODO: use the group entities instead of plain SQL once groups are on the server.
 	// Is the copy visible in at least one group this user is in? Only then they can see it and ask to borrow it.
 	@Query(
 		value = """

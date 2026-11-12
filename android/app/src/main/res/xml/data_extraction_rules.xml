@@ -1,19 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What Android may copy to Google's backup or to a new phone (Android 12+). -->
 <data-extraction-rules>
+    <!-- The login token (see Session) stays on this phone only. -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="session.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="session.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

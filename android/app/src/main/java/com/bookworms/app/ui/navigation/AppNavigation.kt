@@ -3,24 +3,34 @@ package com.bookworms.app.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.bookworms.app.R
+import com.bookworms.app.data.AuthRepository
+import com.bookworms.app.data.auth.Session
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
+import com.bookworms.app.ui.auth.LoginError
 import com.bookworms.app.ui.auth.LoginScreen
+import com.bookworms.app.ui.auth.LoginViewModel
+import com.bookworms.app.ui.auth.RegisterError
 import com.bookworms.app.ui.auth.RegisterScreen
+import com.bookworms.app.ui.auth.RegisterViewModel
 import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.BookDetailsViewModel
@@ -33,27 +43,30 @@ import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.CreateGroupViewModel
+import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupEvent
+import com.bookworms.app.ui.groups.GroupsViewModel
+import com.bookworms.app.ui.groups.JoinGroupViewModel
 import com.bookworms.app.ui.groups.GroupDetailsScreen
-import com.bookworms.app.ui.groups.GroupInfo
-import com.bookworms.app.ui.groups.GroupVisibility
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.groups.JoinGroupScreen
-import com.bookworms.app.ui.groups.groupInfo
-import com.bookworms.app.ui.groups.sampleGroups
+import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
+import com.bookworms.app.ui.group.RecentMember
+import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.copyInviteCode
-import com.bookworms.app.ui.group.newInviteCode
-import com.bookworms.app.ui.group.withCode
-import com.bookworms.app.ui.group.sampleInvite
-import com.bookworms.app.ui.group.sampleRecentMembers
 import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.LibraryViewModel
 import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyCopyScreen
-import com.bookworms.app.ui.library.ownBook
-import com.bookworms.app.ui.library.sampleOwnBooks
+import com.bookworms.app.ui.library.AddBookEvent
+import com.bookworms.app.ui.library.AddBookViewModel
+import com.bookworms.app.ui.library.MyBooksEvent
+import com.bookworms.app.ui.library.MyBooksViewModel
+import com.bookworms.app.ui.library.toForm
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
 import com.bookworms.app.ui.lists.EditListScreen
@@ -64,6 +77,7 @@ import com.bookworms.app.ui.lists.ShelfScreen
 import com.bookworms.app.ui.lists.sampleCustomLists
 import com.bookworms.app.ui.lists.sampleListBooks
 import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.loans.LoansViewModel
 import com.bookworms.app.ui.loans.QueueSpot
 import com.bookworms.app.ui.loans.cancelRequest
 import com.bookworms.app.ui.loans.hasSentRequest
@@ -74,6 +88,8 @@ import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileScreen
 import com.bookworms.app.ui.profile.ProfileScreen
 import com.bookworms.app.ui.scan.ScanIsbnScreen
+import kotlinx.coroutines.flow.Flow
+import java.time.format.DateTimeFormatter
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -87,7 +103,7 @@ private object Routes {
     // group = where the comment goes (none = Public), replyTo = the id of the comment being answered.
     const val ADD_COMMENT = "add_comment/{isbn}?group={group}&replyTo={replyTo}"
     const val SCAN_ISBN = "scan_isbn"
-    const val INVITE_TO_GROUP = "invite_to_group"
+    const val INVITE_TO_GROUP = "invite_to_group/{groupId}"
 
     // Tabs of the bottom bar – the same names AppBottomBar sends in onNavigate.
     const val LIBRARY = "library"
@@ -111,10 +127,12 @@ private object Routes {
     const val SHELF = "shelf/{shelf}"
     const val EDIT_LIST = "edit_list/{listName}"
     const val ADD_BOOKS_TO_LIST = "add_books_to_list/{listName}"
-    const val GROUP_DETAILS = "group_details/{groupName}"
-    const val EDIT_GROUP = "edit_group/{groupName}"
-    const val MY_COPY = "my_copy/{title}"
-    const val EDIT_OWN_BOOK = "edit_own_book/{title}"
+    // {groupId} = the group's id on the server.
+    const val GROUP_DETAILS = "group_details/{groupId}"
+    const val EDIT_GROUP = "edit_group/{groupId}"
+    // {copyId} = the copy's id on the server.
+    const val MY_COPY = "my_copy/{copyId}"
+    const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
 
     fun addBookManual(isbn: String? = null) = if (isbn == null) "add_book_manual" else "add_book_manual?isbn=$isbn"
 
@@ -134,10 +152,11 @@ private object Routes {
     fun shelf(shelf: Shelf) = "shelf/${shelf.name}"
     fun editList(listName: String) = "edit_list/${Uri.encode(listName)}"
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
-    fun groupDetails(groupName: String) = "group_details/${Uri.encode(groupName)}"
-    fun editGroup(groupName: String) = "edit_group/${Uri.encode(groupName)}"
-    fun myCopy(title: String) = "my_copy/${Uri.encode(title)}"
-    fun editOwnBook(title: String) = "edit_own_book/${Uri.encode(title)}"
+    fun groupDetails(groupId: String) = "group_details/$groupId"
+    fun editGroup(groupId: String) = "edit_group/$groupId"
+    fun inviteToGroup(groupId: String) = "invite_to_group/$groupId"
+    fun myCopy(copyId: String) = "my_copy/$copyId"
+    fun editOwnBook(copyId: String) = "edit_own_book/$copyId"
 }
 
 @Composable
@@ -162,23 +181,52 @@ fun AppNavigation() {
         navController.navigate(Routes.bookDetails(book.isbn))
     }
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
-        composable(Routes.LOGIN) {
-            // Temporary state – moves to a ViewModel when we add the real login.
-            var email by rememberSaveable { mutableStateOf("") }
-            var password by rememberSaveable { mutableStateOf("") }
+    val user by Session.user.collectAsState()
+    // Remembered together with the first screen, so a logout that happens before the check below runs
+    // (e.g. the first request of the Library already got 401) is still noticed.
+    var wasLoggedIn by remember { mutableStateOf(user != null) }
 
-            LoginScreen(
-                email = email,
-                password = password,
-                onEmailChange = { email = it },
-                onPasswordChange = { password = it },
-                onLoginClick = {
+    // Someone who logged in before goes straight to the Library. Checked once, when the app opens.
+    val startDestination = remember { if (wasLoggedIn) Routes.LIBRARY else Routes.LOGIN }
+
+    // The server stopped accepting the token (see ApiClient) – back to login, with no way "back" into the app.
+    LaunchedEffect(user) {
+        if (wasLoggedIn && user == null && navController.currentDestination?.route != Routes.LOGIN) {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
+        wasLoggedIn = user != null
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Routes.LOGIN) {
+            val viewModel: LoginViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
+
+            // The server accepted the email and password.
+            LaunchedEffect(state.loggedIn) {
+                if (state.loggedIn) {
                     navController.navigate(Routes.LIBRARY) {
                         // Removes login from the pile, so "back" doesn't return to it.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                }
+            }
+
+            LoginScreen(
+                email = state.email,
+                password = state.password,
+                onEmailChange = viewModel::onEmailChange,
+                onPasswordChange = viewModel::onPasswordChange,
+                errorMessage = when (state.error) {
+                    LoginError.InvalidCredentials -> stringResource(R.string.error_login_invalid)
+                    LoginError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
+                    null -> null
                 },
+                loggingIn = state.loggingIn,
+                loginEnabled = state.canLogIn,
+                onLoginClick = viewModel::login,
                 onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onBrowseWithoutAccountClick = { navController.navigate(Routes.BROWSE) },
@@ -204,30 +252,42 @@ fun AppNavigation() {
         }
 
         composable(Routes.REGISTER) {
-            // Temporary state – moves to a ViewModel when we add the real sign-up.
-            var name by rememberSaveable { mutableStateOf("") }
-            var email by rememberSaveable { mutableStateOf("") }
-            var password by rememberSaveable { mutableStateOf("") }
-            var repeatPassword by rememberSaveable { mutableStateOf("") }
-            var termsAccepted by rememberSaveable { mutableStateOf(false) }
+            val viewModel: RegisterViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
 
-            RegisterScreen(
-                name = name,
-                email = email,
-                password = password,
-                repeatPassword = repeatPassword,
-                onNameChange = { name = it },
-                onEmailChange = { email = it },
-                onPasswordChange = { password = it },
-                onRepeatPasswordChange = { repeatPassword = it },
-                termsAccepted = termsAccepted,
-                onTermsAcceptedChange = { termsAccepted = it },
-                // TODO: create the account on the server first. For now it goes straight into the app.
-                onCreateAccountClick = {
+            // The account is created and the user is logged in.
+            LaunchedEffect(state.registered) {
+                if (state.registered) {
                     navController.navigate(Routes.LIBRARY) {
+                        // Removes sign-up and login from the pile, so "back" doesn't return to them.
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                }
+            }
+
+            RegisterScreen(
+                name = state.name,
+                email = state.email,
+                password = state.password,
+                repeatPassword = state.repeatPassword,
+                onNameChange = viewModel::onNameChange,
+                onEmailChange = viewModel::onEmailChange,
+                onPasswordChange = viewModel::onPasswordChange,
+                onRepeatPasswordChange = viewModel::onRepeatPasswordChange,
+                termsAccepted = state.termsAccepted,
+                onTermsAcceptedChange = viewModel::onTermsAcceptedChange,
+                emailError = if (state.emailInvalid) stringResource(R.string.error_email_invalid) else null,
+                passwordError = if (state.passwordTooWeak) stringResource(R.string.error_password_too_weak) else null,
+                repeatPasswordError = if (state.passwordsDontMatch) stringResource(R.string.error_passwords_dont_match) else null,
+                errorMessage = when (state.error) {
+                    RegisterError.EmailTaken -> stringResource(R.string.error_email_taken)
+                    RegisterError.InvalidData -> stringResource(R.string.error_sign_up_invalid)
+                    RegisterError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
+                    null -> null
                 },
+                creatingAccount = state.creatingAccount,
+                createAccountEnabled = state.canCreateAccount,
+                onCreateAccountClick = viewModel::createAccount,
                 // Login is already under this screen, so we just go back to it.
                 onLoginClick = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
@@ -265,15 +325,41 @@ fun AppNavigation() {
         }
 
         composable(Routes.LOANS) {
-            LoansScreen(onNavigate = navigateBottomBar, onBookClick = openBookByTitle)
+            val viewModel: LoansViewModel = viewModel()
+            val loans by viewModel.loans.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            val context = LocalContext.current
+
+            // Each time the tab opens – a request may have come in since it was last seen.
+            LaunchedEffect(Unit) { viewModel.refresh() }
+            LaunchedEffect(viewModel) {
+                viewModel.errors.collect { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+            }
+
+            LoansScreen(
+                loans = loans,
+                saving = saving,
+                onRetryClick = viewModel::refresh,
+                onMarkReturned = viewModel::markReturned,
+                onAccept = viewModel::accept,
+                onReject = viewModel::reject,
+                onNavigate = navigateBottomBar,
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+            )
         }
 
         composable(Routes.GROUPS) {
+            val viewModel: GroupsViewModel = viewModel()
+            val groups by viewModel.groups.collectAsState()
+            // Each time the tab opens – a group may have been made, joined or left since.
+            LaunchedEffect(Unit) { viewModel.refresh() }
             GroupsScreen(
+                groups = groups,
+                onRetryClick = viewModel::refresh,
                 onNavigate = navigateBottomBar,
                 onCreateGroupClick = { navController.navigate(Routes.CREATE_GROUP) },
                 onJoinGroupClick = { navController.navigate(Routes.JOIN_GROUP) },
-                onGroupClick = { groupName -> navController.navigate(Routes.groupDetails(groupName)) },
+                onGroupClick = { group -> navController.navigate(Routes.groupDetails(group.id)) },
             )
         }
 
@@ -299,6 +385,8 @@ fun AppNavigation() {
 
         composable(Routes.PROFILE) {
             ProfileScreen(
+                userName = user?.name.orEmpty(),
+                userEmail = user?.email.orEmpty(),
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
@@ -306,6 +394,7 @@ fun AppNavigation() {
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
+                    AuthRepository().logout()
                     navController.navigate(Routes.LOGIN) {
                         // Clears every screen, so after logging out "back" can't open the app's inside.
                         popUpTo(navController.graph.id) { inclusive = true }
@@ -370,49 +459,66 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.GROUP_DETAILS) { backStackEntry ->
-            // TODO: look the group up on the server. For now only the name comes from the list.
-            val groupName = backStackEntry.arguments?.getString("groupName").orEmpty()
-            GroupDetailsScreen(
-                groupName = groupName,
-                // Temporary – in the sample data Anna is the admin of "Czytelnia 23" only.
-                isAdmin = groupName == "Czytelnia 23",
-                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
-                onInviteClick = { navController.navigate(Routes.INVITE_TO_GROUP) },
-                onEditClick = { navController.navigate(Routes.editGroup(groupName)) },
-                // TODO: leave the group on the server first. For now it just goes back to Groups.
-                onLeaveClick = { navController.popBackStack() },
+        composable(Routes.GROUP_DETAILS) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val books by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            HandleGroupEvents(viewModel.events, navController)
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-            )
+            ) { group ->
+                GroupDetailsScreen(
+                    group = group,
+                    books = books,
+                    saving = saving,
+                    onRetryBooksClick = viewModel::refresh,
+                    onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                    onInviteClick = group.inviteCode?.let { { navController.navigate(Routes.inviteToGroup(group.id)) } },
+                    onEditClick = { navController.navigate(Routes.editGroup(group.id)) },
+                    onMakeAdmin = viewModel::makeAdmin,
+                    onRemoveMember = viewModel::removeMember,
+                    onLeaveClick = viewModel::leave,
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
         }
 
-        composable(Routes.EDIT_GROUP) { backStackEntry ->
-            val groupKey = backStackEntry.arguments?.getString("groupName").orEmpty()
-            val group = groupInfo(groupKey)
-            // Starts with the group's current details. Temporary state – moves to a ViewModel later.
-            var name by rememberSaveable { mutableStateOf(group.name) }
-            var description by rememberSaveable { mutableStateOf(group.description) }
-            var visibility by rememberSaveable { mutableStateOf(group.visibility) }
+        composable(Routes.EDIT_GROUP) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            HandleGroupEvents(viewModel.events, navController)
 
-            CreateGroupScreen(
-                name = name,
-                description = description,
-                onNameChange = { name = it },
-                onDescriptionChange = { description = it },
-                visibility = visibility,
-                onVisibilityChange = { visibility = it },
-                invitedUsernames = emptyList(),
-                onAddInvite = {},
-                onRemoveInvite = {},
-                // TODO: save the changes on the server first.
-                onCreateGroupClick = {
-                    sampleGroups[groupKey] = GroupInfo(name.trim(), description.trim(), visibility)
-                    navController.popBackStack()
-                },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                // TODO: delete the group on the server first. For now it just goes back to Groups.
-                onDeleteClick = { navController.popBackStack(Routes.GROUPS, inclusive = false) },
-            )
+            ) { group ->
+                // Starts with the group's current details.
+                var name by rememberSaveable { mutableStateOf(group.name) }
+                var description by rememberSaveable { mutableStateOf(group.description) }
+                var membersCanInvite by rememberSaveable { mutableStateOf(group.membersCanInvite) }
+
+                CreateGroupScreen(
+                    name = name,
+                    description = description,
+                    onNameChange = { name = it },
+                    onDescriptionChange = { description = it },
+                    // Back on Group details once the server saved it (GroupEvent.Saved).
+                    onCreateGroupClick = { viewModel.update(name, description, membersCanInvite) },
+                    onBackClick = { navController.popBackStack() },
+                    saving = saving,
+                    membersCanInvite = membersCanInvite,
+                    onMembersCanInviteChange = { membersCanInvite = it },
+                    onDeleteClick = viewModel::delete,
+                )
+            }
         }
 
         composable(Routes.EDIT_PROFILE) {
@@ -439,52 +545,84 @@ fun AppNavigation() {
             NotificationsScreen(onBackClick = { navController.popBackStack() })
         }
 
-        composable(Routes.MY_BOOKS) {
+        composable(Routes.MY_BOOKS) { entry ->
+            val viewModel = myBooksViewModel(navController, entry)
+            val books by viewModel.books.collectAsState()
             MyBooksScreen(
+                books = books,
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
                 onAddBookClick = { navController.navigate(Routes.addBookManual()) },
-                onBookClick = { title -> navController.navigate(Routes.myCopy(title)) },
+                onBookClick = { book -> navController.navigate(Routes.myCopy(book.id)) },
             )
         }
 
-        composable(Routes.MY_COPY) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title").orEmpty()
-            MyCopyScreen(
-                title = title,
-                onEditClick = { navController.navigate(Routes.editOwnBook(title)) },
-                onOpenBookPageClick = { openBookByTitle(title) },
-                // TODO: remove the book on the server first.
-                onRemoveClick = {
-                    sampleOwnBooks.removeAll { it.title == title }
-                    navController.popBackStack()
-                },
-                onBackClick = { navController.popBackStack() },
-            )
-        }
+        composable(Routes.MY_COPY) { entry ->
+            val copyId = entry.arguments?.getString("copyId").orEmpty()
+            val viewModel = myBooksViewModel(navController, entry)
+            val state by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            val groups by viewModel.groups.collectAsState()
+            ShowMyBooksErrors(viewModel)
 
-        composable(Routes.EDIT_OWN_BOOK) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title").orEmpty()
-            val context = LocalContext.current
-            AddBookManualScreen(
-                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_books_failed),
+                onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
-                // TODO: save the changes on the server first.
-                onSaveClick = { edited ->
-                    // Books are told apart by their title for now, so two books can't have the same one.
-                    if (edited.title != title && sampleOwnBooks.any { it.title == edited.title }) {
-                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
+            ) { books ->
+                val book = books.find { it.id == copyId }
+                if (book == null) {
+                    // Removed (here, or on another phone) – back to My books.
+                    CloseWhenGone(navController, entry)
+                    return@LoadStateScreen
+                }
+                MyCopyScreen(
+                    book = book,
+                    groups = groups,
+                    saving = saving,
+                    onAvailableChange = { viewModel.setAvailable(book, it) },
+                    onVisibleInChange = { groupId, visible -> viewModel.setVisibleIn(book, groupId, visible) },
+                    onRetryGroupsClick = viewModel::refreshGroups,
+                    onEditClick = if (book.canEditBook) {
+                        { navController.navigate(Routes.editOwnBook(book.id)) }
                     } else {
-                        val index = sampleOwnBooks.indexOfFirst { it.title == title }
-                        if (index >= 0) sampleOwnBooks[index] = edited
-                        // My copy opens again under the (maybe new) title. popUpTo removes the old one
-                        // and this form from the pile, so Back goes to My books.
-                        navController.navigate(Routes.myCopy(edited.title)) {
-                            popUpTo(Routes.MY_COPY) { inclusive = true }
-                        }
-                    }
-                },
-                book = ownBook(title),
-            )
+                        null
+                    },
+                    onOpenBookPageClick = book.isbn?.let { isbn -> { navController.navigate(Routes.bookDetails(isbn)) } },
+                    onRemoveClick = { viewModel.remove(book) },
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
+        }
+
+        composable(Routes.EDIT_OWN_BOOK) { entry ->
+            val copyId = entry.arguments?.getString("copyId").orEmpty()
+            val viewModel = myBooksViewModel(navController, entry)
+            val state by viewModel.books.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            ShowMyBooksErrors(viewModel, onEdited = { navController.popBackStack() })
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_books_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { books ->
+                val book = books.find { it.id == copyId }
+                if (book == null) {
+                    CloseWhenGone(navController, entry)
+                    return@LoadStateScreen
+                }
+                AddBookManualScreen(
+                    onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                    onBackClick = { navController.popBackStack() },
+                    // Back on My copy once the server saved it (onEdited above).
+                    onSaveClick = { form -> viewModel.editBook(book, form) },
+                    editing = book.toForm(),
+                    saving = saving,
+                )
+            }
         }
 
         composable(
@@ -492,59 +630,80 @@ fun AppNavigation() {
             arguments = listOf(navArgument("isbn") { type = NavType.StringType; nullable = true; defaultValue = null }),
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn")
+            val viewModel = viewModel { AddBookViewModel(isbn) }
+            val prefill by viewModel.prefill.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            // My books may be open underneath (also when Add book was opened from a book's page on the way).
+            // Then the new book goes straight onto its list.
+            val myBooksEntry = remember(entry) { runCatching { navController.getBackStackEntry(Routes.MY_BOOKS) }.getOrNull() }
+            val myBooks = myBooksEntry?.let { viewModel(it) { MyBooksViewModel() } }
             val context = LocalContext.current
-            AddBookManualScreen(
-                onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
-                onBackClick = { navController.popBackStack() },
-                // TODO: save the book on the server first.
-                onSaveClick = { newBook ->
-                    // Books are told apart by their title for now, so the same title can't be added twice.
-                    if (sampleOwnBooks.any { it.title == newBook.title }) {
-                        Toast.makeText(context, R.string.already_in_my_books, Toast.LENGTH_SHORT).show()
-                    } else {
-                        sampleOwnBooks.add(newBook)
-                        Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
-                        // Back to where Add book was opened from: My books or the book's page.
-                        navController.popBackStack()
+
+            LaunchedEffect(viewModel) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is AddBookEvent.Added -> {
+                            myBooks?.added(event.book)
+                            Toast.makeText(context, R.string.book_added, Toast.LENGTH_SHORT).show()
+                            // Back to where Add book was opened from: My books or the book's page.
+                            navController.popBackStack()
+                        }
+                        is AddBookEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     }
-                },
-                // TODO: look the book up on the server. For now only the sample books can fill the form in.
-                prefill = sampleBooks.find { it.isbn == isbn },
-            )
+                }
+            }
+
+            LoadStateScreen(
+                state = prefill,
+                failedMessage = stringResource(R.string.load_book_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { form ->
+                AddBookManualScreen(
+                    onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
+                    onBackClick = { navController.popBackStack() },
+                    onSaveClick = viewModel::save,
+                    prefill = form,
+                    saving = saving,
+                )
+            }
         }
 
         composable(Routes.JOIN_GROUP) {
+            val viewModel: JoinGroupViewModel = viewModel()
+            val found by viewModel.found.collectAsState()
+            val notFound by viewModel.notFound.collectAsState()
+            val busy by viewModel.saving.collectAsState()
+            // Opens the new group. Join group goes off the stack, so Back goes to Groups, not here.
+            HandleGroupEvents(viewModel.events, navController, closeOnOpen = Routes.JOIN_GROUP)
+
             JoinGroupScreen(
-                // Opens the new group. popUpTo takes Join group off the stack, so Back goes to Groups, not here.
-                onGroupJoined = { groupName ->
-                    navController.navigate(Routes.groupDetails(groupName)) {
-                        popUpTo(Routes.JOIN_GROUP) { inclusive = true }
-                    }
-                },
+                found = found,
+                notFound = notFound,
+                busy = busy,
+                onCodeChange = viewModel::onCodeChange,
+                onFindClick = viewModel::find,
+                onJoinClick = viewModel::join,
                 onBackClick = { navController.popBackStack() },
             )
         }
 
         composable(Routes.CREATE_GROUP) {
-            // Temporary state – moves to a ViewModel when groups come from the server.
+            val viewModel: CreateGroupViewModel = viewModel()
+            val saving by viewModel.saving.collectAsState()
             var name by rememberSaveable { mutableStateOf("") }
             var description by rememberSaveable { mutableStateOf("") }
-            var visibility by rememberSaveable { mutableStateOf(GroupVisibility.Private) }
-            var invitedUsernames by rememberSaveable { mutableStateOf(listOf<String>()) }
+            // Opens the new group. Create group goes off the stack, so Back goes to Groups, not here.
+            HandleGroupEvents(viewModel.events, navController, closeOnOpen = Routes.CREATE_GROUP)
 
             CreateGroupScreen(
                 name = name,
                 description = description,
                 onNameChange = { name = it },
                 onDescriptionChange = { description = it },
-                visibility = visibility,
-                onVisibilityChange = { visibility = it },
-                invitedUsernames = invitedUsernames,
-                onAddInvite = { invitedUsernames = invitedUsernames + it },
-                onRemoveInvite = { invitedUsernames = invitedUsernames - it },
-                // TODO: create the group on the server first. For now it just goes back to Groups.
-                onCreateGroupClick = { navController.popBackStack() },
+                onCreateGroupClick = { viewModel.create(name, description) },
                 onBackClick = { navController.popBackStack() },
+                saving = saving,
             )
         }
 
@@ -644,23 +803,111 @@ fun AppNavigation() {
             )
         }
 
-        composable(Routes.INVITE_TO_GROUP) {
+        composable(Routes.INVITE_TO_GROUP) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val saving by viewModel.saving.collectAsState()
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
+            HandleGroupEvents(viewModel.events, navController)
 
-            // Temporary state – the code comes from the server later. Only the code is kept,
-            // rememberSaveable can't hold the whole GroupInvite.
-            var code by rememberSaveable { mutableStateOf(sampleInvite.code) }
-            val invite = sampleInvite.withCode(code)
-
-            InviteToGroupScreen(
-                invite = invite,
-                recentMembers = sampleRecentMembers,
-                onCopyCodeClick = { copyInviteCode(context, invite.code) },
-                onShareLinkClick = { shareInviteLink(context, invite) },
-                onGenerateNewCodeClick = { code = newInviteCode() },
-                onCloseClick = { navController.popBackStack() },
-            )
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_group_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { group ->
+                val code = group.inviteCode
+                if (code == null) {
+                    // The admin stopped letting members invite in the meantime.
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                    return@LoadStateScreen
+                }
+                val invite = GroupInvite(groupName = group.name, code = code, link = inviteLink(code))
+                InviteToGroupScreen(
+                    invite = invite,
+                    // The newest members first – the server sends the earliest first.
+                    recentMembers = group.members.asReversed().take(RecentMembersCount).map {
+                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin)
+                    },
+                    onCopyCodeClick = { copyInviteCode(context, invite.code) },
+                    onShareLinkClick = { shareInviteLink(context, invite) },
+                    onGenerateNewCodeClick = viewModel::newInviteCode,
+                    onCloseClick = { navController.popBackStack() },
+                    saving = saving,
+                )
+            }
         }
     }
 }
+
+// My books, My copy and Edit book share one ViewModel – the one of My books, which is always under the other two.
+// So a change saved on one of them shows on the others right away.
+@Composable
+private fun myBooksViewModel(navController: NavController, entry: NavBackStackEntry): MyBooksViewModel {
+    val owner = remember(entry) {
+        if (entry.destination.route == Routes.MY_BOOKS) entry else navController.getBackStackEntry(Routes.MY_BOOKS)
+    }
+    return viewModel(owner) { MyBooksViewModel() }
+}
+
+// Shows what went wrong with a change (a short Toast). onEdited = what to do when Edit book was saved.
+@Composable
+private fun ShowMyBooksErrors(viewModel: MyBooksViewModel, onEdited: () -> Unit = {}) {
+    val context = LocalContext.current
+    val currentOnEdited by rememberUpdatedState(onEdited)
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                MyBooksEvent.Edited -> currentOnEdited()
+                is MyBooksEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+// The book this screen shows is no longer in My books – close the screen (once, even while it slides away).
+@Composable
+private fun CloseWhenGone(navController: NavController, entry: NavBackStackEntry) {
+    LaunchedEffect(entry) {
+        if (navController.currentBackStackEntry == entry) navController.popBackStack()
+    }
+}
+
+// Group details, Edit group and Invite share one ViewModel – the one of Group details, which is always under the
+// other two. So a change saved on one of them shows on the others right away.
+@Composable
+private fun groupDetailsViewModel(navController: NavController, entry: NavBackStackEntry): GroupDetailsViewModel {
+    val owner = remember(entry) {
+        if (entry.destination.route == Routes.GROUP_DETAILS) entry else navController.getBackStackEntry(Routes.GROUP_DETAILS)
+    }
+    val groupId = owner.arguments?.getString("groupId").orEmpty()
+    return viewModel(owner) { GroupDetailsViewModel(groupId) }
+}
+
+// What to do after a group change: open a group, go back, or show what went wrong.
+// closeOnOpen = the screen that goes off the stack when a group opens (Create group, Join group).
+@Composable
+private fun HandleGroupEvents(events: Flow<GroupEvent>, navController: NavController, closeOnOpen: String? = null) {
+    val context = LocalContext.current
+    LaunchedEffect(events) {
+        events.collect { event ->
+            when (event) {
+                is GroupEvent.Opened -> navController.navigate(Routes.groupDetails(event.groupId)) {
+                    if (closeOnOpen != null) popUpTo(closeOnOpen) { inclusive = true }
+                }
+                GroupEvent.Saved -> navController.popBackStack()
+                // Left or deleted: back to the Groups tab, which loads the list again.
+                GroupEvent.Gone -> if (!navController.popBackStack(Routes.GROUPS, inclusive = false)) {
+                    navController.navigate(Routes.GROUPS) { popUpTo(Routes.LIBRARY) }
+                }
+                is GroupEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+// How many of the newest members Invite shows.
+private const val RecentMembersCount = 5
+
+private val JoinedDate = DateTimeFormatter.ofPattern("dd.MM.yyyy")

@@ -19,31 +19,34 @@ import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
-import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.CardBorder
 
-// Also the Edit book form: pass the book, and the fields start filled in.
-// prefill = a book from the app ("I own this book" on Book details): still adding, but the fields start filled in.
+// Also the Edit book form: pass the book as editing, and the fields start filled in. Its ISBN can't be changed.
+// prefill = a book from the catalog ("I own this book" on Book details): still adding, but the fields start filled in.
 @Composable
 internal fun AddBookManualScreen(
     onScanIsbnClick: () -> Unit,
     onBackClick: () -> Unit,
-    // Gets the book as it is on the form. When editing, the groups and loan stay as they were.
-    onSaveClick: (OwnBook) -> Unit = {},
-    book: OwnBook? = null,
-    prefill: Book? = null,
+    // Gets the book as it is on the form.
+    onSaveClick: (BookForm) -> Unit = {},
+    editing: BookForm? = null,
+    prefill: BookForm? = null,
+    // true while the book is on its way to the server – Save waits for it.
+    saving: Boolean = false,
 ) {
+    val start = editing ?: prefill ?: BookForm()
     // rememberSaveable, so typed text survives rotating the phone.
-    var title by rememberSaveable { mutableStateOf(book?.title ?: prefill?.title.orEmpty()) }
-    var author by rememberSaveable { mutableStateOf(book?.author ?: prefill?.author.orEmpty()) }
-    // The field keeps digits only, so the dashes from the app's ISBN go away.
-    var isbn by rememberSaveable { mutableStateOf(book?.isbn ?: prefill?.isbn?.filter { it.isDigit() || it == 'X' }.orEmpty()) }
-    var publisher by rememberSaveable { mutableStateOf(book?.publisher.orEmpty()) }
-    var year by rememberSaveable { mutableStateOf((book?.year ?: prefill?.year)?.toString().orEmpty()) }
+    var title by rememberSaveable { mutableStateOf(start.title) }
+    var author by rememberSaveable { mutableStateOf(start.author) }
+    var isbn by rememberSaveable { mutableStateOf(start.isbn) }
+    var publisher by rememberSaveable { mutableStateOf(start.publisher) }
+    var year by rememberSaveable { mutableStateOf(start.year?.toString().orEmpty()) }
+    // The server takes old 10-digit ISBNs and new 13-digit ones.
+    val isbnValid = isbn.isEmpty() || isbn.length == 10 || isbn.length == 13
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -51,7 +54,7 @@ internal fun AddBookManualScreen(
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
-                title = stringResource(if (book == null) R.string.add_book_title else R.string.edit_book_title),
+                title = stringResource(if (editing == null) R.string.add_book_title else R.string.edit_book_title),
                 onBackClick = onBackClick,
             )
         },
@@ -68,7 +71,7 @@ internal fun AddBookManualScreen(
                 .padding(20.dp),
         ) {
             // Only when adding a new book – an edited or prefilled book already has its details.
-            if (book == null && prefill == null) {
+            if (editing == null && prefill == null) {
                 ScanIsbnCard(onClick = onScanIsbnClick)
 
                 // "or fill in the details yourself", with a thin line on both sides.
@@ -90,12 +93,17 @@ internal fun AddBookManualScreen(
                 label = stringResource(R.string.isbn_label),
                 value = isbn,
                 // ISBN is digits only (plus an X at the end of old 10-digit ones), so we keep just those.
-                onValueChange = { isbn = it.filter { c -> c.isDigit() || c == 'X' || c == 'x' }.take(13) },
+                onValueChange = { isbn = it.filter { c -> c.isDigit() || c == 'X' || c == 'x' }.uppercase().take(13) },
                 keyboardType = KeyboardType.Number,
+                // The server keeps the ISBN of a saved book for good, so editing can't change it.
+                enabled = editing == null,
+                error = if (isbnValid) null else stringResource(R.string.isbn_length_hint),
                 // The barcode icon at the end opens the scanner too, right where the ISBN goes.
-                trailingIcon = {
-                    IconButton(onClick = onScanIsbnClick) {
-                        Icon(painterResource(R.drawable.ic_barcode_scan), contentDescription = stringResource(R.string.scan_isbn_title))
+                trailingIcon = if (editing != null) null else {
+                    {
+                        IconButton(onClick = onScanIsbnClick) {
+                            Icon(painterResource(R.drawable.ic_barcode_scan), contentDescription = stringResource(R.string.scan_isbn_title))
+                        }
                     }
                 },
             )
@@ -119,36 +127,33 @@ internal fun AddBookManualScreen(
             Spacer(Modifier.height(8.dp))
 
             Button(
-                // TODO: save the book on the server first (ViewModel + server).
                 onClick = {
-                    val details = OwnBook(
-                        title = title.trim(),
-                        author = author.trim(),
-                        // 0 = no year given. My books then shows only the author.
-                        year = year.toIntOrNull() ?: 0,
-                        isbn = isbn,
-                        publisher = publisher.trim(),
-                        // A new book starts visible in all the user's groups. My copy can change that.
-                        groups = myGroups,
-                    )
                     onSaveClick(
-                        book?.copy(
-                            title = details.title,
-                            author = details.author,
-                            year = details.year,
-                            isbn = details.isbn,
-                            publisher = details.publisher,
-                        ) ?: details,
+                        BookForm(
+                            title = title.trim(),
+                            author = author.trim(),
+                            isbn = isbn,
+                            publisher = publisher.trim(),
+                            year = year.toIntOrNull(),
+                        ),
                     )
                 },
                 // Title and author are the minimum to tell books apart.
-                enabled = title.isNotBlank() && author.isNotBlank(),
+                enabled = title.isNotBlank() && author.isNotBlank() && isbnValid && !saving,
                 shape = FieldShape,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text(stringResource(R.string.save_action))
+                if (saving) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = LocalContentColor.current,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    Text(stringResource(R.string.save_action))
+                }
             }
         }
     }
@@ -163,6 +168,9 @@ private fun BookField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     trailingIcon: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+    // Shown in red under the field. null = the field is fine.
+    error: String? = null,
 ) {
     Box(modifier = modifier) {
         LabeledField(label = label) {
@@ -174,6 +182,9 @@ private fun BookField(
                 colors = authFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 trailingIcon = trailingIcon,
+                enabled = enabled,
+                isError = error != null,
+                supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

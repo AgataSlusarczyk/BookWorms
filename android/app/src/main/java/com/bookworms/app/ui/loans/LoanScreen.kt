@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.*
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
@@ -22,34 +23,26 @@ import com.bookworms.app.ui.theme.CardBorder
 import com.bookworms.app.ui.theme.StatusAmber
 import com.bookworms.app.ui.theme.StatusAmberBg
 import com.bookworms.app.ui.theme.StatusBlueBg
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-// A book that changed hands. person = who it's from (Borrowing) or who has it (Lent).
-private data class Loan(val id: Int, val title: String, val person: String, val since: LocalDate, val returnBy: LocalDate)
-
-// TODO: the user's loans and requests from the server.
-// Dates are counted from today, so the sample stays the same whenever the app is opened.
-private val today: LocalDate get() = LocalDate.now()
-
-private val sampleBorrowed = listOf(
-    Loan(1, "Problem trzech ciał", "Marek W.", today.minusDays(8), today.plusDays(6)),
-    Loan(2, "Pachnidło", "Ola N.", today.minusDays(30), today.minusDays(4)),
-)
-
-private val sampleLent = listOf(
-    Loan(21, "Kwiaty dla Algernona", "Kasia M.", today.minusDays(3), today.plusDays(11)),
-    Loan(22, "Wiedźmin", "Tomek R.", today.minusDays(20), today.minusDays(2)),
-)
-
 private val dayMonth = DateTimeFormatter.ofPattern("dd.MM")
 
 @Composable
-fun LoansScreen(
+internal fun LoansScreen(
+    loans: LoadState<Loans>,
+    // true while an answer or "Mark as returned" is on its way – the buttons wait for it.
+    saving: Boolean,
+    onRetryClick: () -> Unit,
+    onMarkReturned: (Loan) -> Unit,
+    onAccept: (BookRequest) -> Unit,
+    onReject: (BookRequest) -> Unit,
     onNavigate: (String) -> Unit = {},
-    // Gets the book's title – the sample books here have no ISBN yet.
-    onBookClick: (title: String) -> Unit = {},
+    // Gets the book's ISBN. Books typed in by hand have none, so their cards don't open anything.
+    onBookClick: (isbn: String) -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf(
@@ -57,17 +50,6 @@ fun LoansScreen(
         stringResource(R.string.tab_lent),
         stringResource(R.string.tab_requests),
     )
-
-    // Returned books, kept as ids so they survive turning the phone.
-    // TODO: send each answer to the server instead.
-    var returnedIds by rememberSaveable { mutableStateOf(listOf<Int>()) }
-
-    // Answers live in SampleLoans.kt, so a request answered in Notifications is gone from here too.
-    val requests = incomingRequests.filter { it.id !in requestAnswers }
-    // An accepted request becomes a book the user lent out, from today.
-    val lent = (incomingRequests.filter { requestAnswers[it.id] == true }
-        .map { Loan(it.id, it.title, it.person, today, today.plusDays(LoanDays.toLong())) } + sampleLent)
-        .filter { it.id !in returnedIds }
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -91,61 +73,78 @@ fun LoansScreen(
                 )
             }
 
-            when (selectedTabIndex) {
-                // Books the user has from others, and the ones they asked for.
-                0 -> {
-                    if (sampleBorrowed.isEmpty() && sentRequests.isEmpty()) {
-                        emptyText(R.string.loans_empty_borrowing)
-                    }
-                    if (sampleBorrowed.isNotEmpty()) {
-                        item { SectionHeader(stringResource(R.string.section_we_have, sampleBorrowed.size.toString())) }
-                        items(sampleBorrowed, key = { it.id }) { loan ->
-                            LoanCard(loan, R.string.loan_subtitle, onClick = { onBookClick(loan.title) })
+            when (loans) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_loans_failed), onRetryClick) }
+                is LoadState.Ready -> {
+                    val data = loans.data
+                    val openBook = { isbn: String? -> isbn?.let { { onBookClick(it) } } }
+                    when (selectedTabIndex) {
+                        // Books the user has from others, and the ones they asked for.
+                        0 -> {
+                            if (data.borrowed.isEmpty() && data.sentRequests.isEmpty()) {
+                                emptyText(R.string.loans_empty_borrowing)
+                            }
+                            if (data.borrowed.isNotEmpty()) {
+                                item { SectionHeader(stringResource(R.string.section_we_have, data.borrowed.size.toString())) }
+                                items(data.borrowed, key = { it.id }) { loan ->
+                                    LoanCard(loan, R.string.loan_subtitle, onClick = openBook(loan.isbn))
+                                }
+                            }
+                            if (data.sentRequests.isNotEmpty()) {
+                                item {
+                                    SectionHeader(
+                                        stringResource(R.string.section_waiting_for_answer, data.sentRequests.size.toString()),
+                                        Modifier.padding(top = 4.dp),
+                                    )
+                                }
+                                items(data.sentRequests, key = { it.id }) { request ->
+                                    RequestCard(
+                                        request,
+                                        subtitle = stringResource(R.string.you_asked, request.person),
+                                        onClick = openBook(request.isbn),
+                                    )
+                                }
+                            }
                         }
-                    }
-                    if (sentRequests.isNotEmpty()) {
-                        item { SectionHeader(stringResource(R.string.section_waiting_for_answer, sentRequests.size.toString()), Modifier.padding(top = 4.dp)) }
-                        items(sentRequests, key = { it.id }) { request ->
-                            RequestCard(
-                                request,
-                                subtitle = stringResource(R.string.you_asked, request.person),
-                                onClick = { onBookClick(request.title) },
-                            )
-                        }
-                    }
-                }
 
-                // The user's books that others have now.
-                1 -> {
-                    if (lent.isEmpty()) {
-                        emptyText(R.string.loans_empty_lent)
-                    } else {
-                        item { SectionHeader(stringResource(R.string.section_lent_out, lent.size.toString())) }
-                        items(lent, key = { it.id }) { loan ->
-                            LoanCard(
-                                loan,
-                                R.string.loan_subtitle_lent,
-                                onClick = { onBookClick(loan.title) },
-                                onReturnedClick = { returnedIds = returnedIds + loan.id },
-                            )
+                        // The user's books that others have now.
+                        1 -> {
+                            if (data.lent.isEmpty()) {
+                                emptyText(R.string.loans_empty_lent)
+                            } else {
+                                item { SectionHeader(stringResource(R.string.section_lent_out, data.lent.size.toString())) }
+                                items(data.lent, key = { it.id }) { loan ->
+                                    LoanCard(
+                                        loan,
+                                        R.string.loan_subtitle_lent,
+                                        onClick = openBook(loan.isbn),
+                                        onReturnedClick = { onMarkReturned(loan) },
+                                        buttonsEnabled = !saving,
+                                    )
+                                }
+                            }
                         }
-                    }
-                }
 
-                // Others asking to borrow the user's books.
-                else -> {
-                    if (requests.isEmpty()) {
-                        emptyText(R.string.loans_empty_requests)
-                    } else {
-                        item { SectionHeader(stringResource(R.string.section_pending_confirmation, requests.size.toString())) }
-                        items(requests, key = { it.id }) { request ->
-                            RequestCard(
-                                request,
-                                subtitle = stringResource(R.string.asks_to_borrow, request.person),
-                                onClick = { onBookClick(request.title) },
-                                onAccept = { requestAnswers[request.id] = true },
-                                onReject = { requestAnswers[request.id] = false },
-                            )
+                        // Others asking to borrow the user's books.
+                        else -> {
+                            if (data.receivedRequests.isEmpty()) {
+                                emptyText(R.string.loans_empty_requests)
+                            } else {
+                                item {
+                                    SectionHeader(stringResource(R.string.section_pending_confirmation, data.receivedRequests.size.toString()))
+                                }
+                                items(data.receivedRequests, key = { it.id }) { request ->
+                                    RequestCard(
+                                        request,
+                                        subtitle = stringResource(R.string.asks_to_borrow, request.person),
+                                        onClick = openBook(request.isbn),
+                                        onAccept = { onAccept(request) },
+                                        onReject = { onReject(request) },
+                                        buttonsEnabled = !saving,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -171,15 +170,20 @@ private fun LazyListScope.emptyText(@StringRes text: Int) {
 private fun LoanCard(
     loan: Loan,
     @StringRes subtitle: Int,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     onReturnedClick: (() -> Unit)? = null,
+    buttonsEnabled: Boolean = true,
 ) {
-    val daysLeft = ChronoUnit.DAYS.between(today, loan.returnBy).toInt()
+    val daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), loan.returnBy).toInt()
     val isOverdue = daysLeft < 0
     val error = MaterialTheme.colorScheme.error
 
     AppCard(borderColor = if (isOverdue) error else CardBorder, onClick = onClick) {
-        BookRow(title = loan.title, subtitle = stringResource(subtitle, loan.person, loan.since.format(dayMonth))) {
+        BookRow(
+            title = loan.title,
+            subtitle = stringResource(subtitle, loan.person, loan.since.format(dayMonth)),
+            coverUrl = loan.coverUrl,
+        ) {
             if (isOverdue) {
                 StatusTag(stringResource(R.string.status_overdue), dotColor = error, backgroundColor = MaterialTheme.colorScheme.errorContainer, textColor = error)
             } else {
@@ -200,6 +204,7 @@ private fun LoanCard(
         if (onReturnedClick != null) {
             OutlinedButton(
                 onClick = onReturnedClick,
+                enabled = buttonsEnabled,
                 shape = ButtonShape,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -213,21 +218,22 @@ private fun LoanCard(
 
 // A request waiting for an answer: amber "Pending" chip.
 // With onAccept and onReject (requests to the user) it also has Reject / Accept buttons.
+// Accept is grayed out while the book is lent out or the user made it not available.
 // Tapping the buttons doesn't open the book – only the rest of the card does.
 @Composable
 private fun RequestCard(
-    request: LoanRequest,
+    request: BookRequest,
     subtitle: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     onAccept: (() -> Unit)? = null,
     onReject: (() -> Unit)? = null,
+    buttonsEnabled: Boolean = true,
 ) {
     AppCard(onClick = onClick) {
-        BookRow(title = request.title, subtitle = subtitle) {
+        BookRow(title = request.title, subtitle = subtitle, coverUrl = request.coverUrl) {
             StatusTag(stringResource(R.string.status_pending), dotColor = StatusAmber, backgroundColor = StatusAmberBg, textColor = StatusAmber)
             Text(
-                // A request sent from Book details a moment ago has 0 hours.
-                if (request.hoursAgo == 0) stringResource(R.string.just_now) else stringResource(R.string.x_hours_ago, request.hoursAgo.toString()),
+                timeAgo(request.createdAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -239,10 +245,15 @@ private fun RequestCard(
                     .fillMaxWidth()
                     .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             ) {
-                OutlinedButton(onClick = onReject, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onReject, enabled = buttonsEnabled, shape = ButtonShape, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.action_reject))
                 }
-                Button(onClick = onAccept, shape = ButtonShape, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = onAccept,
+                    enabled = buttonsEnabled && request.canAccept,
+                    shape = ButtonShape,
+                    modifier = Modifier.weight(1f),
+                ) {
                     Text(stringResource(R.string.action_accept))
                 }
             }
@@ -250,10 +261,41 @@ private fun RequestCard(
     }
 }
 
+// "Just now", "5 h ago" or "2 days ago".
+@Composable
+private fun timeAgo(moment: Instant): String {
+    val hours = Duration.between(moment, Instant.now()).toHours()
+    return when {
+        hours < 1 -> stringResource(R.string.just_now)
+        hours < 24 -> stringResource(R.string.x_hours_ago, hours.toString())
+        else -> (hours / 24).toInt().let { days -> pluralStringResource(R.plurals.days_ago, days, days) }
+    }
+}
+
 @Preview(device = "id:pixel_8")
 @Composable
 private fun LoansScreenPreview() {
+    val today = LocalDate.now()
     BookWormsTheme {
-        LoansScreen()
+        LoansScreen(
+            loans = LoadState.Ready(
+                Loans(
+                    borrowed = listOf(
+                        Loan("1", "Problem trzech ciał", null, null, "Marek W.", today.minusDays(8), today.plusDays(6)),
+                        Loan("2", "Pachnidło", null, null, "Ola N.", today.minusDays(30), today.minusDays(4)),
+                    ),
+                    sentRequests = listOf(
+                        BookRequest("3", "Bieguni", null, null, "Anna K.", Instant.now().minusSeconds(5 * 3600), canAccept = false),
+                    ),
+                    lent = emptyList(),
+                    receivedRequests = emptyList(),
+                ),
+            ),
+            saving = false,
+            onRetryClick = {},
+            onMarkReturned = {},
+            onAccept = {},
+            onReject = {},
+        )
     }
 }

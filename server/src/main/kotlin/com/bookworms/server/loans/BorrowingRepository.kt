@@ -9,6 +9,9 @@ interface BorrowingRepository : JpaRepository<Borrowing, UUID> {
 	// Is the copy lent out right now?
 	fun existsByCopyIdAndStatusNot(copyId: UUID, status: BorrowingStatus): Boolean
 
+	// Who has these copies now – one query for a group's whole library.
+	fun findByCopy_IdInAndStatusNot(copyIds: Collection<UUID>, status: BorrowingStatus): List<Borrowing>
+
 	// Each loan comes with its copy and book, because the lists show the title.
 	@EntityGraph(attributePaths = ["copy", "copy.book"])
 	fun findWithCopyById(id: UUID): Borrowing?
