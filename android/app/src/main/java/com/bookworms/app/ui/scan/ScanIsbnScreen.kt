@@ -62,6 +62,7 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.CloseTitle
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -84,14 +85,14 @@ fun ScanIsbnScreen(
         mutableStateOf(
             isPreview || ContextCompat.checkSelfPermission(
                 context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED,
         )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted -> hasCameraPermission = granted }
+        onResult = { granted -> hasCameraPermission = granted },
     )
 
     LaunchedEffect(Unit) {
@@ -250,16 +251,16 @@ private fun CameraPreviewWithAnalysis(
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
     val scanner = remember {
-    val options = BarcodeScannerOptions.Builder()
-        .setBarcodeFormats(
-            Barcode.FORMAT_EAN_13,
-            Barcode.FORMAT_EAN_8,
-            Barcode.FORMAT_UPC_A,
-            Barcode.FORMAT_UPC_E
-        )
-        .build()
-    BarcodeScanning.getClient(options)
-}
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+            )
+            .build()
+        BarcodeScanning.getClient(options)
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -310,7 +311,7 @@ private fun CameraPreviewWithAnalysis(
             }, ContextCompat.getMainExecutor(ctx))
 
             previewView
-        }
+        },
     )
 }
 
@@ -318,7 +319,7 @@ private fun CameraPreviewWithAnalysis(
 private fun processFrameForIsbn(
     imageProxy: ImageProxy,
     isScanningEnabled: Boolean,
-    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
+    scanner: BarcodeScanner,
     onIsbnDetected: (String) -> Unit,
 ) {
     val mediaImage = imageProxy.image
@@ -333,7 +334,7 @@ private fun processFrameForIsbn(
             for (barcode in barcodes) {
                 val rawValue = barcode.rawValue ?: continue
                 val digitsOnly = rawValue.filter { it.isDigit() }
-                if (digitsOnly.length >= 10) { // Akceptuje ISBN-10, ISBN-13 i EAN
+                if (digitsOnly.length >= 10) { // Accepts ISBN-10, ISBN-13, and EAN barcodes.
                     onIsbnDetected(digitsOnly)
                     break
                 }

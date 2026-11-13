@@ -68,7 +68,7 @@ internal fun AddBookManualScreen(
                 .padding(20.dp),
         ) {
             // Only when adding a new book – an edited or prefilled book already has its details.
-            if (editing == null && prefill == null) {
+            if (editing == null && prefill?.title.isNullOrEmpty()) {
                 ScanIsbnCard(onClick = onScanIsbnClick)
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {

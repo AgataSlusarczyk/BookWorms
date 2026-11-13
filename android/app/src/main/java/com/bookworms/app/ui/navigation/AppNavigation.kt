@@ -42,30 +42,30 @@ import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.components.profilePhotoUri
-import com.bookworms.app.ui.groups.CreateGroupScreen
-import com.bookworms.app.ui.groups.CreateGroupViewModel
-import com.bookworms.app.ui.groups.GroupDetailsViewModel
-import com.bookworms.app.ui.groups.GroupEvent
-import com.bookworms.app.ui.groups.GroupsViewModel
-import com.bookworms.app.ui.groups.JoinGroupViewModel
-import com.bookworms.app.ui.groups.GroupDetailsScreen
-import com.bookworms.app.ui.groups.GroupsScreen
-import com.bookworms.app.ui.groups.JoinGroupScreen
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.RecentMember
-import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.copyInviteCode
+import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.shareInviteLink
+import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.CreateGroupViewModel
+import com.bookworms.app.ui.groups.GroupDetailsScreen
+import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupEvent
+import com.bookworms.app.ui.groups.GroupsScreen
+import com.bookworms.app.ui.groups.GroupsViewModel
+import com.bookworms.app.ui.groups.JoinGroupScreen
+import com.bookworms.app.ui.groups.JoinGroupViewModel
+import com.bookworms.app.ui.library.AddBookEvent
 import com.bookworms.app.ui.library.AddBookManualScreen
+import com.bookworms.app.ui.library.AddBookViewModel
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.LibraryViewModel
-import com.bookworms.app.ui.library.MyBooksScreen
-import com.bookworms.app.ui.library.MyCopyScreen
-import com.bookworms.app.ui.library.AddBookEvent
-import com.bookworms.app.ui.library.AddBookViewModel
 import com.bookworms.app.ui.library.MyBooksEvent
+import com.bookworms.app.ui.library.MyBooksScreen
 import com.bookworms.app.ui.library.MyBooksViewModel
+import com.bookworms.app.ui.library.MyCopyScreen
 import com.bookworms.app.ui.library.toForm
 import com.bookworms.app.ui.lists.AddBooksToListScreen
 import com.bookworms.app.ui.lists.CreateListScreen
@@ -791,8 +791,7 @@ fun AppNavigation() {
             }
         }
 
-        // Opened from Add book. Both buttons go back to the form, where the details can be typed in.
-        // TODO: when the camera reads a code, send it back to the form and fill in the book details.
+        // Opened from Add book. Reads a barcode and opens the Add book form with the scanned ISBN.
         composable(Routes.SCAN_ISBN) {
             var scannedIsbn by remember { mutableStateOf<String?>(null) }
 
