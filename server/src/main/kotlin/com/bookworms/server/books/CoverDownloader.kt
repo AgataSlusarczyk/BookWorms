@@ -60,6 +60,7 @@ class CoverDownloader(
 	}
 
 	private fun googleBooksImage(isbn: String): String? {
+		if (properties.googleBooksApiKey.isBlank()) return null
 		val result = googleBooksJson(isbn) ?: return null
 		val links = result.path("items").firstOrNull()?.path("volumeInfo")?.path("imageLinks") ?: return null
 		// The biggest picture Google gives without asking twice. It sends http:// links, but https works too.
@@ -77,9 +78,10 @@ class CoverDownloader(
 		val publisher = node.path("publishers").firstOrNull()?.path("name")?.asString("")?.trim()?.ifEmpty { null }
 		val year = parseYear(node.path("publish_date").asString(""))
 		return Book(
-			isbn = isbn,
+			source = BookSource.OPEN_LIBRARY,
 			title = title,
-			author = author,
+			authors = author,
+			isbn = isbn,
 			publisher = publisher,
 			publishedYear = year,
 		)
@@ -87,19 +89,23 @@ class CoverDownloader(
 
 	private fun googleBooksBook(isbn: String): Book? {
 		val result = googleBooksJson(isbn) ?: return null
-		val info = result.path("items").firstOrNull()?.path("volumeInfo") ?: return null
+		val item = result.path("items").firstOrNull() ?: return null
+		val info = item.path("volumeInfo")
 		val title = info.path("title").asString("").trim()
 		val author = info.path("authors").firstOrNull()?.asString("")?.trim().orEmpty()
 		if (title.isEmpty() || author.isEmpty()) return null
 
 		val publisher = info.path("publisher").asString("").trim().ifEmpty { null }
 		val year = parseYear(info.path("publishedDate").asString(""))
+		val googleBooksId = item.path("id").asString("").trim().ifEmpty { null }
 		return Book(
-			isbn = isbn,
+			source = BookSource.GOOGLE_BOOKS,
 			title = title,
-			author = author,
+			authors = author,
+			isbn = isbn,
 			publisher = publisher,
 			publishedYear = year,
+			googleBooksId = googleBooksId,
 		)
 	}
 
@@ -108,8 +114,8 @@ class CoverDownloader(
 		return getJson("https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn$keyParam")
 	}
 
-	private fun parseYear(date: String): Int? =
-		YEAR_REGEX.find(date)?.value?.toIntOrNull()
+	private fun parseYear(date: String): Short? =
+		YEAR_REGEX.find(date)?.value?.toShortOrNull()
 
 	private fun getJson(url: String): JsonNode? =
 		try {
