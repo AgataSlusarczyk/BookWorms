@@ -28,13 +28,15 @@ class BookService(
 	}
 
 	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1".
-	// Books not in the catalog yet are looked up in Open Library / Google Books.
-	@Transactional(readOnly = true)
+	// Books not in the catalog yet are looked up in Open Library / Google Books and saved.
+	@Transactional
 	fun findByIsbn(isbn: String): Book {
 		val cleanIsbn = isbn.uppercase().filter { it.isDigit() || it == 'X' }
-		return bookRepository.findByIsbn(cleanIsbn)
-			?: coverDownloader.fetchBook(cleanIsbn)
-			?: throw BookNotFoundException()
+		bookRepository.findByIsbn(cleanIsbn)?.let { return it }
+
+		val fetched = coverDownloader.fetchBook(cleanIsbn) ?: throw BookNotFoundException()
+		fetched.coverUrl = coverDownloader.download(cleanIsbn)
+		return bookRepository.save(fetched)
 	}
 
 	// "%text%" in lower case, with % and _ typed by the user treated as plain characters.
