@@ -172,7 +172,7 @@ private fun AddBooksToListScreenPreview() {
     BookWormsTheme {
         AddBooksToListScreen(
             listName = "Sci-fi",
-            isbnsOnList = sampleListBooks.map { it.book.isbn },
+            isbnsOnList = listBooks.map { it.book.isbn },
             onAddClick = {},
             onBookClick = {},
             onBackClick = {},

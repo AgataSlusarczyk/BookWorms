@@ -6,6 +6,11 @@ spring:
       # For asking other servers, e.g. Open Library for covers – a slow one mustn't hang us.
       connect-timeout: 10s
       read-timeout: 20s
+  servlet:
+    multipart:
+      # Profile photos. The app makes them small first, so this is only a safety limit.
+      max-file-size: 5MB
+      max-request-size: 6MB
   jpa:
     open-in-view: false
     hibernate:
@@ -21,3 +26,6 @@ bookworms:
     dir: uploads/covers
     # Optional. Without it covers come only from Open Library. Set GOOGLE_BOOKS_API_KEY to also ask Google Books.
     google-books-api-key: ${GOOGLE_BOOKS_API_KEY:}
+  photos:
+    # Where the server keeps profile photos (see PhotoService). Served at /photos/<file>.
+    dir: uploads/photos

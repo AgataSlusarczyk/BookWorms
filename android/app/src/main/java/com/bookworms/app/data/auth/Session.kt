@@ -13,6 +13,8 @@ data class CurrentUser(
     val name: String,
     val username: String,
     val email: String,
+    // Full address of the profile photo, or null when there's none.
+    val photoUrl: String? = null,
 )
 
 // Who is logged in, and the token that proves it to the server.
@@ -43,7 +45,7 @@ object Session {
         // A login saved by an older app has no username – the user just logs in again.
         if (savedToken != null && id != null && name != null && username != null && email != null) {
             token = savedToken
-            _user.value = CurrentUser(id, name, username, email)
+            _user.value = CurrentUser(id, name, username, email, prefs.getString(KeyPhotoUrl, null))
         }
     }
 
@@ -60,6 +62,7 @@ object Session {
             putString(KeyUserName, user.name)
             putString(KeyUsername, user.username)
             putString(KeyUserEmail, user.email)
+            putString(KeyPhotoUrl, user.photoUrl)
         }
         _user.value = user
     }
@@ -76,4 +79,5 @@ object Session {
     private const val KeyUserName = "user_name"
     private const val KeyUsername = "username"
     private const val KeyUserEmail = "user_email"
+    private const val KeyPhotoUrl = "photo_url"
 }

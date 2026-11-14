@@ -61,17 +61,18 @@ fun EditProfileScreen(
     errorMessage: String?,
     saving: Boolean,
     saveEnabled: Boolean,
-    // photo = the picked photo, or the old one when the user didn't pick a new one.
-    onSaveClick: (photo: Uri?) -> Unit,
+    // newPhoto = the photo picked on this screen, or null when the user didn't pick one.
+    onSaveClick: (newPhoto: Uri?) -> Unit,
     onBackClick: () -> Unit,
-    photoUri: Uri? = null,
+    // Full address of the current photo on the server, or null when there's none.
+    photoUrl: String? = null,
 ) {
     // The new photo is only a draft until Save, so Back leaves the old one.
-    var photo by rememberSaveable { mutableStateOf(photoUri) }
+    var newPhoto by rememberSaveable { mutableStateOf<Uri?>(null) }
     // The phone's own photo picker. It needs no permission, because the user picks the photo themselves.
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
         // null = the user closed the picker without choosing anything.
-        if (picked != null) photo = picked
+        if (picked != null) newPhoto = picked
     }
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -91,7 +92,7 @@ fun EditProfileScreen(
                 .padding(20.dp),
         ) {
             // The same circle as in Profile, only bigger.
-            ProfilePhoto(uri = photo, size = 96.dp)
+            ProfilePhoto(photo = newPhoto ?: photoUrl, size = 96.dp)
             TextButton(onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                 Text(stringResource(R.string.change_photo))
             }
@@ -133,7 +134,7 @@ fun EditProfileScreen(
             Spacer(Modifier.height(8.dp))
 
             Button(
-                onClick = { onSaveClick(photo) },
+                onClick = { onSaveClick(newPhoto) },
                 // Only once every field is filled in correctly.
                 enabled = saveEnabled,
                 shape = FieldShape,

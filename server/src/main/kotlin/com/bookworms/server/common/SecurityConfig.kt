@@ -31,6 +31,8 @@ class SecurityConfig {
 				it.requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
 				// The public catalog: people browse books before they have an account.
 				it.requestMatchers(HttpMethod.GET, "/books", "/books/**", "/covers/**").permitAll()
+				// Profile photos: image loaders on the phone don't send the token. The file names can't be guessed.
+				it.requestMatchers(HttpMethod.GET, "/photos/**").permitAll()
 				it.anyRequest().authenticated()
 			}
 			.oauth2ResourceServer { it.jwt { } }

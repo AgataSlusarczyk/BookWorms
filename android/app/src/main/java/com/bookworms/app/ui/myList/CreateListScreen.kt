@@ -95,7 +95,7 @@ internal fun ListFormScreen(
     // Two lists with the same name would be easy to mix up, so we don't allow it (big and small letters count as the same).
     // The list being edited may keep its own name.
     val trimmedName = name.trim()
-    val nameTaken = sampleCustomLists
+    val nameTaken = customLists
         .filterNot { it.equals(initialName, ignoreCase = true) }
         .any { it.equals(trimmedName, ignoreCase = true) }
 

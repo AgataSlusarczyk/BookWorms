@@ -115,8 +115,9 @@ fun MyListsScreen(
 
             item { HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 4.dp)) }
 
-            item { ReadingStatsCard() }
-            item { MostBorrowedCard(onBookClick = onBookClick) }
+            // Only once there's something to show – see readingYears and mostBorrowed.
+            if (readingYears.isNotEmpty()) item { ReadingStatsCard() }
+            if (mostBorrowed.isNotEmpty()) item { MostBorrowedCard(onBookClick = onBookClick) }
         }
     }
 }
@@ -127,8 +128,8 @@ private const val ShelfPreviewCount = 3
 @Composable
 private fun ListCard(content: @Composable ColumnScope.() -> Unit) = AppCard(content = content)
 
-// TODO: the user's own lists from the server.
-internal val sampleCustomLists = listOf("Sci-fi", "Holiday reads")
+// TODO: the user's own lists from the server. Empty until then – only "Create list" shows.
+internal val customLists: List<String> = emptyList()
 
 // Lists the user made themselves, side by side, with a "Create list" tile first.
 @Composable
@@ -148,7 +149,7 @@ private fun CustomListsRow(onListClick: (String) -> Unit, onCreateListClick: () 
                 }
             }
         }
-        items(sampleCustomLists) { name ->
+        items(customLists) { name ->
             AppCard(onClick = { onListClick(name) }, modifier = Modifier.width(CustomListTileWidth)) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -217,17 +218,14 @@ private data class ReadingYear(val year: Int, val total: Int, val months: List<P
 
 // TODO: the user's reading history from the server. Newest year first.
 // The current year shows the last six months up to now; past years show July–December.
-private val sampleReadingYears = listOf(
-    ReadingYear(2026, total = 12, months = listOf("VI" to 3, "VII" to 4, "VIII" to 2, "IX" to 6, "X" to 4, "XI" to 9)),
-    ReadingYear(2025, total = 19, months = listOf("VII" to 5, "VIII" to 8, "IX" to 3, "X" to 6, "XI" to 10, "XII" to 7)),
-    ReadingYear(2024, total = 7, months = listOf("VII" to 1, "VIII" to 3, "IX" to 0, "X" to 2, "XI" to 4, "XII" to 2)),
-)
+// Empty until then, and the card is hidden.
+private val readingYears: List<ReadingYear> = emptyList()
 
 @Composable
 private fun ReadingStatsCard() {
     // Which year is shown. Starts at the newest one.
-    var selectedYear by rememberSaveable { mutableIntStateOf(sampleReadingYears.first().year) }
-    val stats = sampleReadingYears.first { it.year == selectedYear }
+    var selectedYear by rememberSaveable { mutableIntStateOf(readingYears.first().year) }
+    val stats = readingYears.first { it.year == selectedYear }
     // The month with the most books gets a full-height, dark bar; the others are measured against it.
     val most = stats.months.maxOf { it.second }.coerceAtLeast(1)
 
@@ -243,7 +241,7 @@ private fun ReadingStatsCard() {
                 )
                 YearPicker(
                     selected = selectedYear,
-                    years = sampleReadingYears.map { it.year },
+                    years = readingYears.map { it.year },
                     onSelect = { selectedYear = it },
                 )
                 Spacer(Modifier.weight(1f))
@@ -331,9 +329,12 @@ private fun YearPicker(selected: Int, years: List<Int>, onSelect: (Int) -> Unit)
     }
 }
 
+private val mostBorrowed: List<Pair<String, Int>> = emptyList()
+
 @Composable
 private fun MostBorrowedCard(onBookClick: (title: String) -> Unit) {
-    val items = listOf("Problem trzech ciał" to 9, "Solaris" to 7, "Lalka" to 5)
+    // TODO: from the server – the user's books others borrowed most. Empty until then, and the card is hidden.
+    val items = mostBorrowed
 
     ListCard {
         Column(modifier = Modifier.padding(16.dp)) {

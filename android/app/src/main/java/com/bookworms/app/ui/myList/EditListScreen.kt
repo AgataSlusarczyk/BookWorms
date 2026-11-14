@@ -44,7 +44,7 @@ fun EditListScreen(
         onBackClick = onBackClick,
         initialName = listName,
         // TODO: the list's books (and description) from the server.
-        initialIsbns = sampleListBooks.map { it.book.isbn },
+        initialIsbns = listBooks.map { it.book.isbn },
     ) {
         Spacer(Modifier.height(8.dp))
         TextButton(

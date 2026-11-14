@@ -21,7 +21,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.browse.Book
-import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
@@ -29,12 +28,8 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 // One book on a list, with what's happening to it right now.
 internal data class ListBook(val book: Book, val status: ListStatus)
 
-// TODO: the books on each list from the server. For now every list has the same books.
-internal val sampleListBooks = listOf(
-    ListBook(sampleBooks[0], ListStatus.Available),
-    ListBook(sampleBooks[1], ListStatus.Borrowed),
-    ListBook(sampleBooks[3], ListStatus.Reserved),
-)
+// TODO: the books on each list from the server. Empty until then.
+internal val listBooks: List<ListBook> = emptyList()
 
 // The books on one of the user's own lists, opened from "Custom lists" in My lists.
 // The pencil at the top opens Edit list, the button at the bottom adds books.
@@ -75,7 +70,16 @@ fun MyListDetailsScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            items(sampleListBooks, key = { it.book.isbn }) { (book, status) ->
+            if (listBooks.isEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.list_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            items(listBooks, key = { it.book.isbn }) { (book, status) ->
                 ListBookCard(
                     title = book.title,
                     author = book.author,

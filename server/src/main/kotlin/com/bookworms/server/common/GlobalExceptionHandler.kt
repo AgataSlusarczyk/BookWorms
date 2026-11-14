@@ -10,6 +10,9 @@ import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.multipart.MaxUploadSizeExceededException
+import org.springframework.web.multipart.MultipartException
+import org.springframework.web.multipart.support.MissingServletRequestPartException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
@@ -30,6 +33,16 @@ class GlobalExceptionHandler {
 	@ExceptionHandler(HttpMessageNotReadableException::class)
 	fun handleMalformedRequest(ex: HttpMessageNotReadableException) =
 		error(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Request body is missing or malformed")
+
+	// A file bigger than spring.servlet.multipart.max-file-size, e.g. a profile photo.
+	@ExceptionHandler(MaxUploadSizeExceededException::class)
+	fun handleTooBig(ex: MaxUploadSizeExceededException) =
+		error(HttpStatus.CONTENT_TOO_LARGE, "FILE_TOO_BIG", "The file is too big")
+
+	// A form without the expected file, or not a form at all.
+	@ExceptionHandler(MissingServletRequestPartException::class, MultipartException::class)
+	fun handleBadUpload(ex: Exception) =
+		error(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "The file is missing")
 
 	@ExceptionHandler(NoResourceFoundException::class)
 	fun handleNotFound(ex: NoResourceFoundException) =

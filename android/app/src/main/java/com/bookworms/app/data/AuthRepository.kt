@@ -59,6 +59,7 @@ class UsernameTakenException : Exception("Username is already taken")
 internal fun takenException(e: HttpException): Exception =
     if (e.errorCode() == "USERNAME_TAKEN") UsernameTakenException() else EmailTakenException()
 
-internal fun UserDto.toCurrentUser() = CurrentUser(id = id, name = name, username = username, email = email)
+internal fun UserDto.toCurrentUser() =
+    CurrentUser(id = id, name = name, username = username, email = email, photoUrl = serverUrl(photoUrl))
 
 class InvalidSignUpDataException : Exception("The server didn't accept the sign-up data")

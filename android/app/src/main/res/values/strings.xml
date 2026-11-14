@@ -104,6 +104,12 @@
     <string name="available_now_in">Available now in %1$s</string>
     <string name="not_available_now">Borrowed in all your groups right now</string>
     <string name="no_copies_in_group">Nobody in this group has it yet.</string>
+    <string name="no_copies_yet">Nobody in your groups has this book yet.</string>
+    <string name="no_other_copies_yet">Nobody else in your groups has it yet.</string>
+    <plurals name="you_have_this_book">
+        <item quantity="one">You have this book.</item>
+        <item quantity="other">You have %d copies of this book.</item>
+    </plurals>
     <!-- %s = date -->
     <string name="copy_added_on">added %s</string>
     <string name="copy_return_by">due back %s</string>
@@ -154,7 +160,9 @@
     <!-- %1$s = group name -->
     <string name="comment_visibility_group">Only people in %1$s can see this.</string>
     <string name="post_to_label">Post to</string>
-    <string name="your_rating_label">Your rating (optional)</string>
+    <string name="your_book_rating_label">Your rating</string>
+    <string name="no_ratings_yet">No ratings yet</string>
+    <string name="rating_failed">Couldn\'t save your rating. Check your connection and try again.</string>
     <plurals name="stars_rating">
         <item quantity="one">%d of 5 stars</item>
         <item quantity="other">%d of 5 stars</item>
@@ -298,6 +306,7 @@
     <string name="sort_author">Author A–Z</string>
     <string name="content_desc_sort">Change order</string>
     <string name="shelf_empty">No books here yet.</string>
+    <string name="list_empty">No books on this list yet. Tap Add books to put some here.</string>
     <!-- %1$d = how many books are on the shelf -->
     <string name="see_all">See all · %1$d</string>
     <plurals name="added_days_ago">
@@ -331,6 +340,7 @@
     <string name="library_title">Library</string>
     <string name="search_books">Search books</string>
     <string name="recently_added">Recently added</string>
+    <string name="library_empty">No books here yet. Add your own books or join a group to see your friends\' books.</string>
 
     <!-- My books -->
     <string name="my_books_title">My books</string>
@@ -454,6 +464,7 @@
     <string name="book_description_label">Description (optional)</string>
     <string name="error_username_taken">This username is taken. Try another one.</string>
     <string name="error_email_taken_by_someone">Someone else already uses this email.</string>
+    <string name="error_photo_invalid">Your details are saved, but this photo couldn\'t be. Try another one.</string>
     <string name="error_profile_invalid">The server didn\'t accept these details. Check the form and try again.</string>
     <string name="error_email_invalid">Enter a valid email address</string>
 

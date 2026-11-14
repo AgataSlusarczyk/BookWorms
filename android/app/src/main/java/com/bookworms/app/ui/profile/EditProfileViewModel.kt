@@ -1,9 +1,12 @@
 package com.bookworms.app.ui.profile
 
+import android.content.ContentResolver
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookworms.app.data.EmailTakenException
+import com.bookworms.app.data.InvalidPhotoException
 import com.bookworms.app.data.InvalidProfileDataException
 import com.bookworms.app.data.ProfileRepository
 import com.bookworms.app.data.UsernameTakenException
@@ -40,6 +43,8 @@ enum class EditProfileError {
     UsernameTaken,
     // The server didn't accept a field the app let through, e.g. a very long name.
     InvalidData,
+    // The picked photo couldn't be read, or the server didn't take it. The rest is saved.
+    InvalidPhoto,
     ServerUnreachable,
 }
 
@@ -62,13 +67,16 @@ class EditProfileViewModel(private val repository: ProfileRepository = ProfileRe
 
     fun onEmailChange(email: String) = _state.update { it.copy(email = email, error = null) }
 
-    fun save() {
+    // newPhoto = a photo just picked on the phone, or null to keep the old one.
+    // The resolver reads the photo from the phone.
+    fun save(newPhoto: Uri?, resolver: ContentResolver) {
         val current = _state.value
         if (!current.canSave) return
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             val error = try {
                 repository.update(current.name, current.username, current.email)
+                if (newPhoto != null) repository.changePhoto(resolver, newPhoto)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -78,6 +86,8 @@ class EditProfileViewModel(private val repository: ProfileRepository = ProfileRe
                 EditProfileError.UsernameTaken
             } catch (e: InvalidProfileDataException) {
                 EditProfileError.InvalidData
+            } catch (e: InvalidPhotoException) {
+                EditProfileError.InvalidPhoto
             } catch (e: Exception) {
                 Log.w("BookWorms", "Saving the profile failed", e)
                 EditProfileError.ServerUnreachable

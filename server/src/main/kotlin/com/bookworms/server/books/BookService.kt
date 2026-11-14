@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 class BookService(
@@ -27,6 +28,11 @@ class BookService(
 		val isbnDigits = if (looksLikeIsbn) text.filter { it.isDigit() } else ""
 		return bookRepository.search(likePattern(text), isbnDigits, page)
 	}
+
+	// The Library screen: books the user or people in their groups have, newest copy first.
+	@Transactional(readOnly = true)
+	fun library(userId: UUID, limit: Int): List<Book> =
+		bookRepository.findInLibraryOf(userId, limit.coerceIn(1, MAX_LIMIT))
 
 	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1", and an old 10-digit one works too.
 	// Books not in the catalog yet are looked up in Open Library / Google Books and saved.
