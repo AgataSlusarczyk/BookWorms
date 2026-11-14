@@ -14,6 +14,8 @@ interface QueueRepository : JpaRepository<QueueEntry, QueueEntryId> {
 	// Everyone waiting for this copy.
 	fun findById_CopyId(copyId: UUID): List<QueueEntry>
 
+	fun countById_CopyId(copyId: UUID): Long
+
 	// My place =how many joined this copy's queue before me, plus me.
 	fun countById_CopyIdAndCreatedAtLessThanEqual(copyId: UUID, createdAt: Instant): Long
 

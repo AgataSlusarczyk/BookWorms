@@ -40,11 +40,31 @@ internal fun LoansScreen(
     onMarkReturned: (Loan) -> Unit,
     onAccept: (BookRequest) -> Unit,
     onReject: (BookRequest) -> Unit,
+    // The user takes back a request they sent.
+    onCancelRequest: (BookRequest) -> Unit = {},
     onNavigate: (String) -> Unit = {},
     // Gets the book's ISBN. Books typed in by hand have none, so their cards don't open anything.
     onBookClick: (isbn: String) -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    // The sent request the user wants to cancel, while the question is shown. Kept as its id, so it survives turning the phone.
+    var cancelingId by rememberSaveable { mutableStateOf<String?>(null) }
+    val canceling = (loans as? LoadState.Ready)?.data?.sentRequests?.find { it.id == cancelingId }
+    if (canceling != null) {
+        AlertDialog(
+            onDismissRequest = { cancelingId = null },
+            title = { Text(stringResource(R.string.cancel_request_title)) },
+            text = { Text(stringResource(R.string.cancel_request_text, canceling.person)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onCancelRequest(canceling)
+                    cancelingId = null
+                }) { Text(stringResource(R.string.cancel_request_action)) }
+            },
+            // "Cancel" would be confusing next to "Cancel request".
+            dismissButton = { TextButton(onClick = { cancelingId = null }) { Text(stringResource(R.string.keep_action)) } },
+        )
+    }
     val tabs = listOf(
         stringResource(R.string.tab_borrowing),
         stringResource(R.string.tab_lent),
@@ -103,6 +123,8 @@ internal fun LoansScreen(
                                         request,
                                         subtitle = stringResource(R.string.you_asked, request.person),
                                         onClick = openBook(request.isbn),
+                                        onCancel = { cancelingId = request.id },
+                                        buttonsEnabled = !saving,
                                     )
                                 }
                             }
@@ -219,6 +241,7 @@ private fun LoanCard(
 // A request waiting for an answer: amber "Pending" chip.
 // With onAccept and onReject (requests to the user) it also has Reject / Accept buttons.
 // Accept is grayed out while the book is lent out or the user made it not available.
+// With onCancel (requests the user sent) it has a Cancel request button instead.
 // Tapping the buttons doesn't open the book – only the rest of the card does.
 @Composable
 private fun RequestCard(
@@ -227,6 +250,7 @@ private fun RequestCard(
     onClick: (() -> Unit)?,
     onAccept: (() -> Unit)? = null,
     onReject: (() -> Unit)? = null,
+    onCancel: (() -> Unit)? = null,
     buttonsEnabled: Boolean = true,
 ) {
     AppCard(onClick = onClick) {
@@ -256,6 +280,18 @@ private fun RequestCard(
                 ) {
                     Text(stringResource(R.string.action_accept))
                 }
+            }
+        }
+        if (onCancel != null) {
+            OutlinedButton(
+                onClick = onCancel,
+                enabled = buttonsEnabled,
+                shape = ButtonShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+            ) {
+                Text(stringResource(R.string.cancel_request_action))
             }
         }
     }

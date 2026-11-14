@@ -115,6 +115,8 @@
     <string name="copy_return_by">due back %s</string>
     <string name="copy_available">Available</string>
     <string name="copy_borrowed">Borrowed</string>
+    <string name="copy_borrowed_by_you">You have it</string>
+    <string name="copy_not_lending">Not lending right now</string>
     <string name="borrow_action">Borrow</string>
     <!-- %d = the user's place in the queue after joining it -->
     <string name="join_queue_short">Queue · #%d</string>
@@ -139,6 +141,9 @@
     <!-- %1$s = owner, %2$s = return date, %3$d = the user's place in the queue -->
     <string name="join_queue_text">%1$s\'s copy is due back %2$s. You\'ll be #%3$d in line.</string>
     <string name="join_action">Join</string>
+    <string name="join_queue_not_lending_text">%1$s isn\'t lending it right now. You\'ll be #%2$d in line.</string>
+    <string name="copy_changed">Someone changed this copy in the meantime – here\'s how it is now.</string>
+    <string name="copy_action_failed">Couldn\'t reach the server. Check your connection and try again.</string>
     <string name="leave_queue_title">Leave the queue?</string>
     <string name="leave_queue_text">You\'ll lose your place in line.</string>
     <string name="leave_action">Leave</string>
@@ -372,6 +377,7 @@
     <string name="status_not_available">Not available</string>
     <string name="isbn_length_hint">ISBN has 10 or 13 digits</string>
     <string name="load_loans_failed">Couldn\'t load your loans. Check your connection and try again.</string>
+    <string name="error_request_already_answered">The owner already answered this request – the list is up to date now.</string>
     <string name="error_request_changed">This request can\'t be answered anymore – the list is up to date now.</string>
     <string name="error_save_failed">Couldn\'t save. Check your connection and try again.</string>
 

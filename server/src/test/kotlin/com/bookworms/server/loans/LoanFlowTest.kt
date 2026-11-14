@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.put
 import kotlin.test.assertEquals
 
 // Asking, lending and giving back. Agata owns Solaris. Marek and Ola are in her group, Zosia isn't.
@@ -394,6 +395,94 @@ class LoanFlowTest(
 		notifications(agata).andExpect { jsonPath("$[0].read") { value(true) } }
 		notifications(marek).andExpect { jsonPath("$[0].read") { value(false) } }
 	}
+
+	@Test
+	fun `book details show who in my groups has the book`() {
+		val book = solarisBookId()
+		mockMvc.get("/books/$book/copies") { bearer(marek) }.andExpect {
+			status { isOk() }
+			jsonPath("$.groups.length()") { value(1) }
+			jsonPath("$.groups[0].name") { value("Czytelnia") }
+			jsonPath("$.copies.length()") { value(1) }
+			jsonPath("$.copies[0].copyId") { value(solaris) }
+			jsonPath("$.copies[0].owner.name") { value("Agata") }
+			jsonPath("$.copies[0].groupIds[0]") { value(groupId()) }
+			jsonPath("$.copies[0].availability") { value("AVAILABLE") }
+			jsonPath("$.copies[0].borrowedUntil") { value(null) }
+			jsonPath("$.copies[0].myRequestId") { value(null) }
+			jsonPath("$.copies[0].myQueuePosition") { value(null) }
+		}
+		// Agata's own copy isn't "someone else has it".
+		mockMvc.get("/books/$book/copies") { bearer(agata) }.andExpect { jsonPath("$.copies.length()") { value(0) } }
+		// Zosia isn't in any group, so she sees nobody.
+		mockMvc.get("/books/$book/copies") { bearer(zosia) }.andExpect {
+			jsonPath("$.groups.length()") { value(0) }
+			jsonPath("$.copies.length()") { value(0) }
+		}
+	}
+
+	@Test
+	fun `who has the book needs logging in, and a missing book is not found`() {
+		mockMvc.get("/books/${solarisBookId()}/copies").andExpect { status { isUnauthorized() } }
+		mockMvc.get("/books/00000000-0000-0000-0000-000000000000/copies") { bearer(marek) }
+			.andExpect { status { isNotFound() } }
+	}
+
+	@Test
+	fun `book details show my request, my loan and my place in the queue`() {
+		val book = solarisBookId()
+		val request = idOf(send(marek))
+		mockMvc.get("/books/$book/copies") { bearer(marek) }
+			.andExpect { jsonPath("$.copies[0].myRequestId") { value(request) } }
+
+		answer(agata, request, "accept")
+		mockMvc.get("/books/$book/copies") { bearer(marek) }.andExpect {
+			jsonPath("$.copies[0].myRequestId") { value(null) }
+			jsonPath("$.copies[0].borrowedByMe") { value(true) }
+			jsonPath("$.copies[0].borrowedUntil") { exists() }
+		}
+
+		joinQueue(ola)
+		mockMvc.get("/books/$book/copies") { bearer(ola) }.andExpect {
+			jsonPath("$.copies[0].borrowedByMe") { value(false) }
+			jsonPath("$.copies[0].myQueuePosition") { value(1) }
+			jsonPath("$.copies[0].queueLength") { value(1) }
+		}
+		// Marek has the book, so he doesn't wait for it – but he sees Ola does.
+		mockMvc.get("/books/$book/copies") { bearer(marek) }.andExpect {
+			jsonPath("$.copies[0].myQueuePosition") { value(null) }
+			jsonPath("$.copies[0].queueLength") { value(1) }
+		}
+	}
+
+	@Test
+	fun `a lost copy isn't shown`() {
+		setAvailability("LOST")
+		mockMvc.get("/books/${solarisBookId()}/copies") { bearer(marek) }
+			.andExpect { jsonPath("$.copies.length()") { value(0) } }
+	}
+
+	@Test
+	fun `a copy hidden from my groups isn't shown`() {
+		mockMvc.put("/copies/$solaris/groups") {
+			bearer(agata)
+			contentType = MediaType.APPLICATION_JSON
+			content = """{"groupIds": []}"""
+		}.andExpect { status { isOk() } }
+
+		mockMvc.get("/books/${solarisBookId()}/copies") { bearer(marek) }.andExpect {
+			jsonPath("$.groups.length()") { value(1) }
+			jsonPath("$.copies.length()") { value(0) }
+		}
+	}
+
+	private fun solarisBookId(): String =
+		Regex(""""book":\{"id":"([^"]+)"""").find(
+			mockMvc.get("/me/copies") { bearer(agata) }.andReturn().response.contentAsString,
+		)!!.groupValues[1]
+
+	private fun groupId(): String =
+		idOf(mockMvc.get("/me/groups") { bearer(agata) })
 
 	private fun notifications(token: String) =
 		mockMvc.get("/me/notifications") { bearer(token) }

@@ -29,6 +29,8 @@ class SecurityConfig {
 			.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
 			.authorizeHttpRequests {
 				it.requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
+				// Who in my groups has a book – only for group members, so it's checked before the public catalog below.
+				it.requestMatchers(HttpMethod.GET, "/books/*/copies").authenticated()
 				// The public catalog: people browse books before they have an account.
 				it.requestMatchers(HttpMethod.GET, "/books", "/books/**", "/covers/**").permitAll()
 				// Profile photos: image loaders on the phone don't send the token. The file names can't be guessed.
