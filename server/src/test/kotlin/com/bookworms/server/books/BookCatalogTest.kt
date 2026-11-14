@@ -101,7 +101,7 @@ class BookCatalogTest(
 
 	@Test
 	fun `unknown ISBN returns 404`() {
-		mockMvc.get("/books/isbn/9780000000000").andExpect {
+		mockMvc.get("/books/isbn/9788383355702").andExpect {
 			status { isNotFound() }
 			jsonPath("$.code") { value("BOOK_NOT_FOUND") }
 		}

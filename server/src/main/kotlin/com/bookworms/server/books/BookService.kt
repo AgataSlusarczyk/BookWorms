@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class BookService(
 	private val bookRepository: BookRepository,
+	private val coverDownloader: CoverDownloader,
 ) {
 
 	// No query = the newest books. Otherwise books whose title, author or ISBN contains it.
@@ -27,10 +28,16 @@ class BookService(
 	}
 
 	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1".
-	@Transactional(readOnly = true)
-	fun findByIsbn(isbn: String): Book =
-		bookRepository.findByIsbn(isbn.filter { it.isDigit() || it == 'X' })
-			?: throw BookNotFoundException()
+	// Books not in the catalog yet are looked up in Open Library / Google Books and saved.
+	@Transactional
+	fun findByIsbn(isbn: String): Book {
+		val cleanIsbn = isbn.uppercase().filter { it.isDigit() || it == 'X' }
+		bookRepository.findByIsbn(cleanIsbn)?.let { return it }
+
+		val fetched = coverDownloader.fetchBook(cleanIsbn) ?: throw BookNotFoundException()
+		fetched.coverUrl = coverDownloader.download(cleanIsbn)
+		return bookRepository.save(fetched)
+	}
 
 	// "%text%" in lower case, with % and _ typed by the user treated as plain characters.
 	private fun likePattern(text: String): String {

@@ -57,7 +57,13 @@ internal class AddBookViewModel(
         }
         _prefill.value = LoadState.Loading
         viewModelScope.launch {
-            _prefill.value = load { books.formFor(isbn) }
+            val loaded = load { books.formFor(isbn) }
+            // When the book isn't in the catalog (or the server is unreachable), still prefill the scanned ISBN.
+            _prefill.value = if (loaded is LoadState.Ready) {
+                loaded
+            } else {
+                LoadState.Ready(BookForm(isbn = isbn))
+            }
         }
     }
 

@@ -1,7 +1,20 @@
 package com.bookworms.app.ui.scan
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview as CameraPreview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +27,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,31 +35,72 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.CloseTitle
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
+import com.google.mlkit.vision.barcode.BarcodeScanner
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+import java.util.concurrent.Executors
 
 @Composable
 fun ScanIsbnScreen(
-    // The code the camera read, or null while it's still looking for one.
     recognizedIsbn: String?,
+    onIsbnRecognized: (String) -> Unit = {},
     onEnterIsbnManuallyClick: () -> Unit,
     onAddWithoutIsbnClick: () -> Unit,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            isPreview || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted -> hasCameraPermission = granted },
+    )
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -57,8 +112,11 @@ fun ScanIsbnScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // weight(1f) = take the space that's left, so the buttons stay at the bottom.
-        CameraPlaceholder(
+        CameraViewport(
+            hasPermission = hasCameraPermission,
+            isScanningEnabled = recognizedIsbn == null,
+            onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+            onIsbnDetected = onIsbnRecognized,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -82,7 +140,6 @@ fun ScanIsbnScreen(
                 .fillMaxWidth()
                 .height(48.dp),
         ) {
-            // null, because the button text already says what it does.
             Icon(
                 painter = painterResource(R.drawable.ic_barcode_scan),
                 contentDescription = null,
@@ -103,48 +160,191 @@ fun ScanIsbnScreen(
     }
 }
 
-// Dark box where the camera picture will be, with a frame to aim at the barcode.
-// TODO: show the camera picture and read the barcode when we add a scanner.
 @Composable
-private fun CameraPlaceholder(modifier: Modifier = Modifier) {
+private fun CameraViewport(
+    hasPermission: Boolean,
+    isScanningEnabled: Boolean,
+    onRequestPermission: () -> Unit,
+    onIsbnDetected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isPreview = LocalInspectionMode.current
+
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.background(
-            // A bit lighter in the middle, like a camera picture in a dark room.
-            brush = Brush.radialGradient(listOf(CameraGray, CameraBlack)),
-            shape = RoundedCornerShape(16.dp),
-        ),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.radialGradient(listOf(CameraGray, CameraBlack)),
+                shape = RoundedCornerShape(16.dp),
+            ),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth(0.73f)
-                .aspectRatio(2f)
-                .border(2.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(12.dp)),
-        ) {
-            // The red line that shows where the barcode should be.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(2.dp)
-                    .background(ScanLineRed),
-            )
+        when {
+            !hasPermission -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(24.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.camera_permission_required),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onRequestPermission,
+                        shape = FieldShape,
+                    ) {
+                        Text(stringResource(R.string.grant_camera_permission))
+                    }
+                }
+            }
+
+            !isPreview -> {
+                CameraPreviewWithAnalysis(
+                    isScanningEnabled = isScanningEnabled,
+                    onIsbnDetected = onIsbnDetected,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
 
-        Text(
-            text = stringResource(R.string.scan_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.82f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-        )
+        if (hasPermission) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth(0.73f)
+                    .aspectRatio(2f)
+                    .border(2.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(12.dp)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(2.dp)
+                        .background(ScanLineRed),
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.scan_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.82f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+            )
+        }
     }
 }
 
-// Light blue box with the code the camera read.
+@Composable
+private fun CameraPreviewWithAnalysis(
+    isScanningEnabled: Boolean,
+    onIsbnDetected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    val scanner = remember {
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+            )
+            .build()
+        BarcodeScanning.getClient(options)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            scanner.close()
+            cameraExecutor.shutdown()
+        }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            val previewView = PreviewView(ctx).apply {
+                scaleType = PreviewView.ScaleType.FILL_CENTER
+            }
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = CameraPreview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                    .also { analysis ->
+                        analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                            processFrameForIsbn(
+                                imageProxy = imageProxy,
+                                isScanningEnabled = isScanningEnabled,
+                                scanner = scanner,
+                                onIsbnDetected = onIsbnDetected,
+                            )
+                        }
+                    }
+
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        imageAnalysis,
+                    )
+                } catch (_: Exception) {
+                    // Camera binding failed.
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+
+            previewView
+        },
+    )
+}
+
+@OptIn(ExperimentalGetImage::class)
+private fun processFrameForIsbn(
+    imageProxy: ImageProxy,
+    isScanningEnabled: Boolean,
+    scanner: BarcodeScanner,
+    onIsbnDetected: (String) -> Unit,
+) {
+    val mediaImage = imageProxy.image
+    if (mediaImage == null || !isScanningEnabled) {
+        imageProxy.close()
+        return
+    }
+
+    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+    scanner.process(image)
+        .addOnSuccessListener { barcodes ->
+            for (barcode in barcodes) {
+                val rawValue = barcode.rawValue ?: continue
+                val digitsOnly = rawValue.filter { it.isDigit() }
+                if (digitsOnly.length >= 10) { // Accepts ISBN-10, ISBN-13, and EAN barcodes.
+                    onIsbnDetected(digitsOnly)
+                    break
+                }
+            }
+        }
+        .addOnCompleteListener {
+            imageProxy.close()
+        }
+}
+
 @Composable
 private fun RecognizedCode(isbn: String, modifier: Modifier = Modifier) {
     Column(
@@ -164,7 +364,6 @@ private fun RecognizedCode(isbn: String, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(4.dp))
-        // TODO: get the book from the server and open its details.
         Text(
             text = stringResource(R.string.fetching_book_details),
             style = MaterialTheme.typography.bodySmall,

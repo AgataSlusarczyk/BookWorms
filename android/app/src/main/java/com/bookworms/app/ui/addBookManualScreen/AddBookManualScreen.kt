@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,7 +24,6 @@ import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
-import com.bookworms.app.ui.theme.CardBorder
 
 // Also the Edit book form: pass the book as editing, and the fields start filled in. Its ISBN can't be changed.
 // prefill = a book from the catalog ("I own this book" on Book details): still adding, but the fields start filled in.
@@ -40,16 +40,15 @@ internal fun AddBookManualScreen(
 ) {
     val start = editing ?: prefill ?: BookForm()
     // rememberSaveable, so typed text survives rotating the phone.
-    var title by rememberSaveable { mutableStateOf(start.title) }
-    var author by rememberSaveable { mutableStateOf(start.author) }
-    var isbn by rememberSaveable { mutableStateOf(start.isbn) }
-    var publisher by rememberSaveable { mutableStateOf(start.publisher) }
-    var year by rememberSaveable { mutableStateOf(start.year?.toString().orEmpty()) }
+    var title by rememberSaveable(editing, prefill) { mutableStateOf(start.title) }
+    var author by rememberSaveable(editing, prefill) { mutableStateOf(start.author) }
+    var isbn by rememberSaveable(editing, prefill) { mutableStateOf(start.isbn) }
+    var publisher by rememberSaveable(editing, prefill) { mutableStateOf(start.publisher) }
+    var year by rememberSaveable(editing, prefill) { mutableStateOf(start.year?.toString().orEmpty()) }
     // The server takes old 10-digit ISBNs and new 13-digit ones.
     val isbnValid = isbn.isEmpty() || isbn.length == 10 || isbn.length == 13
 
     Scaffold(
-        // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
         containerColor = Color.Transparent,
         topBar = {
@@ -64,32 +63,37 @@ internal fun AddBookManualScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                // imePadding makes room for the keyboard, so the field you type in moves up above it.
                 .imePadding()
-                // Scrolls on small phones and when the keyboard is open.
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
             // Only when adding a new book – an edited or prefilled book already has its details.
-            if (editing == null && prefill == null) {
+            if (editing == null && prefill?.title.isNullOrEmpty()) {
                 ScanIsbnCard(onClick = onScanIsbnClick)
 
-                // "or fill in the details yourself", with a thin line on both sides.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                     Text(
-                        text = stringResource(R.string.or_fill_in_yourself),
+                        stringResource(R.string.or_fill_in_yourself),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
-                    HorizontalDivider(color = CardBorder, modifier = Modifier.weight(1f))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
 
-            BookField(label = stringResource(R.string.title_label), value = title, onValueChange = { title = it })
-            BookField(label = stringResource(R.string.author_label), value = author, onValueChange = { author = it })
-            BookField(
+            BookInputField(
+                label = stringResource(R.string.title_label),
+                value = title,
+                onValueChange = { title = it },
+            )
+            BookInputField(
+                label = stringResource(R.string.author_label),
+                value = author,
+                onValueChange = { author = it },
+            )
+            BookInputField(
                 label = stringResource(R.string.isbn_label),
                 value = isbn,
                 // ISBN is digits only (plus an X at the end of old 10-digit ones), so we keep just those.
@@ -107,24 +111,24 @@ internal fun AddBookManualScreen(
                     }
                 },
             )
-
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                BookField(
+                BookInputField(
                     label = stringResource(R.string.publisher_label),
                     value = publisher,
                     onValueChange = { publisher = it },
-                    modifier = Modifier.weight(2f),
+                    modifier = Modifier.weight(1f),
                 )
-                BookField(
+                BookInputField(
                     label = stringResource(R.string.year_label),
                     value = year,
+                    // The year only has numbers and fits in 4 digits.
                     onValueChange = { year = it.filter(Char::isDigit).take(4) },
                     keyboardType = KeyboardType.Number,
                     modifier = Modifier.weight(1f),
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -159,9 +163,34 @@ internal fun AddBookManualScreen(
     }
 }
 
-// Label above, white see-through field below – the same as on the sign-up and create group screens.
 @Composable
-private fun BookField(
+private fun ScanIsbnCard(onClick: () -> Unit) {
+    AppCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.ic_barcode_scan),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.scan_isbn_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.scan_isbn_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookInputField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -178,35 +207,15 @@ private fun BookField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                shape = FieldShape,
-                colors = authFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 trailingIcon = trailingIcon,
                 enabled = enabled,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
+                shape = FieldShape,
+                colors = authFieldColors(),
             )
-        }
-    }
-}
-
-// The quickest way to add a book: scan the barcode and the details fill in themselves.
-@Composable
-private fun ScanIsbnCard(onClick: () -> Unit) {
-    AppCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Icon(painterResource(R.drawable.ic_barcode_scan), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.scan_isbn_title), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    stringResource(R.string.scan_isbn_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -215,6 +224,6 @@ private fun ScanIsbnCard(onClick: () -> Unit) {
 @Composable
 private fun AddBookManualScreenPreview() {
     BookWormsTheme {
-        AddBookManualScreen(onScanIsbnClick = {}, onBackClick = {})
+        AddBookManualScreen(onScanIsbnClick = {}, onBackClick = {}, onSaveClick = {})
     }
 }

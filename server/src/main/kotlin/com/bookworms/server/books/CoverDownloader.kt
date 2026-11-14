@@ -41,6 +41,10 @@ class CoverDownloader(
 		return coverPath(isbn)
 	}
 
+	// Looks up a book's details by ISBN in Open Library first, then Google Books.
+	fun fetchBook(isbn: String): Book? =
+		openLibraryBook(isbn) ?: googleBooksBook(isbn)
+
 	// Addresses of images to try, the best one first. Each is asked only when the one before had nothing.
 	private fun imageUrls(isbn: String): Sequence<String> = sequence {
 		openLibraryCoverId(isbn)?.let { yield("https://covers.openlibrary.org/b/id/$it-L.jpg?default=false") }
@@ -57,13 +61,61 @@ class CoverDownloader(
 
 	private fun googleBooksImage(isbn: String): String? {
 		if (properties.googleBooksApiKey.isBlank()) return null
-		val result = getJson("https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&key=${properties.googleBooksApiKey}")
-			?: return null
+		val result = googleBooksJson(isbn) ?: return null
 		val links = result.path("items").firstOrNull()?.path("volumeInfo")?.path("imageLinks") ?: return null
 		// The biggest picture Google gives without asking twice. It sends http:// links, but https works too.
 		val url = listOf("large", "medium", "thumbnail").map { links.path(it).asString("") }.firstOrNull { it.isNotEmpty() }
 		return url?.replaceFirst("http://", "https://")
 	}
+
+	private fun openLibraryBook(isbn: String): Book? {
+		val root = getJson("https://openlibrary.org/api/books?bibkeys=ISBN:$isbn&format=json&jscmd=data") ?: return null
+		val node = root.path("ISBN:$isbn")
+		val title = node.path("title").asString("").trim()
+		val author = node.path("authors").firstOrNull()?.path("name")?.asString("")?.trim().orEmpty()
+		if (title.isEmpty() || author.isEmpty()) return null
+
+		val publisher = node.path("publishers").firstOrNull()?.path("name")?.asString("")?.trim()?.ifEmpty { null }
+		val year = parseYear(node.path("publish_date").asString(""))
+		return Book(
+			source = BookSource.OPEN_LIBRARY,
+			title = title,
+			authors = author,
+			isbn = isbn,
+			publisher = publisher,
+			publishedYear = year,
+		)
+	}
+
+	private fun googleBooksBook(isbn: String): Book? {
+		val result = googleBooksJson(isbn) ?: return null
+		val item = result.path("items").firstOrNull() ?: return null
+		val info = item.path("volumeInfo")
+		val title = info.path("title").asString("").trim()
+		val author = info.path("authors").firstOrNull()?.asString("")?.trim().orEmpty()
+		if (title.isEmpty() || author.isEmpty()) return null
+
+		val publisher = info.path("publisher").asString("").trim().ifEmpty { null }
+		val year = parseYear(info.path("publishedDate").asString(""))
+		val googleBooksId = item.path("id").asString("").trim().ifEmpty { null }
+		return Book(
+			source = BookSource.GOOGLE_BOOKS,
+			title = title,
+			authors = author,
+			isbn = isbn,
+			publisher = publisher,
+			publishedYear = year,
+			googleBooksId = googleBooksId,
+		)
+	}
+
+	private fun googleBooksJson(isbn: String): JsonNode? {
+		val keyParam = if (properties.googleBooksApiKey.isNotBlank()) "&key=${properties.googleBooksApiKey}" else ""
+		return getJson("https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn$keyParam")
+	}
+
+	private fun parseYear(date: String): Short? =
+		YEAR_REGEX.find(date)?.value?.toShortOrNull()
 
 	private fun getJson(url: String): JsonNode? =
 		try {
@@ -89,5 +141,6 @@ class CoverDownloader(
 
 	private companion object {
 		const val MIN_IMAGE_BYTES = 1_000
+		val YEAR_REGEX = Regex("""\b\d{4}\b""")
 	}
 }
