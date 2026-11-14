@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookworms.app.R
+import com.bookworms.app.data.AlreadyOwnedException
 import com.bookworms.app.data.BookRepository
 import com.bookworms.app.data.InvalidIsbnException
 import com.bookworms.app.data.LoadState
@@ -43,6 +44,10 @@ internal class AddBookViewModel(
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving.asStateFlow()
 
+    // The book the user already has – Add book asks if they want another copy. null = no question.
+    private val _alreadyOwned = MutableStateFlow<BookForm?>(null)
+    val alreadyOwned: StateFlow<BookForm?> = _alreadyOwned.asStateFlow()
+
     private val _events = Channel<AddBookEvent>(Channel.BUFFERED)
     val events: Flow<AddBookEvent> = _events.receiveAsFlow()
 
@@ -67,14 +72,20 @@ internal class AddBookViewModel(
         }
     }
 
-    fun save(form: BookForm) {
+    // addAnother = the user already said yes to a second copy.
+    fun save(form: BookForm, addAnother: Boolean = false) {
         if (_saving.value) return
         _saving.value = true
+        _alreadyOwned.value = null
         viewModelScope.launch {
             val event = try {
-                AddBookEvent.Added(myBooks.add(form))
+                AddBookEvent.Added(myBooks.add(form, addAnother))
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: AlreadyOwnedException) {
+                // Not an error – the screen asks, and the form stays as it is.
+                _alreadyOwned.value = form
+                null
             } catch (e: InvalidIsbnException) {
                 AddBookEvent.Failed(R.string.isbn_length_hint)
             } catch (e: Exception) {
@@ -82,7 +93,17 @@ internal class AddBookViewModel(
                 AddBookEvent.Failed(R.string.error_save_failed)
             }
             _saving.value = false
-            _events.send(event)
+            if (event != null) _events.send(event)
         }
+    }
+
+    // "Add another" in the question.
+    fun addAnother() {
+        _alreadyOwned.value?.let { save(it, addAnother = true) }
+    }
+
+    // "Cancel" in the question – nothing is added, the form stays.
+    fun dontAddAnother() {
+        _alreadyOwned.value = null
     }
 }

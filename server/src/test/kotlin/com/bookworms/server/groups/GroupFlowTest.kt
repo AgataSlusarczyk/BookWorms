@@ -306,7 +306,7 @@ class GroupFlowTest(
 
 	private fun registerAndLogIn(name: String, email: String): String {
 		mockMvc.post("/auth/register") {
-			json("""{"name": "$name", "email": "$email", "password": "secret-password"}""")
+			json("""{"name": "$name", "username": "${email.substringBefore('@')}", "email": "$email", "password": "secret-password"}""")
 		}.andExpect { status { isCreated() } }
 		val body = mockMvc.post("/auth/login") {
 			json("""{"email": "$email", "password": "secret-password"}""")

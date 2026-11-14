@@ -6,20 +6,24 @@ import com.bookworms.app.data.network.ApiClient
 import com.bookworms.app.data.network.AuthApi
 import com.bookworms.app.data.network.LoginRequestDto
 import com.bookworms.app.data.network.RegisterRequestDto
+import com.bookworms.app.data.network.UserDto
+import com.bookworms.app.data.network.errorCode
 import retrofit2.HttpException
 
 // Signing up, logging in and out. The ViewModels don't need to know about tokens.
 class AuthRepository(private val api: AuthApi = ApiClient.auth) {
 
     // Creates the account and logs straight into it.
-    // Throws EmailTakenException, InvalidSignUpDataException (the server didn't accept a field),
+    // Throws EmailTakenException, UsernameTakenException, InvalidSignUpDataException (the server didn't accept a field),
     // and anything else when the server can't be reached.
-    suspend fun register(name: String, email: String, password: String) {
+    suspend fun register(name: String, username: String, email: String, password: String) {
         try {
-            api.register(RegisterRequestDto(name = name.trim(), email = email.trim(), password = password))
+            api.register(
+                RegisterRequestDto(name = name.trim(), username = username.trim(), email = email.trim(), password = password),
+            )
         } catch (e: HttpException) {
             throw when (e.code()) {
-                409 -> EmailTakenException()
+                409 -> takenException(e)
                 400 -> InvalidSignUpDataException()
                 else -> e
             }
@@ -37,7 +41,7 @@ class AuthRepository(private val api: AuthApi = ApiClient.auth) {
         }
         Session.start(
             token = response.token,
-            user = CurrentUser(id = response.user.id, name = response.user.name, email = response.user.email),
+            user = response.user.toCurrentUser(),
         )
     }
 
@@ -48,5 +52,13 @@ class AuthRepository(private val api: AuthApi = ApiClient.auth) {
 class InvalidCredentialsException : Exception("Wrong email or password")
 
 class EmailTakenException : Exception("Email is already taken")
+
+class UsernameTakenException : Exception("Username is already taken")
+
+// 409 means someone already has the email or the username – the error's code says which.
+internal fun takenException(e: HttpException): Exception =
+    if (e.errorCode() == "USERNAME_TAKEN") UsernameTakenException() else EmailTakenException()
+
+internal fun UserDto.toCurrentUser() = CurrentUser(id = id, name = name, username = username, email = email)
 
 class InvalidSignUpDataException : Exception("The server didn't accept the sign-up data")

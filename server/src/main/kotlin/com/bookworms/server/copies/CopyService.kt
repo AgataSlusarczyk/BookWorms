@@ -41,9 +41,13 @@ class CopyService(
 
 	// A book with this ISBN already in the catalog gets the new copy, so copies of one book stay together.
 	// Otherwise (or without an ISBN) the book is added to the catalog first, as typed in by this user.
+	// A second copy of a book the user already has needs addAnother – it's more often a mistake than a real second copy.
 	@Transactional
 	fun addCopy(ownerId: UUID, request: AddCopyRequest): CopyResponse {
 		val isbn = request.isbn?.let { toIsbn13(it) }
+		if (!request.addAnother && ownsBook(ownerId, isbn, request.title.trim(), request.authors.trim())) {
+			throw ApiException(HttpStatus.CONFLICT, "ALREADY_OWNED", "You already have this book")
+		}
 		val book = isbn?.let { bookRepository.findByIsbn(it) }
 			?: bookRepository.save(
 				Book(
@@ -53,6 +57,7 @@ class CopyService(
 					isbn = isbn,
 					publisher = request.publisher?.trim()?.ifEmpty { null },
 					publishedYear = request.publishedYear?.toShort(),
+					description = request.description?.trim()?.ifEmpty { null },
 					createdBy = ownerId,
 				),
 			)
@@ -103,6 +108,7 @@ class CopyService(
 		book.authors = request.authors.trim()
 		book.publisher = request.publisher?.trim()?.ifEmpty { null }
 		book.publishedYear = request.publishedYear?.toShort()
+		book.description = request.description?.trim()?.ifEmpty { null }
 		// The book's row isn't the copy's, so the copy's updatedAt is moved by hand – phones need to see the change.
 		copy.updatedAt = Instant.now()
 		return describe(copy)
@@ -142,6 +148,15 @@ class CopyService(
 		}
 		return copy
 	}
+
+	private fun ownsBook(ownerId: UUID, isbn: String?, title: String, authors: String): Boolean =
+		if (isbn != null) {
+			copyRepository.existsByOwnerIdAndBook_IsbnAndDeletedAtIsNull(ownerId, isbn)
+		} else {
+			copyRepository.existsByOwnerIdAndBook_IsbnIsNullAndBook_TitleIgnoreCaseAndBook_AuthorsIgnoreCaseAndDeletedAtIsNull(
+				ownerId, title, authors,
+			)
+		}
 
 	// Copies for the app, each with the groups that see it – one query for all of them.
 	private fun describe(copies: List<BookCopy>): List<CopyResponse> {

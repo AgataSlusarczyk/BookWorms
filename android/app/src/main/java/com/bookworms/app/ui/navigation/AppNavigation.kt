@@ -2,6 +2,9 @@ package com.bookworms.app.ui.navigation
 
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,8 +88,11 @@ import com.bookworms.app.ui.loans.queueSpots
 import com.bookworms.app.ui.loans.sendRequest
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ChangePasswordScreen
+import com.bookworms.app.ui.profile.EditProfileError
 import com.bookworms.app.ui.profile.EditProfileScreen
+import com.bookworms.app.ui.profile.EditProfileViewModel
 import com.bookworms.app.ui.profile.ProfileScreen
+import com.bookworms.app.ui.profile.ProfileViewModel
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 import kotlinx.coroutines.flow.Flow
 import java.time.format.DateTimeFormatter
@@ -267,20 +273,29 @@ fun AppNavigation() {
 
             RegisterScreen(
                 name = state.name,
+                username = state.username,
                 email = state.email,
                 password = state.password,
                 repeatPassword = state.repeatPassword,
                 onNameChange = viewModel::onNameChange,
+                onUsernameChange = viewModel::onUsernameChange,
                 onEmailChange = viewModel::onEmailChange,
                 onPasswordChange = viewModel::onPasswordChange,
                 onRepeatPasswordChange = viewModel::onRepeatPasswordChange,
                 termsAccepted = state.termsAccepted,
                 onTermsAcceptedChange = viewModel::onTermsAcceptedChange,
+                usernameError = when {
+                    state.usernameInvalid -> stringResource(R.string.error_username_invalid)
+                    state.error == RegisterError.UsernameTaken -> stringResource(R.string.error_username_taken)
+                    else -> null
+                },
                 emailError = if (state.emailInvalid) stringResource(R.string.error_email_invalid) else null,
                 passwordError = if (state.passwordTooWeak) stringResource(R.string.error_password_too_weak) else null,
                 repeatPasswordError = if (state.passwordsDontMatch) stringResource(R.string.error_passwords_dont_match) else null,
                 errorMessage = when (state.error) {
                     RegisterError.EmailTaken -> stringResource(R.string.error_email_taken)
+                    // Shown under the username field instead.
+                    RegisterError.UsernameTaken -> null
                     RegisterError.InvalidData -> stringResource(R.string.error_sign_up_invalid)
                     RegisterError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
                     null -> null
@@ -384,9 +399,15 @@ fun AppNavigation() {
         }
 
         composable(Routes.PROFILE) {
+            val viewModel: ProfileViewModel = viewModel()
+            val booksCount by viewModel.booksCount.collectAsState()
+            // Runs each time Profile shows up again, e.g. after coming back from My books.
+            LaunchedEffect(Unit) { viewModel.refresh() }
+
             ProfileScreen(
                 userName = user?.name.orEmpty(),
                 userEmail = user?.email.orEmpty(),
+                booksCount = booksCount,
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
@@ -522,11 +543,47 @@ fun AppNavigation() {
         }
 
         composable(Routes.EDIT_PROFILE) {
-            EditProfileScreen(
-                // TODO: save the name and photo on the server first. For now the photo is kept until the app closes.
-                onSaveClick = { photo ->
-                    profilePhotoUri = photo
+            val viewModel: EditProfileViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
+            // The photo picked on this screen. It's used only once the server saved the rest.
+            var pickedPhoto by remember { mutableStateOf(profilePhotoUri) }
+
+            LaunchedEffect(state.saved) {
+                if (state.saved) {
+                    // TODO: keep the photo on the server too. For now it's kept until the app closes.
+                    profilePhotoUri = pickedPhoto
                     navController.popBackStack()
+                }
+            }
+
+            EditProfileScreen(
+                name = state.name,
+                username = state.username,
+                email = state.email,
+                onNameChange = viewModel::onNameChange,
+                onUsernameChange = viewModel::onUsernameChange,
+                onEmailChange = viewModel::onEmailChange,
+                usernameError = when {
+                    state.usernameInvalid -> stringResource(R.string.error_username_invalid)
+                    state.error == EditProfileError.UsernameTaken -> stringResource(R.string.error_username_taken)
+                    else -> null
+                },
+                emailError = when {
+                    state.emailInvalid -> stringResource(R.string.error_email_invalid)
+                    state.error == EditProfileError.EmailTaken -> stringResource(R.string.error_email_taken_by_someone)
+                    else -> null
+                },
+                errorMessage = when (state.error) {
+                    EditProfileError.InvalidData -> stringResource(R.string.error_profile_invalid)
+                    EditProfileError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
+                    // Shown under their fields instead.
+                    EditProfileError.EmailTaken, EditProfileError.UsernameTaken, null -> null
+                },
+                saving = state.saving,
+                saveEnabled = state.canSave,
+                onSaveClick = { photo ->
+                    pickedPhoto = photo
+                    viewModel.save()
                 },
                 onBackClick = { navController.popBackStack() },
                 photoUri = profilePhotoUri,
@@ -633,6 +690,7 @@ fun AppNavigation() {
             val viewModel = viewModel { AddBookViewModel(isbn) }
             val prefill by viewModel.prefill.collectAsState()
             val saving by viewModel.saving.collectAsState()
+            val alreadyOwned by viewModel.alreadyOwned.collectAsState()
             // My books may be open underneath (also when Add book was opened from a book's page on the way).
             // Then the new book goes straight onto its list.
             val myBooksEntry = remember(entry) { runCatching { navController.getBackStackEntry(Routes.MY_BOOKS) }.getOrNull() }
@@ -662,9 +720,23 @@ fun AppNavigation() {
                 AddBookManualScreen(
                     onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                     onBackClick = { navController.popBackStack() },
-                    onSaveClick = viewModel::save,
+                    onSaveClick = { viewModel.save(it) },
                     prefill = form,
                     saving = saving,
+                )
+            }
+
+            if (alreadyOwned != null) {
+                AlertDialog(
+                    onDismissRequest = viewModel::dontAddAnother,
+                    title = { Text(stringResource(R.string.already_owned_title)) },
+                    text = { Text(stringResource(R.string.already_owned_text)) },
+                    confirmButton = {
+                        TextButton(onClick = viewModel::addAnother) { Text(stringResource(R.string.add_another_action)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = viewModel::dontAddAnother) { Text(stringResource(R.string.cancel)) }
+                    },
                 )
             }
         }

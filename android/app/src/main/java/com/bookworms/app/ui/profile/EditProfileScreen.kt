@@ -1,7 +1,6 @@
 package com.bookworms.app.ui.profile
 
 import android.net.Uri
-import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,10 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -37,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
-import com.bookworms.app.ui.auth.UsernamePattern
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.ProfilePhoto
@@ -46,6 +48,19 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
 fun EditProfileScreen(
+    name: String,
+    username: String,
+    email: String,
+    onNameChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    // Errors under the fields, null = the field is fine.
+    usernameError: String?,
+    emailError: String?,
+    // An error from the server above the button, null = none.
+    errorMessage: String?,
+    saving: Boolean,
+    saveEnabled: Boolean,
     // photo = the picked photo, or the old one when the user didn't pick a new one.
     onSaveClick: (photo: Uri?) -> Unit,
     onBackClick: () -> Unit,
@@ -58,15 +73,6 @@ fun EditProfileScreen(
         // null = the user closed the picker without choosing anything.
         if (picked != null) photo = picked
     }
-    // TODO: start with the user's data from the server. rememberSaveable keeps it when the phone rotates.
-    var name by rememberSaveable { mutableStateOf("Anna Kowalska") }
-    var username by rememberSaveable { mutableStateOf("anna_k") }
-    var email by rememberSaveable { mutableStateOf("anna.kowalska@mail.com") }
-
-    // Spaces at the ends are easy to type by accident, so they don't count.
-    val usernameValid = UsernamePattern.matches(username.trim())
-    val emailValid = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
-
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
@@ -95,42 +101,55 @@ fun EditProfileScreen(
             ProfileField(
                 label = stringResource(R.string.name_label),
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = onNameChange,
             )
             ProfileField(
                 label = stringResource(R.string.username_label),
                 value = username,
-                // People often type "@anna" – the "@" is already shown in front, so we drop it.
-                onValueChange = { username = it.removePrefix("@") },
+                onValueChange = onUsernameChange,
                 prefix = "@",
-                supportingText = stringResource(
-                    if (username.isNotEmpty() && !usernameValid) R.string.error_username_invalid else R.string.username_hint,
-                ),
-                isError = username.isNotEmpty() && !usernameValid,
+                supportingText = usernameError ?: stringResource(R.string.username_hint),
+                isError = usernameError != null,
                 keyboardType = KeyboardType.Ascii,
             )
             ProfileField(
                 label = stringResource(R.string.email_label),
                 value = email,
-                onValueChange = { email = it },
-                supportingText = if (email.isNotEmpty() && !emailValid) stringResource(R.string.error_email_invalid) else null,
-                isError = email.isNotEmpty() && !emailValid,
+                onValueChange = onEmailChange,
+                supportingText = emailError,
+                isError = emailError != null,
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Done,
             )
 
-            Spacer(Modifier.height(16.dp))
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
 
             Button(
                 onClick = { onSaveClick(photo) },
-                // Spaces alone don't count as a name.
-                enabled = name.isNotBlank() && usernameValid && emailValid,
+                // Only once every field is filled in correctly.
+                enabled = saveEnabled,
                 shape = FieldShape,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text(stringResource(R.string.save_action))
+                if (saving) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = LocalContentColor.current,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    Text(stringResource(R.string.save_action))
+                }
             }
         }
     }
@@ -168,6 +187,20 @@ private fun ProfileField(
 @Composable
 private fun EditProfileScreenPreview() {
     BookWormsTheme {
-        EditProfileScreen(onSaveClick = {}, onBackClick = {})
+        EditProfileScreen(
+            name = "Anna Kowalska",
+            username = "anna_k",
+            email = "anna.kowalska@mail.com",
+            onNameChange = {},
+            onUsernameChange = {},
+            onEmailChange = {},
+            usernameError = null,
+            emailError = null,
+            errorMessage = null,
+            saving = false,
+            saveEnabled = true,
+            onSaveClick = {},
+            onBackClick = {},
+        )
     }
 }

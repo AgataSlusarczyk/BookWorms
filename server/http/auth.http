@@ -4,6 +4,7 @@ Content-Type: application/json
 
 {
   "name": "Agata",
+  "username": "agata",
   "email": "agata@example.com",
   "password": "secret-password"
 }
@@ -22,3 +23,14 @@ Content-Type: application/json
 ### Current user
 GET http://localhost:8080/me
 Authorization: Bearer {{token}}
+
+### Edit profile (all three fields, changed or not)
+PUT http://localhost:8080/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Agata S",
+  "username": "agata_s",
+  "email": "agata@example.com"
+}

@@ -34,6 +34,7 @@ class BookRepository(private val api: BooksApi = ApiClient.books) {
             isbn = (book.isbn ?: isbn).filter { it.isDigit() || it == 'X' },
             publisher = book.publisher.orEmpty(),
             year = book.publishedYear,
+            description = book.description.orEmpty(),
         )
     }
 }

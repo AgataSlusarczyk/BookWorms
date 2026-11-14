@@ -22,6 +22,12 @@ data class AddCopyRequest(
 	val publisher: String? = null,
 
 	val publishedYear: Int? = null,
+
+	@field:Size(max = MAX_DESCRIPTION)
+	val description: String? = null,
+
+	// true = the user already has this book and said "add another copy anyway".
+	val addAnother: Boolean = false,
 )
 
 // Edit book – only for a book the user typed in by hand. The ISBN can't be changed.
@@ -38,7 +44,13 @@ data class EditBookRequest(
 	val publisher: String? = null,
 
 	val publishedYear: Int? = null,
+
+	@field:Size(max = MAX_DESCRIPTION)
+	val description: String? = null,
 )
+
+// A few pages of text – more than any book's blurb.
+const val MAX_DESCRIPTION = 5000
 
 data class ChangeAvailabilityRequest(
 	val availability: Availability,

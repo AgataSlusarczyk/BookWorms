@@ -6,11 +6,13 @@ import java.util.UUID
 data class UserResponse(
 	val id: UUID,
 	val name: String,
+	val username: String,
 	val email: String,
 )
 
 fun User.toResponse() = UserResponse(
 	id = id!!,
 	name = name,
+	username = username,
 	email = email,
 )

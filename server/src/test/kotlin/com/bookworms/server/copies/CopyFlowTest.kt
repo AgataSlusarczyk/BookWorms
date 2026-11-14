@@ -76,11 +76,15 @@ class CopyFlowTest(
 
 	@Test
 	fun `a book that isn't in the catalog is added to it, and an old ISBN-10 becomes ISBN-13`() {
-		addCopy(agata, """{"isbn": "0-306-40615-2", "title": "My Book", "authors": "Me", "publishedYear": 2001}""")
+		addCopy(
+			agata,
+			"""{"isbn": "0-306-40615-2", "title": "My Book", "authors": "Me", "publishedYear": 2001, "description": " About me. "}""",
+		)
 			.andExpect {
 				status { isCreated() }
 				jsonPath("$.book.isbn") { value("9780306406157") }
 				jsonPath("$.book.publishedYear") { value(2001) }
+				jsonPath("$.book.description") { value("About me.") }
 				jsonPath("$.canEditBook") { value(true) }
 			}
 		assertEquals(2, bookRepository.count())
@@ -93,6 +97,42 @@ class CopyFlowTest(
 
 		assertEquals(2, copyRepository.count())
 		assertEquals(2, bookRepository.count())
+	}
+
+	@Test
+	fun `a book I already have needs addAnother - then it's a second copy`() {
+		addCopy(agata, """{"isbn": "9780306406157", "title": "My Book", "authors": "Me"}""")
+
+		// The same ISBN, also as the old ISBN-10.
+		addCopy(agata, """{"isbn": "0-306-40615-2", "title": "My Book", "authors": "Me"}""").andExpect {
+			status { isConflict() }
+			jsonPath("$.code") { value("ALREADY_OWNED") }
+		}
+		addCopy(agata, """{"isbn": "9780306406157", "title": "My Book", "authors": "Me", "addAnother": true}""")
+			.andExpect { status { isCreated() } }
+
+		mockMvc.get("/me/copies") { bearer(agata) }.andExpect { jsonPath("$.length()") { value(2) } }
+	}
+
+	@Test
+	fun `a book without an ISBN counts as the same when its title and author are`() {
+		addCopy(agata, """{"title": "Notes", "authors": "Me"}""")
+
+		addCopy(agata, """{"title": " NOTES ", "authors": "me"}""").andExpect {
+			status { isConflict() }
+			jsonPath("$.code") { value("ALREADY_OWNED") }
+		}
+		addCopy(agata, """{"title": "Notes 2", "authors": "Me"}""").andExpect { status { isCreated() } }
+	}
+
+	@Test
+	fun `a removed copy doesn't count as having the book`() {
+		val id = addCopyAndGetId(agata, """{"isbn": "9788308049461", "title": "Solaris", "authors": "Lem"}""")
+		mockMvc.delete("/copies/$id") { bearer(agata) }
+
+		addCopy(agata, """{"isbn": "9788308049461", "title": "Solaris", "authors": "Lem"}""").andExpect {
+			status { isCreated() }
+		}
 	}
 
 	@Test
@@ -146,10 +186,11 @@ class CopyFlowTest(
 			status { isForbidden() }
 			jsonPath("$.code") { value("BOOK_NOT_EDITABLE") }
 		}
-		editBook(agata, typedIn, """{"title": "My notes", "authors": "Agata", "publisher": "Home"}""").andExpect {
+		editBook(agata, typedIn, """{"title": "My notes", "authors": "Agata", "publisher": "Home", "description": "Ideas"}""").andExpect {
 			status { isOk() }
 			jsonPath("$.book.title") { value("My notes") }
 			jsonPath("$.book.publisher") { value("Home") }
+			jsonPath("$.book.description") { value("Ideas") }
 		}
 	}
 
@@ -187,7 +228,7 @@ class CopyFlowTest(
 	private fun registerAndLogIn(name: String, email: String): String {
 		mockMvc.post("/auth/register") {
 			contentType = MediaType.APPLICATION_JSON
-			content = """{"name": "$name", "email": "$email", "password": "secret-password"}"""
+			content = """{"name": "$name", "username": "${email.substringBefore('@')}", "email": "$email", "password": "secret-password"}"""
 		}.andExpect { status { isCreated() } }
 		val body = mockMvc.post("/auth/login") {
 			contentType = MediaType.APPLICATION_JSON

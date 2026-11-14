@@ -448,6 +448,13 @@
     <string name="username_label">Username</string>
     <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
     <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>
+    <string name="already_owned_title">You already have this book</string>
+    <string name="already_owned_text">One copy of it is already in My books. Add another one?</string>
+    <string name="add_another_action">Add another</string>
+    <string name="book_description_label">Description (optional)</string>
+    <string name="error_username_taken">This username is taken. Try another one.</string>
+    <string name="error_email_taken_by_someone">Someone else already uses this email.</string>
+    <string name="error_profile_invalid">The server didn\'t accept these details. Check the form and try again.</string>
     <string name="error_email_invalid">Enter a valid email address</string>
 
     <!-- Export data -->

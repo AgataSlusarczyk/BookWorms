@@ -14,6 +14,8 @@ class User(
 	var name: String,
 	var email: String,
 	var passwordHash: String,
+	// Always in lower case.
+	var username: String,
 ) {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
