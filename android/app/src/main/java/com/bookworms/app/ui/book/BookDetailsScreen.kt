@@ -1,6 +1,5 @@
 package com.bookworms.app.ui.book
 
-import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,12 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
@@ -80,9 +80,6 @@ fun BookDetailsScreen(
     onReadingStatusChange: (ReadingStatus) -> Unit,
     // stars = 1–5, or null when the user takes the rating back.
     onRatingChange: (stars: Int?) -> Unit,
-    // Owners the user already asked for this book, and owners whose copy the user waits for.
-    requestedFrom: List<String>,
-    queuedFor: List<String>,
     onSendRequest: (BookCopy) -> Unit,
     onCancelRequest: (BookCopy) -> Unit,
     onJoinQueue: (BookCopy) -> Unit,
@@ -99,18 +96,18 @@ fun BookDetailsScreen(
     // Someone browsing without an account: they only read public comments.
     isGuest: Boolean = false,
     onLoginClick: () -> Unit = {},
+    // The copy whose button was just tapped, while the server answers. Its button is grayed out.
+    busyCopyId: String? = null,
 ) {
-    val context = LocalContext.current
-
-    // Which copy button was tapped, so the right question shows up. Kept as the owner's name,
+    // Which copy button was tapped, so the right question shows up. Kept as the copy's id,
     // so it survives turning the phone.
     var copyAction by rememberSaveable { mutableStateOf<CopyAction?>(null) }
-    var copyOwner by rememberSaveable { mutableStateOf("") }
+    var copyId by rememberSaveable { mutableStateOf("") }
     var showListsDialog by rememberSaveable { mutableStateOf(false) }
     // TODO: the lists this book is on, from the server.
     var checkedLists by rememberSaveable(book.isbn) { mutableStateOf(listOf<String>()) }
 
-    val dialogCopy = book.copies.find { it.ownerName == copyOwner }
+    val dialogCopy = book.copies.find { it.id == copyId }
     val action = copyAction
     if (action != null && dialogCopy != null) {
         CopyActionDialog(
@@ -119,10 +116,7 @@ fun BookDetailsScreen(
             bookTitle = book.title,
             onConfirm = {
                 when (action) {
-                    CopyAction.ASK -> {
-                        onSendRequest(dialogCopy)
-                        Toast.makeText(context, context.getString(R.string.request_sent_to, dialogCopy.ownerName), Toast.LENGTH_SHORT).show()
-                    }
+                    CopyAction.ASK -> onSendRequest(dialogCopy)
                     CopyAction.CANCEL_REQUEST -> onCancelRequest(dialogCopy)
                     CopyAction.JOIN_QUEUE -> onJoinQueue(dialogCopy)
                     CopyAction.LEAVE_QUEUE -> onLeaveQueue(dialogCopy)
@@ -198,16 +192,15 @@ fun BookDetailsScreen(
 
             CopiesSection(
                 book = book,
-                requestedFrom = requestedFrom,
-                queuedFor = queuedFor,
+                busyCopyId = busyCopyId,
                 onCopyButtonClick = { copy ->
                     // The same button asks or cancels, depending on what the user already did.
-                    copyOwner = copy.ownerName
-                    copyAction = when {
-                        copy.status is CopyStatus.Available ->
-                            if (copy.ownerName in requestedFrom) CopyAction.CANCEL_REQUEST else CopyAction.ASK
-                        copy.ownerName in queuedFor -> CopyAction.LEAVE_QUEUE
-                        else -> CopyAction.JOIN_QUEUE
+                    copyId = copy.id
+                    copyAction = when (val status = copy.status) {
+                        is CopyStatus.Available ->
+                            if (copy.myRequestId != null) CopyAction.CANCEL_REQUEST else CopyAction.ASK
+                        else ->
+                            if (status.queue()?.position != null) CopyAction.LEAVE_QUEUE else CopyAction.JOIN_QUEUE
                     }
                 },
             )
@@ -496,8 +489,7 @@ private fun ReadingStatus.labelRes(): Int = when (this) {
 @Composable
 private fun CopiesSection(
     book: BookDetails,
-    requestedFrom: List<String>,
-    queuedFor: List<String>,
+    busyCopyId: String?,
     onCopyButtonClick: (BookCopy) -> Unit,
 ) {
     Text(stringResource(R.string.who_has_it), style = MaterialTheme.typography.titleMedium)
@@ -564,8 +556,7 @@ private fun CopiesSection(
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     CopyRow(
                         copy = copy,
-                        isRequested = copy.ownerName in requestedFrom,
-                        isQueued = copy.ownerName in queuedFor,
+                        isBusy = copy.id == busyCopyId,
                         onButtonClick = { onCopyButtonClick(copy) },
                     )
                 }
@@ -576,11 +567,11 @@ private fun CopiesSection(
 
 // One copy: who owns it, a colored line with its status, and a small button on the right.
 // After the user asks or joins the queue, the button shows that, and tapping it again undoes it.
+// isBusy = the server is answering the last tap, so the button waits.
 @Composable
 private fun CopyRow(
     copy: BookCopy,
-    isRequested: Boolean,
-    isQueued: Boolean,
+    isBusy: Boolean,
     onButtonClick: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
@@ -591,9 +582,12 @@ private fun CopyRow(
             // e.g. "● Available · added 12.09" in green or "● Borrowed · due back 20.11" in blue.
             val (color, text) = when (val status = copy.status) {
                 is CopyStatus.Available -> AvailableGreen to
-                    "${stringResource(R.string.copy_available)} · ${stringResource(R.string.copy_added_on, status.addedOn)}"
+                    "${stringResource(R.string.copy_available)} · ${stringResource(R.string.copy_added_on, status.addedOn.short())}"
                 is CopyStatus.Borrowed -> MaterialTheme.colorScheme.primary to
-                    "${stringResource(R.string.copy_borrowed)} · ${stringResource(R.string.copy_return_by, status.returnBy)}"
+                    "${stringResource(if (status.byMe) R.string.copy_borrowed_by_you else R.string.copy_borrowed)} · " +
+                    stringResource(R.string.copy_return_by, status.returnBy.short())
+                is CopyStatus.NotLending -> MaterialTheme.colorScheme.onSurfaceVariant to
+                    stringResource(R.string.copy_not_lending)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusDot(color)
@@ -601,12 +595,17 @@ private fun CopyRow(
                 Text(text, style = MaterialTheme.typography.bodySmall, color = color)
             }
         }
+        val status = copy.status
+        val queue = status.queue()
+        // The user has it themselves – nothing to ask for or wait for.
+        if (status is CopyStatus.Borrowed && status.byMe) return@Row
         Spacer(Modifier.width(8.dp))
-        when (val status = copy.status) {
-            is CopyStatus.Available -> if (isRequested) {
+        when {
+            status is CopyStatus.Available -> if (copy.myRequestId != null) {
                 // Gray – nothing to do but wait for the owner.
                 OutlinedButton(
                     onClick = onButtonClick,
+                    enabled = !isBusy,
                     shape = FieldShape,
                     contentPadding = SmallButtonPadding,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
@@ -616,6 +615,7 @@ private fun CopyRow(
             } else {
                 Button(
                     onClick = onButtonClick,
+                    enabled = !isBusy,
                     shape = FieldShape,
                     contentPadding = SmallButtonPadding,
                 ) {
@@ -623,20 +623,38 @@ private fun CopyRow(
                 }
             }
 
-            is CopyStatus.Borrowed -> OutlinedButton(
+            queue != null -> OutlinedButton(
                 onClick = onButtonClick,
+                enabled = !isBusy,
                 shape = FieldShape,
                 contentPadding = SmallButtonPadding,
                 // Blue once the user is in the queue.
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (isQueued) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    contentColor = if (queue.position != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 ),
             ) {
-                Text(stringResource(if (isQueued) R.string.in_queue else R.string.join_queue_short, status.queuePosition))
+                Text(
+                    stringResource(
+                        if (queue.position != null) R.string.in_queue else R.string.join_queue_short,
+                        queue.placeForUser,
+                    ),
+                )
             }
         }
     }
 }
+
+// The queue of a copy that can't be borrowed right now, or null for an available one.
+private fun CopyStatus.queue(): Queue? = when (this) {
+    is CopyStatus.Available -> null
+    is CopyStatus.Borrowed -> queue
+    is CopyStatus.NotLending -> queue
+}
+
+private val DayMonth = DateTimeFormatter.ofPattern("dd.MM")
+
+// e.g. "20.11".
+private fun LocalDate.short(): String = format(DayMonth)
 
 // What tapping a copy's button asks about.
 private enum class CopyAction { ASK, CANCEL_REQUEST, JOIN_QUEUE, LEAVE_QUEUE }
@@ -650,7 +668,8 @@ private fun CopyActionDialog(
     onDismiss: () -> Unit,
 ) {
     val owner = copy.ownerName
-    val borrowed = copy.status as? CopyStatus.Borrowed
+    val status = copy.status
+    val place = status.queue()?.placeForUser ?: 1
     val title = when (action) {
         CopyAction.ASK -> stringResource(R.string.ask_for_book_title, owner, bookTitle)
         CopyAction.CANCEL_REQUEST -> stringResource(R.string.cancel_request_title)
@@ -660,12 +679,11 @@ private fun CopyActionDialog(
     val text = when (action) {
         CopyAction.ASK -> stringResource(R.string.ask_for_book_text, owner, LoanDays)
         CopyAction.CANCEL_REQUEST -> stringResource(R.string.cancel_request_text, owner)
-        CopyAction.JOIN_QUEUE -> stringResource(
-            R.string.join_queue_text,
-            owner,
-            borrowed?.returnBy.orEmpty(),
-            borrowed?.queuePosition ?: 1,
-        )
+        CopyAction.JOIN_QUEUE -> if (status is CopyStatus.Borrowed) {
+            stringResource(R.string.join_queue_text, owner, status.returnBy.short(), place)
+        } else {
+            stringResource(R.string.join_queue_not_lending_text, owner, place)
+        }
         CopyAction.LEAVE_QUEUE -> stringResource(R.string.leave_queue_text)
     }
     val confirm = when (action) {
@@ -808,8 +826,6 @@ private fun BookDetailsScreenPreview() {
             onFavoriteClick = {},
             onReadingStatusChange = {},
             onRatingChange = {},
-            requestedFrom = emptyList(),
-            queuedFor = listOf("Marek W."),
             onSendRequest = {},
             onCancelRequest = {},
             onJoinQueue = {},

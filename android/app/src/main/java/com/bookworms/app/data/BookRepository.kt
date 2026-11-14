@@ -14,6 +14,8 @@ import com.bookworms.app.ui.book.BookDetails
 import com.bookworms.app.ui.book.BookRatings
 import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.library.BookForm
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.time.Duration
 import java.time.Instant
 
@@ -21,6 +23,7 @@ import java.time.Instant
 class BookRepository(
     private val api: BooksApi = ApiClient.books,
     private val copies: CopiesApi = ApiClient.copies,
+    private val loans: LoansRepository = LoansRepository(),
 ) {
 
     // Books whose title, author or ISBN contains the query. An empty query gives the newest books.
@@ -31,14 +34,21 @@ class BookRepository(
     suspend fun library(limit: Int): List<Book> =
         api.library(limit).mapNotNull { it.toBook() }
 
-    // The book, its ratings and how many copies the user has, from the server.
-    // TODO: other people's copies and group discussions – the server doesn't send them yet, so they're empty.
-    suspend fun details(isbn: String): BookDetails {
+    // The book, its ratings, how many copies the user has and who in their groups has it, from the server.
+    // TODO: group discussions – the server doesn't send them yet, so they're empty.
+    suspend fun details(isbn: String): BookDetails = coroutineScope {
         val book = api.getBookByIsbn(isbn).toBookDetails(isbn)
-        // Someone without an account has no books of their own.
-        val own = if (Session.token == null) 0 else copies.myCopies().count { it.book.id == book.id }
-        return book.withReviews(api.getReviews(book.id).toBookReviews()).copy(ownCopies = own)
+        // Asked for at the same time, so the screen waits for the slowest one, not for all of them in a row.
+        val reviews = async { api.getReviews(book.id).toBookReviews() }
+        // Someone without an account has no books of their own and isn't in any group.
+        val loggedIn = Session.token != null
+        val own = async { if (loggedIn) copies.myCopies().count { it.book.id == book.id } else 0 }
+        val others = async { if (loggedIn) loans.bookCopies(book.id) else null }
+        book.withReviews(reviews.await()).copy(ownCopies = own.await()).withCopies(others.await())
     }
+
+    // Only "Who has it" again, after the user asked for a copy or joined a queue.
+    suspend fun copies(bookId: String): BookCopies = loans.bookCopies(bookId)
 
     // stars = 1–5, or null to take the rating back. Gives the ratings after the change.
     suspend fun rate(bookId: String, stars: Int?): BookReviews {
@@ -76,6 +86,9 @@ private fun BookSummaryDto.toBook(): Book? = isbn?.let {
 data class BookReviews(val ratings: BookRatings, val comments: List<BookComment>)
 
 fun BookDetails.withReviews(reviews: BookReviews) = copy(ratings = reviews.ratings, publicComments = reviews.comments)
+
+fun BookDetails.withCopies(others: BookCopies?) =
+    if (others == null) this else copy(groups = others.groups, copies = others.copies)
 
 private fun BookReviewsDto.toBookReviews() = BookReviews(
     ratings = BookRatings(average = average, count = count, mine = myRating),

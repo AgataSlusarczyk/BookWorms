@@ -1,6 +1,8 @@
 package com.bookworms.app.data.network
 
 import kotlinx.serialization.Serializable
+import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -35,7 +37,63 @@ interface LoansApi {
 
     @POST("requests/{id}/reject")
     suspend fun reject(@Path("id") requestId: String): RequestDto
+
+    // "Who has it" on Book details: other people's copies of this book in the user's groups.
+    @GET("books/{bookId}/copies")
+    suspend fun bookCopies(@Path("bookId") bookId: String): BookCopiesDto
+
+    // Asks the owner to lend the copy. Answers 409 when it can't be lent now or the user already asked.
+    // The same key sent twice (a tap repeated on slow internet) gives back the first request, not a second one.
+    @POST("copies/{copyId}/requests")
+    suspend fun sendRequest(@Path("copyId") copyId: String, @Body request: SendRequestDto): RequestDto
+
+    // The user takes their request back. Answers 409 when the owner already answered.
+    @POST("requests/{id}/cancel")
+    suspend fun cancelRequest(@Path("id") requestId: String): RequestDto
+
+    // Waits for a copy that's lent out or not lent right now. Answers 409 when it can be borrowed right away.
+    @POST("copies/{copyId}/queue")
+    suspend fun joinQueue(@Path("copyId") copyId: String)
+
+    @DELETE("copies/{copyId}/queue")
+    suspend fun leaveQueue(@Path("copyId") copyId: String)
 }
+
+@Serializable
+data class SendRequestDto(val idempotencyKey: String)
+
+@Serializable
+data class BookCopiesDto(
+    // All the user's groups, the ones they joined first at the top.
+    val groups: List<GroupNameDto>,
+    val copies: List<OthersCopyDto>,
+)
+
+@Serializable
+data class GroupNameDto(
+    val id: String,
+    val name: String,
+)
+
+@Serializable
+data class OthersCopyDto(
+    val copyId: String,
+    val owner: PersonDto,
+    // Ids of the user's groups that see this copy.
+    val groupIds: List<String>,
+    // AVAILABLE or UNAVAILABLE (the owner doesn't lend it now). A lent-out copy is AVAILABLE – see borrowedUntil.
+    val availability: String,
+    val addedAt: String,
+    // When it's due back, or null when nobody has it now.
+    val borrowedUntil: String? = null,
+    val borrowedByMe: Boolean = false,
+    // The user's request waiting for an answer, or null.
+    val myRequestId: String? = null,
+    // The user's place in the queue (1 = next), or null when they don't wait.
+    val myQueuePosition: Int? = null,
+    // How many people wait, the user included.
+    val queueLength: Int = 0,
+)
 
 // One loan, for the Borrowing and Lent tabs.
 @Serializable

@@ -1,5 +1,7 @@
 package com.bookworms.app.ui.book
 
+import java.time.LocalDate
+
 // Everything the book details screen shows about one book.
 data class BookDetails(
     // The book's id on the server – ratings are kept under it.
@@ -15,8 +17,10 @@ data class BookDetails(
     val description: String?,
     // Full address of the cover image, or null when there's none.
     val coverUrl: String? = null,
-    // Copies that people in the user's groups own.
+    // Copies that other people in the user's groups own.
     val copies: List<BookCopy>,
+    // The user's groups, the ones they joined first at the top. "Who has it" shows each, even without copies.
+    val groups: List<String> = emptyList(),
     // How many copies the user has themselves (usually 0 or 1).
     val ownCopies: Int = 0,
     // Everyone sees these, even people without an account. For now these are the ratings someone wrote a few words to.
@@ -36,18 +40,31 @@ data class BookRatings(
 )
 
 data class BookCopy(
+    // The copy's id on the server – requests and the queue are kept under it.
+    val id: String,
     val ownerName: String,
     val status: CopyStatus,
     // The user's groups the owner shares this copy with. Someone in two groups shows up in both.
     val groups: List<String>,
+    // The user's request waiting for the owner's answer, or null. Its id takes it back.
+    val myRequestId: String? = null,
 )
 
 sealed interface CopyStatus {
     // On the owner's shelf, so it can be borrowed right away.
-    data class Available(val addedOn: String) : CopyStatus
+    data class Available(val addedOn: LocalDate) : CopyStatus
 
-    // Someone has it now. queuePosition = the user's place in the queue after joining it.
-    data class Borrowed(val returnBy: String, val queuePosition: Int) : CopyStatus
+    // Someone has it now – byMe when it's the user.
+    data class Borrowed(val returnBy: LocalDate, val byMe: Boolean, val queue: Queue) : CopyStatus
+
+    // The owner doesn't lend it right now (e.g. reads it themselves). People can still wait for it.
+    data class NotLending(val queue: Queue) : CopyStatus
+}
+
+// The line of people waiting for a copy. position = the user's place, or null when they don't wait.
+data class Queue(val position: Int?, val length: Int) {
+    // The place the user has, or would get after joining.
+    val placeForUser: Int get() = position ?: (length + 1)
 }
 
 data class BookComment(
@@ -69,10 +86,9 @@ data class GroupDiscussion(
     val comments: List<BookComment>,
 )
 
-// Each of the user's groups with the copies in it, in the same order as the discussions.
-// A group where nobody has the book gets an empty list.
+// Each of the user's groups with the copies in it. A group where nobody has the book gets an empty list.
 fun BookDetails.copiesByGroup(): List<Pair<String, List<BookCopy>>> =
-    groupDiscussions.map { group -> group.groupName to copies.filter { group.groupName in it.groups } }
+    groups.map { group -> group to copies.filter { group in it.groups } }
 
 // Names of the groups where at least one copy can be borrowed right now.
 fun BookDetails.groupsWithAvailableCopy(): List<String> =
@@ -86,7 +102,7 @@ fun BookDetails.findGroupComment(id: String): BookComment? =
 enum class ReadingStatus { TO_READ, IN_PROGRESS, FINISHED }
 
 // Only for the preview in Android Studio.
-// TODO: copies and group discussions from the server – until then Book details shows them empty.
+// TODO: group discussions from the server – until then Book details shows them empty.
 val sampleBookDetails = BookDetails(
     id = "sample",
     isbn = "978-83-08-04815-3",
@@ -99,9 +115,15 @@ val sampleBookDetails = BookDetails(
         "w sposób niemożliwy do rozszyfrowania.",
     copies = listOf(
         // Anna is only in Czytelnia 23, so in Rodzina the book is borrowed and can't be had right now.
-        BookCopy("Anna K.", CopyStatus.Available(addedOn = "12.09"), groups = listOf("Czytelnia 23")),
-        BookCopy("Marek W.", CopyStatus.Borrowed(returnBy = "20.11", queuePosition = 2), groups = listOf("Czytelnia 23", "Rodzina")),
+        BookCopy("c1", "Anna K.", CopyStatus.Available(addedOn = LocalDate.of(2026, 9, 12)), groups = listOf("Czytelnia 23")),
+        BookCopy(
+            "c2",
+            "Marek W.",
+            CopyStatus.Borrowed(returnBy = LocalDate.of(2026, 11, 20), byMe = false, queue = Queue(position = null, length = 1)),
+            groups = listOf("Czytelnia 23", "Rodzina"),
+        ),
     ),
+    groups = listOf("Czytelnia 23", "Rodzina"),
     publicComments = listOf(
         BookComment("p1", "Marek W.", "Pierwsze 50 stron się wlecze, potem nie da się odłożyć.", daysAgo = 3, rating = 4),
         BookComment("p2", "Anna K.", "Lepsze niż film. Zakończenie zostaje w głowie na długo.", daysAgo = 8, rating = 5),

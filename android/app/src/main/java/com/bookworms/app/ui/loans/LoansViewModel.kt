@@ -48,9 +48,15 @@ internal class LoansViewModel(private val repository: LoansRepository = LoansRep
 
     fun reject(request: BookRequest) = save { repository.reject(request.id) }
 
+    // The user takes back their own request. If the owner answered in the meantime, it's too late.
+    fun cancel(request: BookRequest) = save(tooLate = R.string.error_request_already_answered) {
+        repository.cancelRequest(request.id)
+    }
+
     // After a change all lists are asked for again: accepting moves a book to Lent and may change
     // whether the other requests for it can be accepted.
-    private fun save(block: suspend () -> Unit) {
+    // tooLate = what to say when the request was answered or changed in the meantime.
+    private fun save(tooLate: Int = R.string.error_request_changed, block: suspend () -> Unit) {
         if (_saving.value) return
         _saving.value = true
         viewModelScope.launch {
@@ -60,7 +66,7 @@ internal class LoansViewModel(private val repository: LoansRepository = LoansRep
                 throw e
             } catch (e: CannotAnswerException) {
                 // Answered on another phone, cancelled by the person who asked, or the book is lent out already.
-                _errors.send(R.string.error_request_changed)
+                _errors.send(tooLate)
             } catch (e: Exception) {
                 Log.w("BookWorms", "Saving a change in Loans failed", e)
                 _errors.send(R.string.error_save_failed)

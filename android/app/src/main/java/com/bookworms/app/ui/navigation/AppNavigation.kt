@@ -37,6 +37,7 @@ import com.bookworms.app.ui.auth.RegisterViewModel
 import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.BookDetailsViewModel
+import com.bookworms.app.ui.book.CopyMessage
 import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.shareBook
@@ -80,11 +81,6 @@ import com.bookworms.app.ui.lists.customLists
 import com.bookworms.app.ui.lists.listBooks
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.loans.LoansViewModel
-import com.bookworms.app.ui.loans.QueueSpot
-import com.bookworms.app.ui.loans.cancelRequest
-import com.bookworms.app.ui.loans.hasSentRequest
-import com.bookworms.app.ui.loans.queueSpots
-import com.bookworms.app.ui.loans.sendRequest
 import com.bookworms.app.ui.notifications.NotificationsScreen
 import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileError
@@ -359,6 +355,7 @@ fun AppNavigation() {
                 onMarkReturned = viewModel::markReturned,
                 onAccept = viewModel::accept,
                 onReject = viewModel::reject,
+                onCancelRequest = viewModel::cancel,
                 onNavigate = navigateBottomBar,
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
             )
@@ -779,10 +776,12 @@ fun AppNavigation() {
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn").orEmpty()
             val isGuest = entry.arguments?.getBoolean("guest") ?: false
-            // Loads the book and its ratings from the server. Copies and group discussions aren't there yet.
+            // Loads the book, its ratings and who has it from the server. Group discussions aren't there yet.
             val viewModel = viewModel { BookDetailsViewModel(isbn) }
             val state by viewModel.book.collectAsState()
             val ratingFailed by viewModel.ratingFailed.collectAsState()
+            val busyCopy by viewModel.busyCopy.collectAsState()
+            val copyMessage by viewModel.copyMessage.collectAsState()
 
             // Temporary state – moves to a ViewModel when favorites and reading status are on the server.
             var isFavorite by rememberSaveable { mutableStateOf(false) }
@@ -795,6 +794,18 @@ fun AppNavigation() {
                     Toast.makeText(context, R.string.rating_failed, Toast.LENGTH_LONG).show()
                     viewModel.ratingErrorShown()
                 }
+            }
+
+            // Said once, after the server answered a tap on a copy's button.
+            LaunchedEffect(copyMessage) {
+                val text = when (val message = copyMessage) {
+                    null -> return@LaunchedEffect
+                    is CopyMessage.RequestSent -> context.getString(R.string.request_sent_to, message.ownerName)
+                    CopyMessage.CopyChanged -> context.getString(R.string.copy_changed)
+                    CopyMessage.Failed -> context.getString(R.string.copy_action_failed)
+                }
+                Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+                viewModel.copyMessageShown()
             }
 
             LoadStateScreen(
@@ -810,14 +821,11 @@ fun AppNavigation() {
                     onFavoriteClick = { isFavorite = !isFavorite },
                     onReadingStatusChange = { readingStatus = it },
                     onRatingChange = viewModel::rate,
-                    // TODO: send requests and queue changes to the server.
-                    // For now they go to the shared sample lists, so a request shows up in Loans too.
-                    requestedFrom = book.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
-                    queuedFor = queueSpots.filter { it.title == book.title }.map { it.owner },
-                    onSendRequest = { copy -> sendRequest(book.title, copy.ownerName) },
-                    onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
-                    onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
-                    onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
+                    onSendRequest = viewModel::sendRequest,
+                    onCancelRequest = viewModel::cancelRequest,
+                    onJoinQueue = viewModel::joinQueue,
+                    onLeaveQueue = viewModel::leaveQueue,
+                    busyCopyId = busyCopy,
                     customLists = customLists,
                     onShareClick = { shareBook(context, book) },
                     // Opens Add book with this book's details already filled in.
