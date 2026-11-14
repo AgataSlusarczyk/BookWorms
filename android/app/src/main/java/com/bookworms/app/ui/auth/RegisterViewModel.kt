@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.bookworms.app.data.AuthRepository
 import com.bookworms.app.data.EmailTakenException
 import com.bookworms.app.data.InvalidSignUpDataException
+import com.bookworms.app.data.UsernameTakenException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 
 data class RegisterUiState(
     val name: String = "",
+    val username: String = "",
     val email: String = "",
     val password: String = "",
     val repeatPassword: String = "",
@@ -26,12 +28,14 @@ data class RegisterUiState(
     val registered: Boolean = false,
 ) {
     // The field errors show up only after something is typed, so an empty form isn't all red.
+    val usernameInvalid: Boolean get() = username.isNotEmpty() && !isValidUsername(username)
     val emailInvalid: Boolean get() = email.isNotEmpty() && !isValidEmail(email)
     val passwordTooWeak: Boolean get() = password.isNotEmpty() && !isStrongPassword(password)
     val passwordsDontMatch: Boolean get() = repeatPassword.isNotEmpty() && repeatPassword != password
 
     val canCreateAccount: Boolean
         get() = name.isNotBlank() &&
+            isValidUsername(username) &&
             isValidEmail(email) &&
             isStrongPassword(password) &&
             repeatPassword == password &&
@@ -41,6 +45,7 @@ data class RegisterUiState(
 
 enum class RegisterError {
     EmailTaken,
+    UsernameTaken,
     // The server didn't accept a field the app let through, e.g. a very long name.
     InvalidData,
     ServerUnreachable,
@@ -53,6 +58,10 @@ class RegisterViewModel(private val repository: AuthRepository = AuthRepository(
 
     // Changing the form hides the old error from the server.
     fun onNameChange(name: String) = _state.update { it.copy(name = name, error = null) }
+
+    // People often type "@anna" – the "@" is already shown in front, so we drop it.
+    fun onUsernameChange(username: String) =
+        _state.update { it.copy(username = username.removePrefix("@"), error = null) }
 
     fun onEmailChange(email: String) = _state.update { it.copy(email = email, error = null) }
 
@@ -69,12 +78,14 @@ class RegisterViewModel(private val repository: AuthRepository = AuthRepository(
         _state.update { it.copy(creatingAccount = true, error = null) }
         viewModelScope.launch {
             val error = try {
-                repository.register(current.name, current.email, current.password)
+                repository.register(current.name, current.username, current.email, current.password)
                 null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: EmailTakenException) {
                 RegisterError.EmailTaken
+            } catch (e: UsernameTakenException) {
+                RegisterError.UsernameTaken
             } catch (e: InvalidSignUpDataException) {
                 RegisterError.InvalidData
             } catch (e: Exception) {

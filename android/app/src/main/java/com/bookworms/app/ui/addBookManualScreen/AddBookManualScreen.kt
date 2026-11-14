@@ -45,6 +45,7 @@ internal fun AddBookManualScreen(
     var isbn by rememberSaveable(editing, prefill) { mutableStateOf(start.isbn) }
     var publisher by rememberSaveable(editing, prefill) { mutableStateOf(start.publisher) }
     var year by rememberSaveable(editing, prefill) { mutableStateOf(start.year?.toString().orEmpty()) }
+    var description by rememberSaveable(editing, prefill) { mutableStateOf(start.description) }
     // The server takes old 10-digit ISBNs and new 13-digit ones.
     val isbnValid = isbn.isEmpty() || isbn.length == 10 || isbn.length == 13
 
@@ -127,6 +128,13 @@ internal fun AddBookManualScreen(
                     modifier = Modifier.weight(1f),
                 )
             }
+            BookInputField(
+                label = stringResource(R.string.book_description_label),
+                value = description,
+                onValueChange = { description = it },
+                // A few lines of text – the field grows as you type.
+                singleLine = false,
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -139,6 +147,7 @@ internal fun AddBookManualScreen(
                             isbn = isbn,
                             publisher = publisher.trim(),
                             year = year.toIntOrNull(),
+                            description = description.trim(),
                         ),
                     )
                 },
@@ -200,13 +209,16 @@ private fun BookInputField(
     enabled: Boolean = true,
     // Shown in red under the field. null = the field is fine.
     error: String? = null,
+    singleLine: Boolean = true,
 ) {
     Box(modifier = modifier) {
         LabeledField(label = label) {
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                singleLine = true,
+                singleLine = singleLine,
+                // A longer text starts 4 lines tall.
+                minLines = if (singleLine) 1 else 4,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 trailingIcon = trailingIcon,
                 enabled = enabled,

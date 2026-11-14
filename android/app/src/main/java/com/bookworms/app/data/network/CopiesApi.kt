@@ -59,6 +59,7 @@ data class CopyBookDto(
     val authors: String? = null,
     val publisher: String? = null,
     val publishedYear: Int? = null,
+    val description: String? = null,
     // A path on our server, e.g. "/covers/9788308075197.jpg".
     val coverUrl: String? = null,
 )
@@ -70,6 +71,9 @@ data class AddCopyRequestDto(
     val authors: String,
     val publisher: String? = null,
     val publishedYear: Int? = null,
+    val description: String? = null,
+    // true = the user already has this book and wants another copy anyway.
+    val addAnother: Boolean = false,
 )
 
 @Serializable
@@ -78,6 +82,7 @@ data class EditBookRequestDto(
     val authors: String,
     val publisher: String? = null,
     val publishedYear: Int? = null,
+    val description: String? = null,
 )
 
 @Serializable

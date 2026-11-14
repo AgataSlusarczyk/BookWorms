@@ -6,6 +6,7 @@ import com.bookworms.server.auth.dto.RegisterRequest
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.users.User
 import com.bookworms.server.users.UserRepository
+import com.bookworms.server.users.UsernameAlreadyTakenException
 import com.bookworms.server.users.dto.toResponse
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -25,8 +26,13 @@ class AuthService(
 		if (userRepository.existsByEmail(email)) {
 			throw EmailAlreadyTakenException()
 		}
+		val username = request.username.lowercase()
+		if (userRepository.existsByUsername(username)) {
+			throw UsernameAlreadyTakenException()
+		}
 		val user = User(
 			name = request.name.trim(),
+			username = username,
 			email = email,
 			passwordHash = passwordEncoder.encode(request.password)!!,
 		)

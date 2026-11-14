@@ -1,13 +1,18 @@
 package com.bookworms.server.auth.dto
 
+import com.bookworms.server.users.USERNAME_PATTERN
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
 data class RegisterRequest(
 	@NotBlank
 	@Size(max = 100)
 	val name: String,
+
+	@Pattern(regexp = USERNAME_PATTERN)
+	val username: String,
 
 	@NotBlank
 	@Email

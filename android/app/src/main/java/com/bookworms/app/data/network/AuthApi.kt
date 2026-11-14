@@ -7,7 +7,7 @@ import retrofit2.http.POST
 // Signing up and logging in on our server.
 interface AuthApi {
 
-    // Answers 409 (code EMAIL_TAKEN) when someone already signed up with this email.
+    // Answers 409 with code EMAIL_TAKEN or USERNAME_TAKEN when someone already has this email or username.
     // Gives no token – log in after it.
     @POST("auth/register")
     suspend fun register(@Body request: RegisterRequestDto): UserDto
@@ -20,6 +20,7 @@ interface AuthApi {
 @Serializable
 data class RegisterRequestDto(
     val name: String,
+    val username: String,
     val email: String,
     val password: String,
 )
@@ -41,5 +42,6 @@ data class LoginResponseDto(
 data class UserDto(
     val id: String,
     val name: String,
+    val username: String,
     val email: String,
 )

@@ -35,6 +35,8 @@ import com.bookworms.app.ui.theme.CardBorder
 fun ProfileScreen(
     userName: String,
     userEmail: String,
+    // null = not known yet, so no number is shown.
+    booksCount: Int? = null,
     onNavigate: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMyBooks: () -> Unit = {},
@@ -80,7 +82,7 @@ fun ProfileScreen(
                 ProfileMenuItem(
                     iconResId = R.drawable.ic_book,
                     title = stringResource(R.string.menu_my_books),
-                    trailingText = "24",
+                    trailingText = booksCount?.toString(),
                     onClick = onNavigateToMyBooks,
                 )
             }
@@ -200,6 +202,6 @@ private fun ExportDataItem() {
 @Composable
 private fun ProfileScreenPreview() {
     BookWormsTheme {
-        ProfileScreen(userName = "Anna Kowalska", userEmail = "anna.kowalska@mail.com")
+        ProfileScreen(userName = "Anna Kowalska", userEmail = "anna.kowalska@mail.com", booksCount = 24)
     }
 }

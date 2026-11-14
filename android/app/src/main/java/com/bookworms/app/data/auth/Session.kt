@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class CurrentUser(
     val id: String,
     val name: String,
+    val username: String,
     val email: String,
 )
 
@@ -37,21 +38,29 @@ object Session {
         val savedToken = prefs.getString(KeyToken, null)
         val id = prefs.getString(KeyUserId, null)
         val name = prefs.getString(KeyUserName, null)
+        val username = prefs.getString(KeyUsername, null)
         val email = prefs.getString(KeyUserEmail, null)
-        if (savedToken != null && id != null && name != null && email != null) {
+        // A login saved by an older app has no username – the user just logs in again.
+        if (savedToken != null && id != null && name != null && username != null && email != null) {
             token = savedToken
-            _user.value = CurrentUser(id, name, email)
+            _user.value = CurrentUser(id, name, username, email)
         }
     }
 
     fun start(token: String, user: CurrentUser) {
+        prefs.edit { putString(KeyToken, token) }
+        this.token = token
+        update(user)
+    }
+
+    // The user changed their profile. The token stays the same.
+    fun update(user: CurrentUser) {
         prefs.edit {
-            putString(KeyToken, token)
             putString(KeyUserId, user.id)
             putString(KeyUserName, user.name)
+            putString(KeyUsername, user.username)
             putString(KeyUserEmail, user.email)
         }
-        this.token = token
         _user.value = user
     }
 
@@ -65,5 +74,6 @@ object Session {
     private const val KeyToken = "token"
     private const val KeyUserId = "user_id"
     private const val KeyUserName = "user_name"
+    private const val KeyUsername = "username"
     private const val KeyUserEmail = "user_email"
 }

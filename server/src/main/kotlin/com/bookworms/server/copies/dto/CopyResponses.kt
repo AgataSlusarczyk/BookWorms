@@ -27,6 +27,7 @@ data class CopyBookResponse(
 	val authors: String?,
 	val publisher: String?,
 	val publishedYear: Int?,
+	val description: String?,
 	// A path on this server, e.g. "/covers/9788308075197.jpg", or null when there's no cover.
 	val coverUrl: String?,
 )
@@ -41,6 +42,7 @@ fun BookCopy.toResponse(groupIds: List<UUID>) = CopyResponse(
 		authors = book.authors,
 		publisher = book.publisher,
 		publishedYear = book.publishedYear?.toInt(),
+		description = book.description,
 		coverUrl = book.coverUrl,
 	),
 	canEditBook = book.source == BookSource.MANUAL && book.createdBy == ownerId,

@@ -27,6 +27,7 @@ object ApiClient {
         .build()
 
     val auth: AuthApi = retrofit.create(AuthApi::class.java)
+    val profile: ProfileApi = retrofit.create(ProfileApi::class.java)
     val books: BooksApi = retrofit.create(BooksApi::class.java)
     val copies: CopiesApi = retrofit.create(CopiesApi::class.java)
     val loans: LoansApi = retrofit.create(LoansApi::class.java)

@@ -51,16 +51,19 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 @Composable
 fun RegisterScreen(
     name: String,
+    username: String,
     email: String,
     password: String,
     repeatPassword: String,
     onNameChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onRepeatPasswordChange: (String) -> Unit,
     termsAccepted: Boolean,
     onTermsAcceptedChange: (Boolean) -> Unit,
     // Errors under the fields, null = the field is fine.
+    usernameError: String?,
     emailError: String?,
     passwordError: String?,
     repeatPasswordError: String?,
@@ -107,6 +110,24 @@ fun RegisterScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+
+        LabeledField(label = stringResource(R.string.username_label)) {
+            OutlinedTextField(
+                value = username,
+                onValueChange = onUsernameChange,
+                singleLine = true,
+                shape = FieldShape,
+                colors = authFieldColors(),
+                prefix = { Text("@") },
+                isError = usernameError != null,
+                // The rules in gray, or what's wrong in red.
+                supportingText = { Text(usernameError ?: stringResource(R.string.username_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         LabeledField(label = stringResource(R.string.email_label)) {
             OutlinedTextField(
@@ -251,15 +272,18 @@ private fun RegisterScreenPreview() {
     BookWormsTheme {
         RegisterScreen(
             name = "Anna",
+            username = "anna_k",
             email = "anna.kowalska@mail.com",
             password = "secret-password",
             repeatPassword = "",
             onNameChange = {},
+            onUsernameChange = {},
             onEmailChange = {},
             onPasswordChange = {},
             onRepeatPasswordChange = {},
             termsAccepted = true,
             onTermsAcceptedChange = {},
+            usernameError = null,
             emailError = null,
             passwordError = null,
             repeatPasswordError = null,

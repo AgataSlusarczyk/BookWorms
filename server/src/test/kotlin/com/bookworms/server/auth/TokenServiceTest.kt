@@ -19,7 +19,7 @@ class TokenServiceTest {
 
 	@Test
 	fun `issued token is accepted and contains user id`() {
-		val user = User(name = "Agata", email = "agata@example.com", passwordHash = "hash")
+		val user = User(name = "Agata", email = "agata@example.com", passwordHash = "hash", username = "agata")
 		user.id = UUID.randomUUID()
 
 		val jwt = jwtDecoder.decode(tokenService.createToken(user))
@@ -32,7 +32,7 @@ class TokenServiceTest {
 		val otherProperties = properties.copy(secret = "another-secret-that-is-at-least-32-bytes")
 		val otherConfig = SecurityConfig()
 		val otherTokenService = TokenService(otherConfig.jwtEncoder(otherConfig.jwtSecretKey(otherProperties)), otherProperties)
-		val user = User(name = "Agata", email = "agata@example.com", passwordHash = "hash")
+		val user = User(name = "Agata", email = "agata@example.com", passwordHash = "hash", username = "agata")
 		user.id = UUID.randomUUID()
 
 		assertFailsWith<JwtException> {

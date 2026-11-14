@@ -21,8 +21,11 @@ import com.bookworms.app.R
 
 internal val FieldShape = RoundedCornerShape(8.dp)
 
-// 3–20 letters, digits, dots or underscores, e.g. "ola" or "marek_w".
-internal val UsernamePattern = Regex("[A-Za-z0-9._]{3,20}")
+// 3–20 letters, digits, dots or underscores, e.g. "ola" or "marek_w". The same rule as on the server.
+private val UsernamePattern = Regex("[A-Za-z0-9._]{3,20}")
+
+// Spaces at the ends are easy to type by accident, so they don't count.
+internal fun isValidUsername(username: String) = UsernamePattern.matches(username.trim())
 
 private const val MinPasswordLength = 10
 

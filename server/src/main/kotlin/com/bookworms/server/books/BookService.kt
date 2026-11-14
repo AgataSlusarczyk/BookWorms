@@ -1,6 +1,7 @@
 package com.bookworms.server.books
 
 import com.bookworms.server.common.ApiException
+import com.bookworms.server.copies.toIsbn13
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -27,11 +28,12 @@ class BookService(
 		return bookRepository.search(likePattern(text), isbnDigits, page)
 	}
 
-	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1".
+	// The ISBN may have dashes or spaces, e.g. "978-83-08-04946-1", and an old 10-digit one works too.
 	// Books not in the catalog yet are looked up in Open Library / Google Books and saved.
 	@Transactional
 	fun findByIsbn(isbn: String): Book {
-		val cleanIsbn = isbn.uppercase().filter { it.isDigit() || it == 'X' }
+		// The catalog keeps ISBN-13, so an old ISBN-10 is turned into it first.
+		val cleanIsbn = toIsbn13(isbn) ?: throw BookNotFoundException()
 		bookRepository.findByIsbn(cleanIsbn)?.let { return it }
 
 		val fetched = coverDownloader.fetchBook(cleanIsbn) ?: throw BookNotFoundException()

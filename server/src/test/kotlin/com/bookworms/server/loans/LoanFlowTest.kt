@@ -421,7 +421,7 @@ class LoanFlowTest(
 	private fun registerAndLogIn(name: String, email: String): String {
 		mockMvc.post("/auth/register") {
 			contentType = MediaType.APPLICATION_JSON
-			content = """{"name": "$name", "email": "$email", "password": "secret-password"}"""
+			content = """{"name": "$name", "username": "${email.substringBefore('@')}", "email": "$email", "password": "secret-password"}"""
 		}.andExpect { status { isCreated() } }
 		val body = mockMvc.post("/auth/login") {
 			contentType = MediaType.APPLICATION_JSON

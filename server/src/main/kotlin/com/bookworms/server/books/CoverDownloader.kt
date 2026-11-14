@@ -41,9 +41,21 @@ class CoverDownloader(
 		return coverPath(isbn)
 	}
 
-	// Looks up a book's details by ISBN in Open Library first, then Google Books.
-	fun fetchBook(isbn: String): Book? =
-		openLibraryBook(isbn) ?: googleBooksBook(isbn)
+	// Looks up a book's details by ISBN (ISBN-13). Open Library first (no key needed), then Google Books (only with a key).
+	// When both know the book, Google fills in what Open Library left empty, and its description wins –
+	// Google has descriptions of many more books, also in Polish.
+	fun fetchBook(isbn: String): Book? {
+		val openLibrary = openLibraryBook(isbn)
+		val google = if (properties.googleBooksApiKey.isNotBlank()) googleBooksBook(isbn) else null
+		val book = openLibrary ?: return google
+		if (google != null) {
+			book.description = google.description ?: book.description
+			book.pageCount = book.pageCount ?: google.pageCount
+			book.publisher = book.publisher ?: google.publisher
+			book.publishedYear = book.publishedYear ?: google.publishedYear
+		}
+		return book
+	}
 
 	// Addresses of images to try, the best one first. Each is asked only when the one before had nothing.
 	private fun imageUrls(isbn: String): Sequence<String> = sequence {
@@ -71,43 +83,65 @@ class CoverDownloader(
 	private fun openLibraryBook(isbn: String): Book? {
 		val root = getJson("https://openlibrary.org/api/books?bibkeys=ISBN:$isbn&format=json&jscmd=data") ?: return null
 		val node = root.path("ISBN:$isbn")
-		val title = node.path("title").asString("").trim()
-		val author = node.path("authors").firstOrNull()?.path("name")?.asString("")?.trim().orEmpty()
-		if (title.isEmpty() || author.isEmpty()) return null
+		val title = text(node.path("title"))
+		val authors = node.path("authors").mapNotNull { text(it.path("name")) }.joinToString(", ")
+		// The database needs Open Library's own id of a book that came from there, e.g. "OL7353617M".
+		val openLibraryId = text(node.path("identifiers").path("openlibrary").firstOrNull())
+			?: text(node.path("key"))?.substringAfterLast('/')
+		if (title == null || authors.isEmpty() || openLibraryId == null) return null
 
-		val publisher = node.path("publishers").firstOrNull()?.path("name")?.asString("")?.trim()?.ifEmpty { null }
-		val year = parseYear(node.path("publish_date").asString(""))
 		return Book(
 			source = BookSource.OPEN_LIBRARY,
-			title = title,
-			authors = author,
+			title = title.take(MAX_TITLE),
+			authors = authors.take(MAX_AUTHORS),
 			isbn = isbn,
-			publisher = publisher,
-			publishedYear = year,
+			publisher = text(node.path("publishers").firstOrNull()?.path("name"))?.take(MAX_PUBLISHER),
+			publishedYear = parseYear(node.path("publish_date").asString("")),
+			pageCount = node.path("number_of_pages").asInt(0).takeIf { it > 0 },
+			description = openLibraryDescription(isbn),
+			openLibraryId = openLibraryId,
 		)
 	}
 
-	private fun googleBooksBook(isbn: String): Book? {
-		val result = googleBooksJson(isbn) ?: return null
-		val item = result.path("items").firstOrNull() ?: return null
-		val info = item.path("volumeInfo")
-		val title = info.path("title").asString("").trim()
-		val author = info.path("authors").firstOrNull()?.asString("")?.trim().orEmpty()
-		if (title.isEmpty() || author.isEmpty()) return null
+	// The edition's own description, or else the one of the work (the same book in all its editions).
+	private fun openLibraryDescription(isbn: String): String? {
+		val edition = getJson("https://openlibrary.org/isbn/$isbn.json") ?: return null
+		descriptionText(edition.path("description"))?.let { return it }
+		val work = text(edition.path("works").firstOrNull()?.path("key")) ?: return null
+		return descriptionText(getJson("https://openlibrary.org$work.json")?.path("description"))
+	}
 
-		val publisher = info.path("publisher").asString("").trim().ifEmpty { null }
-		val year = parseYear(info.path("publishedDate").asString(""))
-		val googleBooksId = item.path("id").asString("").trim().ifEmpty { null }
+	// Open Library keeps a description either as plain text or as {"type": "/type/text", "value": "..."}.
+	private fun descriptionText(node: JsonNode?): String? =
+		if (node != null && node.isObject) text(node.path("value")) else text(node)
+
+	private fun googleBooksBook(isbn: String): Book? {
+		val item = googleBooksJson(isbn)?.path("items")?.firstOrNull() ?: return null
+		val info = item.path("volumeInfo")
+		// Google sometimes answers with a similar book – only exactly this ISBN counts.
+		if (info.path("industryIdentifiers").none { it.path("identifier").asString("") == isbn }) return null
+		val title = text(info.path("title"))
+		val authors = info.path("authors").mapNotNull { text(it) }.joinToString(", ")
+		// The database needs Google's own id of a book that came from there.
+		val googleBooksId = text(item.path("id"))
+		if (title == null || authors.isEmpty() || googleBooksId == null) return null
+
 		return Book(
 			source = BookSource.GOOGLE_BOOKS,
-			title = title,
-			authors = author,
+			title = title.take(MAX_TITLE),
+			authors = authors.take(MAX_AUTHORS),
 			isbn = isbn,
-			publisher = publisher,
-			publishedYear = year,
+			publisher = text(info.path("publisher"))?.take(MAX_PUBLISHER),
+			publishedYear = parseYear(info.path("publishedDate").asString("")),
+			pageCount = info.path("pageCount").asInt(0).takeIf { it > 0 },
+			description = text(info.path("description")),
 			googleBooksId = googleBooksId,
 		)
 	}
+
+	// The text in the node without spaces at the ends. null when there's no node or it's empty.
+	private fun text(node: JsonNode?): String? =
+		node?.asString("")?.trim()?.ifEmpty { null }
 
 	private fun googleBooksJson(isbn: String): JsonNode? {
 		val keyParam = if (properties.googleBooksApiKey.isNotBlank()) "&key=${properties.googleBooksApiKey}" else ""
@@ -141,6 +175,10 @@ class CoverDownloader(
 
 	private companion object {
 		const val MIN_IMAGE_BYTES = 1_000
+		// The longest texts the books table takes.
+		const val MAX_TITLE = 500
+		const val MAX_AUTHORS = 1000
+		const val MAX_PUBLISHER = 255
 		val YEAR_REGEX = Regex("""\b\d{4}\b""")
 	}
 }

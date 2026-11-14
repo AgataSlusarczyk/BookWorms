@@ -16,6 +16,16 @@ interface BookCopyRepository : JpaRepository<BookCopy, UUID> {
 	@EntityGraph(attributePaths = ["book"])
 	fun findWithBookById(id: UUID): BookCopy?
 
+	// Does this user already have the book? Removed copies don't count.
+	fun existsByOwnerIdAndBook_IsbnAndDeletedAtIsNull(ownerId: UUID, isbn: String): Boolean
+
+	// The same for a book without an ISBN: one with the same title and author, whatever the letter case.
+	fun existsByOwnerIdAndBook_IsbnIsNullAndBook_TitleIgnoreCaseAndBook_AuthorsIgnoreCaseAndDeletedAtIsNull(
+		ownerId: UUID,
+		title: String,
+		authors: String,
+	): Boolean
+
 	@EntityGraph(attributePaths = ["book"])
 	fun findWithBookByIdIn(ids: Collection<UUID>): List<BookCopy>
 
