@@ -44,4 +44,6 @@ data class UserDto(
     val name: String,
     val username: String,
     val email: String,
+    // A path on our server, e.g. "/photos/<file>.jpg", or null when there's no photo.
+    val photoUrl: String? = null,
 )

@@ -11,8 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// "Recently added" in the Library.
-// TODO: the books of the picked group, once groups and copies are on the server. For now: the newest in the catalog.
+// "Recently added" in the Library: books the user or people in their groups have.
 class LibraryViewModel(private val repository: BookRepository = BookRepository()) : ViewModel() {
 
     private val _books = MutableStateFlow<LoadState<List<Book>>>(LoadState.Loading)
@@ -22,10 +21,11 @@ class LibraryViewModel(private val repository: BookRepository = BookRepository()
         refresh()
     }
 
+    // Books already on the screen stay there while the new list loads, so it doesn't blink.
     fun refresh() {
-        _books.value = LoadState.Loading
+        if (_books.value !is LoadState.Ready) _books.value = LoadState.Loading
         viewModelScope.launch {
-            _books.value = load { repository.newest(limit = RecentCount) }
+            _books.value = load { repository.library(limit = RecentCount) }
         }
     }
 

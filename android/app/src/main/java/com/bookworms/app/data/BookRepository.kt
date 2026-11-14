@@ -1,28 +1,50 @@
 package com.bookworms.app.data
 
 import com.bookworms.app.BuildConfig
+import com.bookworms.app.data.auth.Session
 import com.bookworms.app.data.network.ApiClient
 import com.bookworms.app.data.network.BookDetailsDto
+import com.bookworms.app.data.network.BookReviewsDto
 import com.bookworms.app.data.network.BookSummaryDto
 import com.bookworms.app.data.network.BooksApi
+import com.bookworms.app.data.network.CopiesApi
+import com.bookworms.app.data.network.RateBookRequestDto
+import com.bookworms.app.ui.book.BookComment
 import com.bookworms.app.ui.book.BookDetails
-import com.bookworms.app.ui.book.withSampleCopiesAndComments
+import com.bookworms.app.ui.book.BookRatings
 import com.bookworms.app.ui.browse.Book
 import com.bookworms.app.ui.library.BookForm
+import java.time.Duration
+import java.time.Instant
 
 // Books for the ViewModels. They don't need to know the books come from the server.
-class BookRepository(private val api: BooksApi = ApiClient.books) {
+class BookRepository(
+    private val api: BooksApi = ApiClient.books,
+    private val copies: CopiesApi = ApiClient.copies,
+) {
 
     // Books whose title, author or ISBN contains the query. An empty query gives the newest books.
     suspend fun search(query: String): List<Book> =
         api.getBooks(query = query.trim().ifEmpty { null }).mapNotNull { it.toBook() }
 
-    suspend fun newest(limit: Int): List<Book> =
-        api.getBooks(limit = limit).mapNotNull { it.toBook() }
+    // Books the user or people in their groups have, newest first.
+    suspend fun library(limit: Int): List<Book> =
+        api.library(limit).mapNotNull { it.toBook() }
 
-    // The book from the server. Copies and comments are still sample data (see withSampleCopiesAndComments).
-    suspend fun details(isbn: String): BookDetails =
-        withSampleCopiesAndComments(api.getBookByIsbn(isbn).toBookDetails(isbn))
+    // The book, its ratings and how many copies the user has, from the server.
+    // TODO: other people's copies and group discussions – the server doesn't send them yet, so they're empty.
+    suspend fun details(isbn: String): BookDetails {
+        val book = api.getBookByIsbn(isbn).toBookDetails(isbn)
+        // Someone without an account has no books of their own.
+        val own = if (Session.token == null) 0 else copies.myCopies().count { it.book.id == book.id }
+        return book.withReviews(api.getReviews(book.id).toBookReviews()).copy(ownCopies = own)
+    }
+
+    // stars = 1–5, or null to take the rating back. Gives the ratings after the change.
+    suspend fun rate(bookId: String, stars: Int?): BookReviews {
+        val reviews = if (stars == null) api.removeRating(bookId) else api.rate(bookId, RateBookRequestDto(stars))
+        return reviews.toBookReviews()
+    }
 
     // The book's details for the Add book form ("I own this book" on Book details).
     internal suspend fun formFor(isbn: String): BookForm {
@@ -50,7 +72,34 @@ private fun BookSummaryDto.toBook(): Book? = isbn?.let {
     )
 }
 
+// The ratings part of Book details: the numbers, and the ratings someone wrote a few words to.
+data class BookReviews(val ratings: BookRatings, val comments: List<BookComment>)
+
+fun BookDetails.withReviews(reviews: BookReviews) = copy(ratings = reviews.ratings, publicComments = reviews.comments)
+
+private fun BookReviewsDto.toBookReviews() = BookReviews(
+    ratings = BookRatings(average = average, count = count, mine = myRating),
+    comments = reviews.mapNotNull { review ->
+        // Stars alone already count in the average – only ratings with words show up as comments.
+        val text = review.content ?: return@mapNotNull null
+        BookComment(
+            id = review.id,
+            authorName = review.authorName,
+            text = text,
+            daysAgo = daysSince(review.updatedAt),
+            hasSpoilers = review.hasSpoilers,
+            rating = review.rating,
+        )
+    },
+)
+
+// 0 for today. A date the app can't read counts as today too – better than not showing the comment.
+private fun daysSince(time: String): Int =
+    runCatching { Duration.between(Instant.parse(time), Instant.now()).toDays().toInt().coerceAtLeast(0) }
+        .getOrDefault(0)
+
 private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
+    id = id,
     isbn = isbn ?: requestedIsbn,
     title = title,
     author = authors.orEmpty(),

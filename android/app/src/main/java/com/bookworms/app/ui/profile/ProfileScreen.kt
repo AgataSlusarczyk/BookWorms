@@ -1,6 +1,5 @@
 package com.bookworms.app.ui.profile
 
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,7 +42,8 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    photoUri: Uri? = null,
+    // Full address of the photo on the server, or null when there's none.
+    photoUrl: String? = null,
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -61,7 +61,7 @@ fun ProfileScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                    ProfilePhoto(uri = photoUri, size = 56.dp)
+                    ProfilePhoto(photo = photoUrl, size = 56.dp)
                     Spacer(Modifier.width(16.dp))
                     // weight(1f) pushes the pencil to the right edge.
                     Column(modifier = Modifier.weight(1f)) {

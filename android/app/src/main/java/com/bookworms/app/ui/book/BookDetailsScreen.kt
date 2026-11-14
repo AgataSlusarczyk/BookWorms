@@ -78,6 +78,8 @@ fun BookDetailsScreen(
     readingStatus: ReadingStatus,
     onFavoriteClick: () -> Unit,
     onReadingStatusChange: (ReadingStatus) -> Unit,
+    // stars = 1–5, or null when the user takes the rating back.
+    onRatingChange: (stars: Int?) -> Unit,
     // Owners the user already asked for this book, and owners whose copy the user waits for.
     requestedFrom: List<String>,
     queuedFor: List<String>,
@@ -182,6 +184,15 @@ fun BookDetailsScreen(
         } else {
             SectionLabel(stringResource(R.string.reading_status_label))
             ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
+
+            Spacer(Modifier.height(16.dp))
+
+            // Tapping a star saves it right away. Tapping the picked star again takes the rating back.
+            SectionLabel(stringResource(R.string.your_book_rating_label))
+            // offset lines the first star up with the text, because each star button has a bit of space around it.
+            Row(modifier = Modifier.offset(x = (-12).dp)) {
+                StarRatingPicker(rating = book.ratings.mine, onRatingChange = onRatingChange)
+            }
 
             SectionDivider()
 
@@ -410,9 +421,16 @@ private fun BookHeader(book: BookDetails) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // Average of the public ratings, e.g. "★★★★☆ 4.5 · 2 ratings". Hidden until someone rates the book.
-            book.averageRating()?.let { average ->
-                Spacer(Modifier.height(8.dp))
+            // Average of everyone's ratings, e.g. "★★★★☆ 4.5 · 2 ratings", or "No ratings yet".
+            Spacer(Modifier.height(8.dp))
+            val average = book.ratings.average
+            if (average == null) {
+                Text(
+                    text = stringResource(R.string.no_ratings_yet),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StarRow(rating = average.roundToInt())
                     Spacer(Modifier.width(6.dp))
@@ -420,7 +438,7 @@ private fun BookHeader(book: BookDetails) {
                         text = stringResource(
                             R.string.average_rating,
                             "%.1f".format(average),
-                            pluralStringResource(R.plurals.ratings_count, book.ratingCount(), book.ratingCount()),
+                            pluralStringResource(R.plurals.ratings_count, book.ratings.count, book.ratings.count),
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -430,7 +448,9 @@ private fun BookHeader(book: BookDetails) {
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 book.genre?.let { genreName(it) }?.let { Pill(text = it) }
-                Pill(text = pluralStringResource(R.plurals.book_copies, book.copies.size, book.copies.size))
+                // The user's own copies count too – they're copies in the user's groups like the others.
+                val copyCount = book.copies.size + book.ownCopies
+                Pill(text = pluralStringResource(R.plurals.book_copies, copyCount, copyCount))
             }
         }
     }
@@ -482,6 +502,24 @@ private fun CopiesSection(
 ) {
     Text(stringResource(R.string.who_has_it), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
+
+    // The user's own copy first: "You have this book", so it's clear the app knows.
+    if (book.ownCopies > 0) {
+        Text(
+            text = pluralStringResource(R.plurals.you_have_this_book, book.ownCopies, book.ownCopies),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(4.dp))
+    }
+
+    if (book.copies.isEmpty()) {
+        Text(
+            text = stringResource(if (book.ownCopies > 0) R.string.no_other_copies_yet else R.string.no_copies_yet),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
 
     val availableIn = book.groupsWithAvailableCopy()
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -769,6 +807,7 @@ private fun BookDetailsScreenPreview() {
             readingStatus = ReadingStatus.IN_PROGRESS,
             onFavoriteClick = {},
             onReadingStatusChange = {},
+            onRatingChange = {},
             requestedFrom = emptyList(),
             queuedFor = listOf("Marek W."),
             onSendRequest = {},

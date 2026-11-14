@@ -9,6 +9,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.io.InputStream
 import java.util.UUID
 
 // 3–20 letters, digits, dots or underscores – the same rule as in the app.
@@ -17,6 +18,7 @@ const val USERNAME_PATTERN = "[A-Za-z0-9._]{3,20}"
 @Service
 class UserService(
 	private val userRepository: UserRepository,
+	private val photoFiles: PhotoFiles,
 ) {
 
 	@Transactional(readOnly = true)
@@ -38,6 +40,25 @@ class UserService(
 		user.name = request.name.trim()
 		user.username = username
 		user.email = email
+		return user.toResponse()
+	}
+
+	// A new profile photo replaces the old one, whose file is removed.
+	@Transactional
+	fun changePhoto(userId: UUID, photo: InputStream): UserResponse {
+		val user = user(userId)
+		val old = user.photoUrl
+		user.photoUrl = photoFiles.save(photo)
+		photoFiles.delete(old)
+		return user.toResponse()
+	}
+
+	// No photo is fine too.
+	@Transactional
+	fun removePhoto(userId: UUID): UserResponse {
+		val user = user(userId)
+		photoFiles.delete(user.photoUrl)
+		user.photoUrl = null
 		return user.toResponse()
 	}
 

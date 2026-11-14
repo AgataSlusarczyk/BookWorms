@@ -33,7 +33,7 @@ import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
 fun LibraryScreen(
-    // The newest books from the server (LibraryViewModel).
+    // Books the user or people in their groups have, newest first (LibraryViewModel).
     books: LoadState<List<Book>>,
     onRetryClick: () -> Unit,
     onNavigate: (String) -> Unit = {},
@@ -80,7 +80,15 @@ fun LibraryScreen(
             when (books) {
                 LoadState.Loading -> item { LoadingIndicator() }
                 LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick) }
-                is LoadState.Ready -> items(books.data, key = { it.isbn }) { book ->
+                is LoadState.Ready -> if (books.data.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.library_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else items(books.data, key = { it.isbn }) { book ->
                     AppCard(onClick = { onBookClick(book) }) {
                         BookRow(title = book.title, subtitle = book.authorAndYear(), coverUrl = book.coverUrl)
                     }

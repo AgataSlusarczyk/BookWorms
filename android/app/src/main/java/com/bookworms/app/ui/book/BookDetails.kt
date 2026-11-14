@@ -2,6 +2,8 @@ package com.bookworms.app.ui.book
 
 // Everything the book details screen shows about one book.
 data class BookDetails(
+    // The book's id on the server – ratings are kept under it.
+    val id: String,
     val isbn: String,
     val title: String,
     val author: String,
@@ -15,10 +17,22 @@ data class BookDetails(
     val coverUrl: String? = null,
     // Copies that people in the user's groups own.
     val copies: List<BookCopy>,
-    // Everyone sees these, even people without an account.
+    // How many copies the user has themselves (usually 0 or 1).
+    val ownCopies: Int = 0,
+    // Everyone sees these, even people without an account. For now these are the ratings someone wrote a few words to.
     val publicComments: List<BookComment>,
     // One for each of the user's groups. Only people in that group see it.
     val groupDiscussions: List<GroupDiscussion>,
+    val ratings: BookRatings = BookRatings(),
+)
+
+// What everyone thinks of the book, and what the user thinks.
+data class BookRatings(
+    // In stars, e.g. 4.5, or null when nobody rated the book yet.
+    val average: Double? = null,
+    val count: Int = 0,
+    // The user's own stars (1–5), or null when they haven't rated it.
+    val mine: Int? = null,
 )
 
 data class BookCopy(
@@ -55,12 +69,6 @@ data class GroupDiscussion(
     val comments: List<BookComment>,
 )
 
-// The average of the public ratings, e.g. 4.5, or null when nobody rated the book yet.
-fun BookDetails.averageRating(): Double? =
-    publicComments.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average()
-
-fun BookDetails.ratingCount(): Int = publicComments.count { it.rating != null }
-
 // Each of the user's groups with the copies in it, in the same order as the discussions.
 // A group where nobody has the book gets an empty list.
 fun BookDetails.copiesByGroup(): List<Pair<String, List<BookCopy>>> =
@@ -77,9 +85,10 @@ fun BookDetails.findGroupComment(id: String): BookComment? =
 // What the user picked under "Your reading status".
 enum class ReadingStatus { TO_READ, IN_PROGRESS, FINISHED }
 
-// Temporary data until the app gets books from the server.
-// The dates are plain text for now; they'll be real dates once they come from the server.
+// Only for the preview in Android Studio.
+// TODO: copies and group discussions from the server – until then Book details shows them empty.
 val sampleBookDetails = BookDetails(
+    id = "sample",
     isbn = "978-83-08-04815-3",
     title = "Solaris",
     author = "Stanisław Lem",
@@ -116,12 +125,5 @@ val sampleBookDetails = BookDetails(
         ),
         GroupDiscussion(groupName = "Rodzina", comments = emptyList()),
     ),
-)
-
-// Temporary: the copies, comments and group discussions above, for every book from the server.
-// TODO: these from the server too, once it has users, groups and copies.
-fun withSampleCopiesAndComments(book: BookDetails) = book.copy(
-    copies = sampleBookDetails.copies,
-    publicComments = sampleBookDetails.publicComments,
-    groupDiscussions = sampleBookDetails.groupDiscussions,
+    ratings = BookRatings(average = 4.5, count = 2, mine = 4),
 )

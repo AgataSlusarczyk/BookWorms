@@ -44,7 +44,6 @@ import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
-import com.bookworms.app.ui.components.profilePhotoUri
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.RecentMember
@@ -77,8 +76,8 @@ import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.lists.Shelf
 import com.bookworms.app.ui.lists.ShelfScreen
-import com.bookworms.app.ui.lists.sampleCustomLists
-import com.bookworms.app.ui.lists.sampleListBooks
+import com.bookworms.app.ui.lists.customLists
+import com.bookworms.app.ui.lists.listBooks
 import com.bookworms.app.ui.loans.LoansScreen
 import com.bookworms.app.ui.loans.LoansViewModel
 import com.bookworms.app.ui.loans.QueueSpot
@@ -330,6 +329,8 @@ fun AppNavigation() {
         composable(Routes.LIBRARY) {
             val viewModel: LibraryViewModel = viewModel()
             val books by viewModel.books.collectAsState()
+            // Each time the tab opens – the user or someone in their groups may have added a book.
+            LaunchedEffect(Unit) { viewModel.refresh() }
 
             LibraryScreen(
                 books = books,
@@ -411,7 +412,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
-                photoUri = profilePhotoUri,
+                photoUrl = user?.photoUrl,
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
                 onLogoutClick = {
@@ -472,7 +473,7 @@ fun AppNavigation() {
             AddBooksToListScreen(
                 listName = listName,
                 // TODO: the books on this list from the server.
-                isbnsOnList = sampleListBooks.map { it.book.isbn },
+                isbnsOnList = listBooks.map { it.book.isbn },
                 // TODO: add the books on the server first. For now it just goes back to the list.
                 onAddClick = { navController.popBackStack() },
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
@@ -545,15 +546,10 @@ fun AppNavigation() {
         composable(Routes.EDIT_PROFILE) {
             val viewModel: EditProfileViewModel = viewModel()
             val state by viewModel.state.collectAsState()
-            // The photo picked on this screen. It's used only once the server saved the rest.
-            var pickedPhoto by remember { mutableStateOf(profilePhotoUri) }
+            val resolver = LocalContext.current.contentResolver
 
             LaunchedEffect(state.saved) {
-                if (state.saved) {
-                    // TODO: keep the photo on the server too. For now it's kept until the app closes.
-                    profilePhotoUri = pickedPhoto
-                    navController.popBackStack()
-                }
+                if (state.saved) navController.popBackStack()
             }
 
             EditProfileScreen(
@@ -575,18 +571,16 @@ fun AppNavigation() {
                 },
                 errorMessage = when (state.error) {
                     EditProfileError.InvalidData -> stringResource(R.string.error_profile_invalid)
+                    EditProfileError.InvalidPhoto -> stringResource(R.string.error_photo_invalid)
                     EditProfileError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
                     // Shown under their fields instead.
                     EditProfileError.EmailTaken, EditProfileError.UsernameTaken, null -> null
                 },
                 saving = state.saving,
                 saveEnabled = state.canSave,
-                onSaveClick = { photo ->
-                    pickedPhoto = photo
-                    viewModel.save()
-                },
+                onSaveClick = { newPhoto -> viewModel.save(newPhoto, resolver) },
                 onBackClick = { navController.popBackStack() },
-                photoUri = profilePhotoUri,
+                photoUrl = user?.photoUrl,
             )
         }
 
@@ -785,14 +779,23 @@ fun AppNavigation() {
         ) { entry ->
             val isbn = entry.arguments?.getString("isbn").orEmpty()
             val isGuest = entry.arguments?.getBoolean("guest") ?: false
-            // Loads the book from the server. Copies and comments are still sample data.
+            // Loads the book and its ratings from the server. Copies and group discussions aren't there yet.
             val viewModel = viewModel { BookDetailsViewModel(isbn) }
             val state by viewModel.book.collectAsState()
+            val ratingFailed by viewModel.ratingFailed.collectAsState()
 
             // Temporary state – moves to a ViewModel when favorites and reading status are on the server.
             var isFavorite by rememberSaveable { mutableStateOf(false) }
             var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
             val context = LocalContext.current
+
+            // Said once, when a rating didn't reach the server.
+            LaunchedEffect(ratingFailed) {
+                if (ratingFailed) {
+                    Toast.makeText(context, R.string.rating_failed, Toast.LENGTH_LONG).show()
+                    viewModel.ratingErrorShown()
+                }
+            }
 
             LoadStateScreen(
                 state = state,
@@ -806,6 +809,7 @@ fun AppNavigation() {
                     readingStatus = readingStatus,
                     onFavoriteClick = { isFavorite = !isFavorite },
                     onReadingStatusChange = { readingStatus = it },
+                    onRatingChange = viewModel::rate,
                     // TODO: send requests and queue changes to the server.
                     // For now they go to the shared sample lists, so a request shows up in Loans too.
                     requestedFrom = book.copies.map { it.ownerName }.filter { hasSentRequest(book.title, it) },
@@ -814,7 +818,7 @@ fun AppNavigation() {
                     onCancelRequest = { copy -> cancelRequest(book.title, copy.ownerName) },
                     onJoinQueue = { copy -> queueSpots.add(QueueSpot(book.title, copy.ownerName)) },
                     onLeaveQueue = { copy -> queueSpots.remove(QueueSpot(book.title, copy.ownerName)) },
-                    customLists = sampleCustomLists,
+                    customLists = customLists,
                     onShareClick = { shareBook(context, book) },
                     // Opens Add book with this book's details already filled in.
                     onOwnBookClick = { navController.navigate(Routes.addBookManual(book.isbn)) },
@@ -856,7 +860,7 @@ fun AppNavigation() {
                     groups = book.groupDiscussions.map { it.groupName },
                     initialGroup = group,
                     // TODO: show the new comment in Book details once comments come from the server.
-                    onPostClick = { _, _, _, _ -> navController.popBackStack() },
+                    onPostClick = { _, _, _ -> navController.popBackStack() },
                     onBackClick = { navController.popBackStack() },
                     replyingTo = replyTo?.let { book.findGroupComment(it) },
                 )

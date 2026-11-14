@@ -16,6 +16,8 @@ class User(
 	var passwordHash: String,
 	// Always in lower case.
 	var username: String,
+	// A path on this server, e.g. "/photos/<file>.jpg", or null when there's no photo.
+	var photoUrl: String? = null,
 ) {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)

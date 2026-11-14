@@ -272,6 +272,29 @@ class GroupFlowTest(
 		mockMvc.get("/me/groups") { bearer(marek) }.andExpect { jsonPath("$.length()") { value(0) } }
 	}
 
+	@Test
+	fun `the library has my books and my groups' books, each once, the newest first`() {
+		join(marek).andExpect { status { isOk() } }
+		addCopy(agata, "Lalka")
+		addCopy(marek, "Solaris")
+		// Zosia isn't in the group, so her book stays out.
+		addCopy(zosia, "Bieguni")
+		// A book only Marek sees – taken out of all his groups.
+		changeGroups(marek, addCopy(marek, "Diary"), "[]").andExpect { status { isOk() } }
+
+		mockMvc.get("/me/library") { bearer(agata) }.andExpect {
+			status { isOk() }
+			jsonPath("$.length()") { value(2) }
+			jsonPath("$[0].title") { value("Solaris") }
+			jsonPath("$[1].title") { value("Lalka") }
+		}
+		mockMvc.get("/me/library") { bearer(zosia) }.andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].title") { value("Bieguni") }
+		}
+		mockMvc.get("/me/library").andExpect { status { isUnauthorized() } }
+	}
+
 	private fun join(token: String) =
 		mockMvc.post("/groups/join") { bearer(token); json("""{"code": "$code"}""") }
 

@@ -8,6 +8,8 @@ data class UserResponse(
 	val name: String,
 	val username: String,
 	val email: String,
+	// A path on this server, e.g. "/photos/<file>.jpg". The app adds the server address in front of it.
+	val photoUrl: String?,
 )
 
 fun User.toResponse() = UserResponse(
@@ -15,4 +17,5 @@ fun User.toResponse() = UserResponse(
 	name = name,
 	username = username,
 	email = email,
+	photoUrl = photoUrl,
 )
