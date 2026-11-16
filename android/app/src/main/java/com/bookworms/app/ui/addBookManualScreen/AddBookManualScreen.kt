@@ -37,6 +37,8 @@ internal fun AddBookManualScreen(
     prefill: BookForm? = null,
     // true while the book is on its way to the server – Save waits for it.
     saving: Boolean = false,
+    // Editing a catalog book: it's shared, so only the user's own description can change.
+    onlyDescription: Boolean = false,
 ) {
     val start = editing ?: prefill ?: BookForm()
     // rememberSaveable, so typed text survives rotating the phone.
@@ -84,15 +86,24 @@ internal fun AddBookManualScreen(
                 }
             }
 
+            if (onlyDescription) {
+                Text(
+                    stringResource(R.string.edit_catalog_book_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             BookInputField(
                 label = stringResource(R.string.title_label),
                 value = title,
                 onValueChange = { title = it },
+                enabled = !onlyDescription,
             )
             BookInputField(
                 label = stringResource(R.string.author_label),
                 value = author,
                 onValueChange = { author = it },
+                enabled = !onlyDescription,
             )
             BookInputField(
                 label = stringResource(R.string.isbn_label),
@@ -118,6 +129,7 @@ internal fun AddBookManualScreen(
                     value = publisher,
                     onValueChange = { publisher = it },
                     modifier = Modifier.weight(1f),
+                    enabled = !onlyDescription,
                 )
                 BookInputField(
                     label = stringResource(R.string.year_label),
@@ -126,10 +138,11 @@ internal fun AddBookManualScreen(
                     onValueChange = { year = it.filter(Char::isDigit).take(4) },
                     keyboardType = KeyboardType.Number,
                     modifier = Modifier.weight(1f),
+                    enabled = !onlyDescription,
                 )
             }
             BookInputField(
-                label = stringResource(R.string.book_description_label),
+                label = stringResource(if (onlyDescription) R.string.my_description_label else R.string.book_description_label),
                 value = description,
                 onValueChange = { description = it },
                 // A few lines of text – the field grows as you type.

@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Response
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.TimeUnit
 
 // One HTTP client for the whole app, talking only to our server.
 object ApiClient {
@@ -16,7 +17,10 @@ object ApiClient {
     // Skips fields the app doesn't know yet, so a newer server doesn't break an older app.
     private val json = Json { ignoreUnknownKeys = true }
 
+    // A switched-off server often doesn't say no – the phone just hears nothing. So after 5 seconds
+    // without a connection we give up and show what's saved on the phone (OkHttp waits 10 by default).
     private val http = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
         .addInterceptor(::withToken)
         .build()
 

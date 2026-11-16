@@ -33,6 +33,10 @@ interface CopiesApi {
     @PUT("copies/{id}/book")
     suspend fun editBook(@Path("id") id: String, @Body request: EditBookRequestDto): CopyDto
 
+    // The user's own description – for any of their books, also one from the catalog. Blank = the catalog's again.
+    @PUT("copies/{id}/description")
+    suspend fun changeDescription(@Path("id") id: String, @Body request: ChangeDescriptionRequestDto): CopyDto
+
     // Answers 409 (code COPY_LENT) while someone has the book.
     // Response<Unit>, because the server answers 204 with no body.
     @DELETE("copies/{id}")
@@ -47,6 +51,8 @@ data class CopyDto(
     val book: CopyBookDto,
     // true = the user typed this book in by hand, so they can edit it.
     val canEditBook: Boolean = false,
+    // The user's own description, or null when they use the catalog's (book.description).
+    val description: String? = null,
     // The user's groups that can see it.
     val groupIds: List<String> = emptyList(),
 )
@@ -93,4 +99,9 @@ data class ChangeAvailabilityRequestDto(
 @Serializable
 data class ChangeGroupsRequestDto(
     val groupIds: List<String>,
+)
+
+@Serializable
+data class ChangeDescriptionRequestDto(
+    val description: String?,
 )

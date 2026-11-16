@@ -52,6 +52,12 @@ data class EditBookRequest(
 // A few pages of text – more than any book's blurb.
 const val MAX_DESCRIPTION = 5000
 
+// "My description" on a book: the owner's own version of the description. Empty or null = back to the catalog's.
+data class ChangeDescriptionRequest(
+	@field:Size(max = MAX_DESCRIPTION)
+	val description: String? = null,
+)
+
 data class ChangeAvailabilityRequest(
 	val availability: Availability,
 )

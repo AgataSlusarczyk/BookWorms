@@ -64,6 +64,7 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AvatarPlaceholder
 import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.Pill
+import com.bookworms.app.ui.components.OfflineBanner
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.loans.LoanDays
 import com.bookworms.app.ui.theme.AvailableGreen
@@ -98,6 +99,10 @@ fun BookDetailsScreen(
     onLoginClick: () -> Unit = {},
     // The copy whose button was just tapped, while the server answers. Its button is grayed out.
     busyCopyId: String? = null,
+    // The server can't be reached: one of the user's own books, from the copy of My books on the phone.
+    // Only the header and the description – no ratings, copies, comments or buttons.
+    offline: Boolean = false,
+    onRetryClick: () -> Unit = {},
 ) {
     // Which copy button was tapped, so the right question shows up. Kept as the copy's id,
     // so it survives turning the phone.
@@ -147,7 +152,7 @@ fun BookDetailsScreen(
     ) {
         TopActions(
             isFavorite = isFavorite,
-            showUserActions = !isGuest,
+            showUserActions = !isGuest && !offline,
             onBackClick = onBackClick,
             onFavoriteClick = onFavoriteClick,
             onAddToListClick = { showListsDialog = true },
@@ -157,17 +162,18 @@ fun BookDetailsScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        BookHeader(book)
+        if (offline) {
+            OfflineBanner(onRetryClick)
+            Spacer(Modifier.height(16.dp))
+        }
+
+        BookHeader(book, showRatings = !offline)
 
         Spacer(Modifier.height(16.dp))
 
-        book.description?.let { description ->
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        DescriptionSection(book)
+
+        if (offline) return@Column
 
         SectionDivider()
 
@@ -386,9 +392,40 @@ private fun GuestLoginCard(onLoginClick: () -> Unit) {
     }
 }
 
-// Cover, title, author, year/pages/ISBN and the gray labels.
+// The user's own description when they wrote one, with a link to the catalog's – or just the catalog's.
 @Composable
-private fun BookHeader(book: BookDetails) {
+private fun DescriptionSection(book: BookDetails) {
+    var showCatalog by rememberSaveable(book.isbn) { mutableStateOf(false) }
+    val mine = book.myDescription
+    val text = if (mine != null && !showCatalog) mine else book.description
+    if (mine != null) {
+        Text(
+            text = stringResource(if (showCatalog) R.string.catalog_description_label else R.string.my_description_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(4.dp))
+    }
+    text?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    // Only when there's something to switch to.
+    if (mine != null && book.description != null) {
+        // offset lines the text up with the description, because the button has a bit of space around it.
+        TextButton(onClick = { showCatalog = !showCatalog }, modifier = Modifier.offset(x = (-12).dp)) {
+            Text(stringResource(if (showCatalog) R.string.show_my_description else R.string.show_catalog_description))
+        }
+    }
+}
+
+// Cover, title, author, year/pages/ISBN and the gray labels.
+// showRatings = false without the server – the ratings aren't saved on the phone.
+@Composable
+private fun BookHeader(book: BookDetails, showRatings: Boolean = true) {
     Row {
         BookCover(book.coverUrl, Modifier.size(width = 96.dp, height = 136.dp))
 
@@ -417,7 +454,9 @@ private fun BookHeader(book: BookDetails) {
             // Average of everyone's ratings, e.g. "★★★★☆ 4.5 · 2 ratings", or "No ratings yet".
             Spacer(Modifier.height(8.dp))
             val average = book.ratings.average
-            if (average == null) {
+            if (!showRatings) {
+                // Nothing – see above.
+            } else if (average == null) {
                 Text(
                     text = stringResource(R.string.no_ratings_yet),
                     style = MaterialTheme.typography.bodySmall,

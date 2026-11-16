@@ -3,6 +3,7 @@ package com.bookworms.app.data.auth
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.bookworms.app.data.SavedData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,8 +69,10 @@ object Session {
     }
 
     // Logging out, or the server no longer accepts the token.
+    // The books and loans saved on the phone go too, so the next person doesn't see them.
     fun end() {
         prefs.edit { clear() }
+        SavedData.clear()
         token = null
         _user.value = null
     }

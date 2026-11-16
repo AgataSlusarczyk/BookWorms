@@ -15,11 +15,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.data.LoadState
+import com.bookworms.app.data.isSavedCopy
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.OfflineBanner
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.StatusTag
 import com.bookworms.app.ui.components.mistedBackground
@@ -43,13 +45,16 @@ internal fun MyBooksScreen(
         containerColor = Color.Transparent,
         topBar = { AppTopBar(title = stringResource(R.string.my_books_title), onBackClick = onBackClick) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddBookClick,
-                icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-                text = { Text(stringResource(R.string.content_desc_add)) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            )
+            // Adding a book needs the server.
+            if (!books.isSavedCopy) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddBookClick,
+                    icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+                    text = { Text(stringResource(R.string.content_desc_add)) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -63,6 +68,7 @@ internal fun MyBooksScreen(
                 LoadState.Loading -> item { LoadingIndicator() }
                 LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_books_failed), onRetryClick) }
                 is LoadState.Ready -> {
+                    if (books.isSavedCopy) item { OfflineBanner(onRetryClick, checking = books.checking) }
                     val list = books.data
                     item { SectionHeader(pluralStringResource(R.plurals.books_count, list.size, list.size)) }
                     if (list.isEmpty()) {
@@ -86,7 +92,7 @@ internal fun MyBooksScreen(
 // Same look as the book cards on the other screens, with a chip that says where the book is.
 // "Lent to" wins over "Not available": either way, right now the book is with a friend.
 @Composable
-private fun OwnBookCard(book: OwnBook, onClick: () -> Unit) {
+internal fun OwnBookCard(book: OwnBook, onClick: () -> Unit) {
     AppCard(onClick = onClick) {
         BookRow(title = book.title, subtitle = book.authorAndYear(), coverUrl = book.coverUrl) {
             when {

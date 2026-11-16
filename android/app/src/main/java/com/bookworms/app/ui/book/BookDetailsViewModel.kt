@@ -8,7 +8,9 @@ import com.bookworms.app.data.CannotAnswerException
 import com.bookworms.app.data.CopyChangedException
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.LoansRepository
+import com.bookworms.app.data.MyBooksRepository
 import com.bookworms.app.data.load
+import com.bookworms.app.data.loadOrSaved
 import com.bookworms.app.data.withCopies
 import com.bookworms.app.data.withReviews
 import kotlinx.coroutines.CancellationException
@@ -24,6 +26,7 @@ class BookDetailsViewModel(
     private val isbn: String,
     private val repository: BookRepository = BookRepository(),
     private val loans: LoansRepository = LoansRepository(),
+    private val myBooks: MyBooksRepository = MyBooksRepository(),
 ) : ViewModel() {
 
     private val _book = MutableStateFlow<LoadState<BookDetails>>(LoadState.Loading)
@@ -50,7 +53,8 @@ class BookDetailsViewModel(
     fun refresh() {
         _book.value = LoadState.Loading
         viewModelScope.launch {
-            _book.value = load { repository.details(isbn) }
+            // Without the server, the user's own books still open – from the copy of My books on the phone.
+            _book.value = loadOrSaved(saved = { myBooks.savedBookDetails(isbn) }) { repository.details(isbn) }
         }
     }
 

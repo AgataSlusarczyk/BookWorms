@@ -1,6 +1,7 @@
 package com.bookworms.server.copies
 
 import com.bookworms.server.books.Book
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -32,6 +33,10 @@ class BookCopy(
 	// Set only by the owner. "Lent out" isn't kept here – it comes from the loans.
 	@Enumerated(EnumType.STRING)
 	var availability: Availability = Availability.AVAILABLE
+
+	// The owner's own description, used instead of the catalog's. Only the owner sees it. null = the catalog's one.
+	@field:Column(columnDefinition = "text")
+	var description: String? = null
 
 	// Goes up on every save. If two changes clash, the second one fails instead of overwriting the first.
 	@Version

@@ -21,6 +21,7 @@ import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.OfflineBanner
 import com.bookworms.app.ui.groups.GroupSummary
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.StatusTag
@@ -50,6 +51,11 @@ internal fun MyCopyScreen(
     onOpenBookPageClick: (() -> Unit)?,
     onRemoveClick: () -> Unit,
     onBackClick: () -> Unit,
+    // The book is the copy saved on the phone, and nothing can be changed.
+    // checking = the server is still being asked; otherwise it can't be reached.
+    offline: Boolean = false,
+    checking: Boolean = false,
+    onRetryClick: () -> Unit = {},
 ) {
     var showRemoveDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -75,6 +81,7 @@ internal fun MyCopyScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
+            if (offline) OfflineBanner(onRetryClick, checking = checking)
             BookHeader(book)
             WhereItIsCard(book)
 
