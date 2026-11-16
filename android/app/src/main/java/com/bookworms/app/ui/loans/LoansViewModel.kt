@@ -8,6 +8,7 @@ import com.bookworms.app.data.CannotAnswerException
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.LoansRepository
 import com.bookworms.app.data.load
+import com.bookworms.app.data.refreshWithSaved
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -34,11 +35,9 @@ internal class LoansViewModel(private val repository: LoansRepository = LoansRep
     // Called each time the tab opens, so it shows what changed in the meantime (e.g. a new request).
     // The lists already on screen stay there while the fresh ones load.
     fun refresh() {
-        if (_loans.value !is LoadState.Ready) _loans.value = LoadState.Loading
         viewModelScope.launch {
-            val fresh = load { repository.loans() }
-            // A failed quiet refresh keeps the old lists instead of hiding them behind "Try again".
-            if (fresh is LoadState.Ready || _loans.value !is LoadState.Ready) _loans.value = fresh
+            // The lists as they were last time show up at once; without the server they stay, only to look at.
+            _loans.refreshWithSaved(saved = { repository.savedLoans() }) { repository.loans() }
         }
     }
 

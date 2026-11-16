@@ -27,17 +27,23 @@ import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.OfflineBanner
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
-fun LibraryScreen(
+internal fun LibraryScreen(
     // Books the user or people in their groups have, newest first (LibraryViewModel).
     books: LoadState<List<Book>>,
     onRetryClick: () -> Unit,
     onNavigate: (String) -> Unit = {},
     onBookClick: (Book) -> Unit = {},
+    // When the server can't be reached: the user's own books saved on the phone, shown instead of the list above.
+    savedBooks: List<OwnBook>? = null,
+    onSavedBookClick: (OwnBook) -> Unit = {},
+    // The server is being asked again while the saved books are on the screen.
+    checking: Boolean = false,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -73,6 +79,24 @@ fun LibraryScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            if (savedBooks != null) {
+                item { OfflineBanner(onRetryClick, checking = checking) }
+                item { SectionHeader(stringResource(R.string.my_books_title), Modifier.padding(top = 4.dp)) }
+                if (savedBooks.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.my_books_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                items(savedBooks, key = { it.id }) { book ->
+                    OwnBookCard(book, onClick = { onSavedBookClick(book) })
+                }
+                return@LazyColumn
             }
 
             item { SectionHeader(stringResource(R.string.recently_added), Modifier.padding(top = 4.dp)) }

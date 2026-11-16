@@ -26,6 +26,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.bookworms.app.R
 import com.bookworms.app.data.AuthRepository
+import com.bookworms.app.data.LoadState
+import com.bookworms.app.data.isOffline
+import com.bookworms.app.data.isSavedCopy
 import com.bookworms.app.data.auth.Session
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginError
@@ -325,6 +328,8 @@ fun AppNavigation() {
         composable(Routes.LIBRARY) {
             val viewModel: LibraryViewModel = viewModel()
             val books by viewModel.books.collectAsState()
+            val savedBooks by viewModel.savedBooks.collectAsState()
+            val checking by viewModel.checking.collectAsState()
             // Each time the tab opens – the user or someone in their groups may have added a book.
             LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -333,6 +338,13 @@ fun AppNavigation() {
                 onRetryClick = viewModel::refresh,
                 onNavigate = navigateBottomBar,
                 onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
+                savedBooks = savedBooks,
+                checking = checking,
+                // My copy only opens with My books under it (they share the books, see myBooksViewModel).
+                onSavedBookClick = { book ->
+                    navController.navigate(Routes.MY_BOOKS)
+                    navController.navigate(Routes.myCopy(book.id))
+                },
             )
         }
 
@@ -358,6 +370,8 @@ fun AppNavigation() {
                 onCancelRequest = viewModel::cancel,
                 onNavigate = navigateBottomBar,
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                // The page of someone else's book comes from the server – without it there's nothing to show.
+                onOfflineBookClick = { Toast.makeText(context, R.string.offline_book_page, Toast.LENGTH_SHORT).show() },
             )
         }
 
@@ -625,21 +639,28 @@ fun AppNavigation() {
                     CloseWhenGone(navController, entry)
                     return@LoadStateScreen
                 }
+                // The copy saved on the phone: only to look at.
+                val offline = state.isSavedCopy
                 MyCopyScreen(
                     book = book,
                     groups = groups,
-                    saving = saving,
+                    saving = saving || offline,
                     onAvailableChange = { viewModel.setAvailable(book, it) },
                     onVisibleInChange = { groupId, visible -> viewModel.setVisibleIn(book, groupId, visible) },
                     onRetryGroupsClick = viewModel::refreshGroups,
-                    onEditClick = if (book.canEditBook) {
+                    // Every book can be edited: a typed-in one whole, a catalog one only the user's own description.
+                    onEditClick = if (!offline) {
                         { navController.navigate(Routes.editOwnBook(book.id)) }
                     } else {
                         null
                     },
+                    // Without the server it opens too – from the phone's copy, like here.
                     onOpenBookPageClick = book.isbn?.let { isbn -> { navController.navigate(Routes.bookDetails(isbn)) } },
                     onRemoveClick = { viewModel.remove(book) },
                     onBackClick = { navController.popBackStack() },
+                    offline = offline,
+                    checking = (state as? LoadState.Ready)?.checking == true,
+                    onRetryClick = viewModel::refresh,
                 )
             }
         }
@@ -666,9 +687,12 @@ fun AppNavigation() {
                     onScanIsbnClick = { navController.navigate(Routes.SCAN_ISBN) },
                     onBackClick = { navController.popBackStack() },
                     // Back on My copy once the server saved it (onEdited above).
-                    onSaveClick = { form -> viewModel.editBook(book, form) },
+                    onSaveClick = { form ->
+                        if (book.canEditBook) viewModel.editBook(book, form) else viewModel.setMyDescription(book, form.description)
+                    },
                     editing = book.toForm(),
                     saving = saving,
+                    onlyDescription = !book.canEditBook,
                 )
             }
         }
@@ -836,6 +860,8 @@ fun AppNavigation() {
                     },
                     onBackClick = { navController.popBackStack() },
                     isGuest = isGuest,
+                    offline = state.isOffline,
+                    onRetryClick = viewModel::refresh,
                     // Login is at the bottom of the pile (under Browse), so we go back down to it.
                     onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
                 )

@@ -114,6 +114,15 @@ class CopyService(
 		return describe(copy)
 	}
 
+	// The owner's own description – any book, also one from the catalog, because it doesn't change the book for others.
+	// Blank = back to the catalog's description.
+	@Transactional
+	fun changeDescription(ownerId: UUID, copyId: UUID, description: String?): CopyResponse {
+		val copy = myCopy(ownerId, copyId)
+		copy.description = description?.trim()?.ifEmpty { null }
+		return describe(copy)
+	}
+
 	// The row stays with deletedAt set, so phones can learn the book is gone.
 	// A lent-out book can't be removed – someone has it, and it has to come back first.
 	// Requests still waiting for it are rejected, so the people who asked aren't left waiting forever – and they're told.

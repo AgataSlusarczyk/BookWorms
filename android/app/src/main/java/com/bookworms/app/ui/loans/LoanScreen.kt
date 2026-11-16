@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.data.LoadState
+import com.bookworms.app.data.isSavedCopy
 import com.bookworms.app.ui.components.*
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
@@ -45,6 +46,8 @@ internal fun LoansScreen(
     onNavigate: (String) -> Unit = {},
     // Gets the book's ISBN. Books typed in by hand have none, so their cards don't open anything.
     onBookClick: (isbn: String) -> Unit = {},
+    // Someone else's book tapped while the server can't be reached – its page can't open.
+    onOfflineBookClick: () -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     // The sent request the user wants to cancel, while the question is shown. Kept as its id, so it survives turning the phone.
@@ -97,8 +100,12 @@ internal fun LoansScreen(
                 LoadState.Loading -> item { LoadingIndicator() }
                 LoadState.Failed -> item { LoadFailedMessage(stringResource(R.string.load_loans_failed), onRetryClick) }
                 is LoadState.Ready -> {
+                    if (loans.isSavedCopy) item { OfflineBanner(onRetryClick, checking = loans.checking) }
                     val data = loans.data
-                    val openBook = { isbn: String? -> isbn?.let { { onBookClick(it) } } }
+                    // mine = the user's own book, whose page opens from the phone's copy of My books.
+                    val openBook = { isbn: String?, mine: Boolean ->
+                        isbn?.let { { if (loans.offline && !mine) onOfflineBookClick() else onBookClick(it) } }
+                    }
                     when (selectedTabIndex) {
                         // Books the user has from others, and the ones they asked for.
                         0 -> {
@@ -108,7 +115,7 @@ internal fun LoansScreen(
                             if (data.borrowed.isNotEmpty()) {
                                 item { SectionHeader(stringResource(R.string.section_we_have, data.borrowed.size.toString())) }
                                 items(data.borrowed, key = { it.id }) { loan ->
-                                    LoanCard(loan, R.string.loan_subtitle, onClick = openBook(loan.isbn))
+                                    LoanCard(loan, R.string.loan_subtitle, onClick = openBook(loan.isbn, false))
                                 }
                             }
                             if (data.sentRequests.isNotEmpty()) {
@@ -122,9 +129,9 @@ internal fun LoansScreen(
                                     RequestCard(
                                         request,
                                         subtitle = stringResource(R.string.you_asked, request.person),
-                                        onClick = openBook(request.isbn),
+                                        onClick = openBook(request.isbn, false),
                                         onCancel = { cancelingId = request.id },
-                                        buttonsEnabled = !saving,
+                                        buttonsEnabled = !saving && !loans.isSavedCopy,
                                     )
                                 }
                             }
@@ -140,9 +147,9 @@ internal fun LoansScreen(
                                     LoanCard(
                                         loan,
                                         R.string.loan_subtitle_lent,
-                                        onClick = openBook(loan.isbn),
+                                        onClick = openBook(loan.isbn, true),
                                         onReturnedClick = { onMarkReturned(loan) },
-                                        buttonsEnabled = !saving,
+                                        buttonsEnabled = !saving && !loans.isSavedCopy,
                                     )
                                 }
                             }
@@ -160,10 +167,10 @@ internal fun LoansScreen(
                                     RequestCard(
                                         request,
                                         subtitle = stringResource(R.string.asks_to_borrow, request.person),
-                                        onClick = openBook(request.isbn),
+                                        onClick = openBook(request.isbn, true),
                                         onAccept = { onAccept(request) },
                                         onReject = { onReject(request) },
-                                        buttonsEnabled = !saving,
+                                        buttonsEnabled = !saving && !loans.isSavedCopy,
                                     )
                                 }
                             }

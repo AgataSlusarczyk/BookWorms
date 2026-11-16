@@ -16,7 +16,10 @@ internal data class OwnBook(
     val year: Int? = null,
     val isbn: String? = null,
     val publisher: String? = null,
+    // The catalog's description – the same for everyone who has the book.
     val description: String? = null,
+    // The user's own description, shown instead of the catalog's. null = they use the catalog's.
+    val myDescription: String? = null,
     val coverUrl: String? = null,
     // false = the owner turned off "Available to borrow" (or marked the book as lost).
     val availableToBorrow: Boolean = true,
@@ -46,7 +49,7 @@ internal fun OwnBook.toForm() = BookForm(
     isbn = isbn.orEmpty(),
     publisher = publisher.orEmpty(),
     year = year,
-    description = description.orEmpty(),
+    description = (myDescription ?: description).orEmpty(),
 )
 
 // "Andrzej Sapkowski · 1994", or only the author when the year wasn't filled in.

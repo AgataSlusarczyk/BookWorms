@@ -3,12 +3,15 @@ package com.bookworms.app.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +62,44 @@ fun <T> LoadStateScreen(
             LoadState.Loading -> LoadingIndicator()
             LoadState.Failed -> LoadFailedMessage(failedMessage, onRetryClick)
             is LoadState.Ready -> Unit
+        }
+    }
+}
+
+// On top of a screen that shows the copy saved on the phone because the server couldn't be reached.
+// Says why the buttons are grayed out, with a button to ask the server again.
+// checking = the server is still being asked, so it says that instead, with a small spinning circle.
+@Composable
+fun OfflineBanner(onRetryClick: () -> Unit, modifier: Modifier = Modifier, checking: Boolean = false) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+        ) {
+            Text(
+                text = stringResource(if (checking) R.string.offline_checking else R.string.offline_banner),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = if (checking) 12.dp else 0.dp),
+            )
+            if (checking) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                        .size(16.dp),
+                )
+            } else {
+                TextButton(onClick = onRetryClick) {
+                    Text(stringResource(R.string.try_again))
+                }
+            }
         }
     }
 }

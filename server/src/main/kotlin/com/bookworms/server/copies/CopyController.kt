@@ -3,6 +3,7 @@ package com.bookworms.server.copies
 import com.bookworms.server.common.userId
 import com.bookworms.server.copies.dto.AddCopyRequest
 import com.bookworms.server.copies.dto.ChangeAvailabilityRequest
+import com.bookworms.server.copies.dto.ChangeDescriptionRequest
 import com.bookworms.server.copies.dto.ChangeGroupsRequest
 import com.bookworms.server.copies.dto.CopyResponse
 import com.bookworms.server.copies.dto.EditBookRequest
@@ -63,6 +64,14 @@ class CopyController(
 		@Valid @RequestBody request: EditBookRequest,
 	): CopyResponse =
 		copyService.editBook(jwt.userId(), id, request)
+
+	@PutMapping("/copies/{id}/description")
+	fun changeDescription(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@Valid @RequestBody request: ChangeDescriptionRequest,
+	): CopyResponse =
+		copyService.changeDescription(jwt.userId(), id, request.description)
 
 	@DeleteMapping("/copies/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)

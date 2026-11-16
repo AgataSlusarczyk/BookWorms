@@ -53,6 +53,14 @@
     <string name="no_copies">no copies</string>
     <string name="load_books_failed">Couldn\'t load the books. Check your connection and try again.</string>
     <string name="try_again">Try again</string>
+    <string name="offline_banner">No connection to the server. You\'re seeing what was saved on this phone – nothing can be changed now.</string>
+    <string name="my_description_label">My description</string>
+    <string name="catalog_description_label">Description from the catalog</string>
+    <string name="show_catalog_description">Show the catalog\'s description</string>
+    <string name="show_my_description">Show my description</string>
+    <string name="edit_catalog_book_hint">This book is from the catalog, so its title, author, publisher and year are the same for everyone. Your description is only for you – leave it empty to see the catalog\'s one again.</string>
+    <string name="offline_checking">Connecting to the server…</string>
+    <string name="offline_book_page">No connection to the server – the book\'s page can\'t open now.</string>
     <string name="load_book_failed">Couldn\'t load this book. Check your connection and try again.</string>
     <!-- Genre codes from the server (see Genres.kt). -->
     <string name="genre_fantasy">fantasy</string>

@@ -10,6 +10,7 @@ import com.bookworms.app.data.GroupsRepository
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.MyBooksRepository
 import com.bookworms.app.data.load
+import com.bookworms.app.data.refreshWithSaved
 import com.bookworms.app.ui.groups.GroupSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -56,10 +57,10 @@ internal class MyBooksViewModel(
     }
 
     fun refresh() {
-        _books.value = LoadState.Loading
         _groups.value = LoadState.Loading
         viewModelScope.launch {
-            _books.value = load { repository.myBooks() }
+            // The books as they were last time show up at once; without the server they stay, only to look at.
+            _books.refreshWithSaved(saved = { repository.savedMyBooks() }) { repository.myBooks() }
         }
         viewModelScope.launch {
             _groups.value = load { groupsRepository.myGroups() }
@@ -85,6 +86,11 @@ internal class MyBooksViewModel(
     fun setVisibleIn(book: OwnBook, groupId: String, visible: Boolean) = save {
         val groupIds = if (visible) book.groupIds + groupId else book.groupIds - groupId
         replace(repository.setGroups(book, groupIds))
+    }
+
+    fun setMyDescription(book: OwnBook, text: String) = save {
+        replace(repository.setMyDescription(book, text))
+        _events.send(MyBooksEvent.Edited)
     }
 
     fun editBook(book: OwnBook, form: BookForm) = save {

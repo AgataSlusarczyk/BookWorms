@@ -14,7 +14,10 @@ data class BookDetails(
     val pages: Int?,
     // A genre code from the server, e.g. "SCI_FI" – genreName() turns it into a name.
     val genre: String?,
+    // The catalog's description – the same for everyone.
     val description: String?,
+    // The user's own description of their copy, shown instead of the catalog's. null = none.
+    val myDescription: String? = null,
     // Full address of the cover image, or null when there's none.
     val coverUrl: String? = null,
     // Copies that other people in the user's groups own.

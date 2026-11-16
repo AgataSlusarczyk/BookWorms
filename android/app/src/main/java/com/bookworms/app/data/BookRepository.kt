@@ -42,9 +42,12 @@ class BookRepository(
         val reviews = async { api.getReviews(book.id).toBookReviews() }
         // Someone without an account has no books of their own and isn't in any group.
         val loggedIn = Session.token != null
-        val own = async { if (loggedIn) copies.myCopies().count { it.book.id == book.id } else 0 }
+        val own = async { if (loggedIn) copies.myCopies().filter { it.book.id == book.id } else emptyList() }
         val others = async { if (loggedIn) loans.bookCopies(book.id) else null }
-        book.withReviews(reviews.await()).copy(ownCopies = own.await()).withCopies(others.await())
+        val mine = own.await()
+        book.withReviews(reviews.await())
+            .copy(ownCopies = mine.size, myDescription = mine.firstNotNullOfOrNull { it.description })
+            .withCopies(others.await())
     }
 
     // Only "Who has it" again, after the user asked for a copy or joined a queue.

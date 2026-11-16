@@ -1,5 +1,6 @@
 package com.bookworms.app.data
 
+import com.bookworms.app.data.auth.Session
 import com.bookworms.app.data.network.ApiClient
 import com.bookworms.app.data.network.BookCopiesDto
 import com.bookworms.app.data.network.LoanDto
@@ -23,18 +24,29 @@ import java.util.UUID
 class LoansRepository(private val api: LoansApi = ApiClient.loans) {
 
     // All four lists, asked for at the same time.
+    // Kept on the phone too, for when the server can't be reached (savedLoans).
     internal suspend fun loans(): Loans = coroutineScope {
         val borrowed = async { api.borrowings() }
         val sent = async { api.sentRequests() }
         val lent = async { api.lent() }
         val received = async { api.receivedRequests() }
-        Loans(
-            borrowed = borrowed.await().map { it.toLoan(person = it.owner.name) },
-            sentRequests = sent.await().map { it.toBookRequest(person = it.owner.name) },
-            lent = lent.await().map { it.toLoan(person = it.borrower.name) },
-            receivedRequests = received.await().map { it.toBookRequest(person = it.requester.name) },
-        )
+        val saved = SavedLoans(borrowed.await(), sent.await(), lent.await(), received.await())
+        Session.user.value?.let { SavedData.saveLoans(it.id, saved) }
+        saved.toLoans()
     }
+
+    // The lists as they were the last time the server sent them, or null when there's no copy on the phone.
+    internal suspend fun savedLoans(): Loans? {
+        val user = Session.user.value ?: return null
+        return SavedData.loans(user.id)?.toLoans()
+    }
+
+    private fun SavedLoans.toLoans() = Loans(
+        borrowed = borrowed.map { it.toLoan(person = it.owner.name) },
+        sentRequests = sent.map { it.toBookRequest(person = it.owner.name) },
+        lent = lent.map { it.toLoan(person = it.borrower.name) },
+        receivedRequests = received.map { it.toBookRequest(person = it.requester.name) },
+    )
 
     suspend fun markReturned(loanId: String) {
         api.markReturned(loanId)

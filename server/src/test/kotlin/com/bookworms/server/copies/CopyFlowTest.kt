@@ -195,6 +195,33 @@ class CopyFlowTest(
 	}
 
 	@Test
+	fun `the owner can write their own description, also of a catalog book, and take it back`() {
+		val id = addCopyAndGetId(agata, """{"isbn": "9788308049461", "title": "Solaris", "authors": "Lem"}""")
+
+		changeDescription(agata, id, """{"description": "  My favourite Lem.  "}""").andExpect {
+			status { isOk() }
+			jsonPath("$.description") { value("My favourite Lem.") }
+			// The catalog book stays as it was – other people see its description.
+			jsonPath("$.book.description") { doesNotExist() }
+		}
+		mockMvc.get("/me/copies") { bearer(agata) }.andExpect { jsonPath("$[0].description") { value("My favourite Lem.") } }
+
+		// Blank = back to the catalog's description.
+		changeDescription(agata, id, """{"description": "  "}""").andExpect {
+			status { isOk() }
+			jsonPath("$.description") { doesNotExist() }
+		}
+	}
+
+	@Test
+	fun `only the owner can change the description, and it can't be endless`() {
+		val id = addCopyAndGetId(agata, """{"isbn": "9788308049461", "title": "Solaris", "authors": "Lem"}""")
+
+		changeDescription(marek, id, """{"description": "Mine now"}""").andExpect { status { isNotFound() } }
+		changeDescription(agata, id, """{"description": "${"a".repeat(5001)}"}""").andExpect { status { isBadRequest() } }
+	}
+
+	@Test
 	fun `a removed copy is gone from my books`() {
 		val id = addCopyAndGetId(agata, """{"isbn": "9788308049461", "title": "Solaris", "authors": "Lem"}""")
 
@@ -220,6 +247,13 @@ class CopyFlowTest(
 
 	private fun editBook(token: String, copyId: String, json: String) =
 		mockMvc.put("/copies/$copyId/book") {
+			bearer(token)
+			contentType = MediaType.APPLICATION_JSON
+			content = json
+		}
+
+	private fun changeDescription(token: String, copyId: String, json: String) =
+		mockMvc.put("/copies/$copyId/description") {
 			bearer(token)
 			contentType = MediaType.APPLICATION_JSON
 			content = json
