@@ -257,6 +257,7 @@
     <string name="tab_requests">Requests</string>
     <string name="tab_favorites">Favorites</string>
     <string name="tab_want_to_read">Want to read</string>
+    <string name="tab_reading">Reading</string>
     <string name="tab_read">Read</string>
 
     <!-- Sections and Headers -->
@@ -318,6 +319,8 @@
     <string name="sort_title">Title A–Z</string>
     <string name="sort_author">Author A–Z</string>
     <string name="content_desc_sort">Change order</string>
+    <string name="load_shelves_failed">Couldn\'t load your shelves. Check your connection and try again.</string>
+    <string name="shelf_change_failed">Couldn\'t save it. Check your connection and try again.</string>
     <string name="shelf_empty">No books here yet.</string>
     <string name="list_empty">No books on this list yet. Tap Add books to put some here.</string>
     <!-- %1$d = how many books are on the shelf -->

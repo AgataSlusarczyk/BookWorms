@@ -9,6 +9,8 @@ import com.bookworms.app.data.CopyChangedException
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.LoansRepository
 import com.bookworms.app.data.MyBooksRepository
+import com.bookworms.app.data.ShelfRepository
+import com.bookworms.app.data.ShelfState
 import com.bookworms.app.data.load
 import com.bookworms.app.data.loadOrSaved
 import com.bookworms.app.data.withCopies
@@ -27,6 +29,7 @@ class BookDetailsViewModel(
     private val repository: BookRepository = BookRepository(),
     private val loans: LoansRepository = LoansRepository(),
     private val myBooks: MyBooksRepository = MyBooksRepository(),
+    private val shelf: ShelfRepository = ShelfRepository(),
 ) : ViewModel() {
 
     private val _book = MutableStateFlow<LoadState<BookDetails>>(LoadState.Loading)
@@ -37,6 +40,12 @@ class BookDetailsViewModel(
     val ratingFailed: StateFlow<Boolean> = _ratingFailed.asStateFlow()
 
     private var rating: Job? = null
+
+    // true when the last heart or reading status didn't reach the server. Said once, then shelfErrorShown().
+    private val _shelfFailed = MutableStateFlow(false)
+    val shelfFailed: StateFlow<Boolean> = _shelfFailed.asStateFlow()
+
+    private var shelfChange: Job? = null
 
     // The copy whose button was just tapped, while the server answers. Its button is grayed out until then.
     private val _busyCopy = MutableStateFlow<String?>(null)
@@ -82,6 +91,43 @@ class BookDetailsViewModel(
 
     fun ratingErrorShown() {
         _ratingFailed.value = false
+    }
+
+    fun toggleFavorite() {
+        val book = (_book.value as? LoadState.Ready)?.data ?: return
+        val favorite = !book.isFavorite
+        changeShelf(change = { it.copy(isFavorite = favorite) }) { shelf.setFavorite(book.id, favorite) }
+    }
+
+    // null takes the status back (a tap on the one already picked).
+    fun setReadingStatus(status: ReadingStatus?) {
+        val book = (_book.value as? LoadState.Ready)?.data ?: return
+        changeShelf(change = { it.copy(readingStatus = status) }) { shelf.setStatus(book.id, status) }
+    }
+
+    fun shelfErrorShown() {
+        _shelfFailed.value = false
+    }
+
+    // Like the rating: the screen changes right away, and goes back if the server doesn't take it.
+    private fun changeShelf(change: (BookDetails) -> BookDetails, call: suspend () -> ShelfState) {
+        val before = (_book.value as? LoadState.Ready)?.data ?: return
+        updateBook(change)
+        // Waits for the previous tap, so the server gets them in the same order.
+        val previous = shelfChange
+        shelfChange = viewModelScope.launch {
+            previous?.join()
+            try {
+                val state = call()
+                updateBook { it.copy(isFavorite = state.favorite, readingStatus = state.status) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("BookWorms", "Saving the heart or reading status failed", e)
+                updateBook { it.copy(isFavorite = before.isFavorite, readingStatus = before.readingStatus) }
+                _shelfFailed.value = true
+            }
+        }
     }
 
     fun sendRequest(copy: BookCopy) =

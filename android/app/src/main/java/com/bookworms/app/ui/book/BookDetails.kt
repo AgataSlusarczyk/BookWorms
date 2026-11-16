@@ -31,6 +31,9 @@ data class BookDetails(
     // One for each of the user's groups. Only people in that group see it.
     val groupDiscussions: List<GroupDiscussion>,
     val ratings: BookRatings = BookRatings(),
+    // The heart and the reading status of the logged-in user. null status = none picked.
+    val isFavorite: Boolean = false,
+    val readingStatus: ReadingStatus? = null,
 )
 
 // What everyone thinks of the book, and what the user thinks.

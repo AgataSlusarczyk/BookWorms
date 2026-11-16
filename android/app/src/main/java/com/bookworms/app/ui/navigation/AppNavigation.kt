@@ -41,12 +41,10 @@ import com.bookworms.app.ui.book.AddCommentScreen
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.BookDetailsViewModel
 import com.bookworms.app.ui.book.CopyMessage
-import com.bookworms.app.ui.book.ReadingStatus
 import com.bookworms.app.ui.book.findGroupComment
 import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.BrowseViewModel
-import com.bookworms.app.ui.browse.sampleBooks
 import com.bookworms.app.ui.components.LoadStateScreen
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
@@ -80,6 +78,7 @@ import com.bookworms.app.ui.lists.MyListDetailsScreen
 import com.bookworms.app.ui.lists.MyListsScreen
 import com.bookworms.app.ui.lists.Shelf
 import com.bookworms.app.ui.lists.ShelfScreen
+import com.bookworms.app.ui.lists.ShelvesViewModel
 import com.bookworms.app.ui.lists.customLists
 import com.bookworms.app.ui.lists.listBooks
 import com.bookworms.app.ui.loans.LoansScreen
@@ -180,10 +179,6 @@ fun AppNavigation() {
 
     // Temporary – most screens only know a book's title, so we look it up in the sample books.
     // A title that isn't there (e.g. "Pachnidło") opens the first sample book.
-    val openBookByTitle: (String) -> Unit = { title ->
-        val book = sampleBooks.find { it.title == title } ?: sampleBooks.first()
-        navController.navigate(Routes.bookDetails(book.isbn))
-    }
 
     val user by Session.user.collectAsState()
     // Remembered together with the first screen, so a logout that happens before the check below runs
@@ -391,22 +386,33 @@ fun AppNavigation() {
         }
 
         composable(Routes.LISTS) {
+            val viewModel: ShelvesViewModel = viewModel()
+            val shelves by viewModel.shelves.collectAsState()
+            // Runs each time My lists shows up again, e.g. after a heart was tapped on Book details.
+            LaunchedEffect(Unit) { viewModel.refresh() }
             MyListsScreen(
                 onNavigate = navigateBottomBar,
                 onListClick = { listName -> navController.navigate(Routes.listDetails(listName)) },
                 onCreateListClick = { navController.navigate(Routes.CREATE_LIST) },
-                onBookClick = openBookByTitle,
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onSeeAllClick = { shelf -> navController.navigate(Routes.shelf(shelf)) },
+                shelves = shelves,
+                onRetryClick = viewModel::refresh,
             )
         }
 
         composable(Routes.SHELF) { backStackEntry ->
             // The route has the shelf's name, e.g. "WantToRead"; valueOf turns it back into Shelf.WantToRead.
             val shelf = Shelf.valueOf(backStackEntry.arguments?.getString("shelf") ?: Shelf.Favorites.name)
+            val viewModel: ShelvesViewModel = viewModel()
+            val shelves by viewModel.shelves.collectAsState()
+            LaunchedEffect(Unit) { viewModel.refresh() }
             ShelfScreen(
                 shelf = shelf,
-                onBookClick = openBookByTitle,
+                onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 onBackClick = { navController.popBackStack() },
+                shelves = shelves,
+                onRetryClick = viewModel::refresh,
             )
         }
 
@@ -806,11 +812,16 @@ fun AppNavigation() {
             val ratingFailed by viewModel.ratingFailed.collectAsState()
             val busyCopy by viewModel.busyCopy.collectAsState()
             val copyMessage by viewModel.copyMessage.collectAsState()
-
-            // Temporary state – moves to a ViewModel when favorites and reading status are on the server.
-            var isFavorite by rememberSaveable { mutableStateOf(false) }
-            var readingStatus by rememberSaveable { mutableStateOf(ReadingStatus.TO_READ) }
+            val shelfFailed by viewModel.shelfFailed.collectAsState()
             val context = LocalContext.current
+
+            // Said once, when the heart or the reading status didn't reach the server.
+            LaunchedEffect(shelfFailed) {
+                if (shelfFailed) {
+                    Toast.makeText(context, R.string.shelf_change_failed, Toast.LENGTH_LONG).show()
+                    viewModel.shelfErrorShown()
+                }
+            }
 
             // Said once, when a rating didn't reach the server.
             LaunchedEffect(ratingFailed) {
@@ -840,10 +851,8 @@ fun AppNavigation() {
             ) { book ->
                 BookDetailsScreen(
                     book = book,
-                    isFavorite = isFavorite,
-                    readingStatus = readingStatus,
-                    onFavoriteClick = { isFavorite = !isFavorite },
-                    onReadingStatusChange = { readingStatus = it },
+                    onFavoriteClick = viewModel::toggleFavorite,
+                    onReadingStatusChange = viewModel::setReadingStatus,
                     onRatingChange = viewModel::rate,
                     onSendRequest = viewModel::sendRequest,
                     onCancelRequest = viewModel::cancelRequest,
