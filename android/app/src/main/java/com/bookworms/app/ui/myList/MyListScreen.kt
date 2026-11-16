@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.*
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
@@ -45,21 +46,22 @@ internal enum class ListStatus(@StringRes val label: Int, val color: Color, val 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyListsScreen(
+internal fun MyListsScreen(
     onNavigate: (String) -> Unit = {},
     onListClick: (String) -> Unit = {},
     onCreateListClick: () -> Unit = {},
-    // Gets the book's title – the sample books here have no ISBN yet.
-    onBookClick: (title: String) -> Unit = {},
+    onBookClick: (isbn: String) -> Unit = {},
     // Opens the whole shelf on its own screen.
     onSeeAllClick: (Shelf) -> Unit = {},
+    // The books on each shelf, from the server.
+    shelves: LoadState<Map<Shelf, List<ShelfBook>>> = LoadState.Ready(emptyMap()),
+    onRetryClick: () -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val shelf = Shelf.entries[selectedTabIndex]
-    val allBooks = shelf.books()
+    val allBooks = (shelves as? LoadState.Ready)?.data?.get(shelf).orEmpty()
     // Only the newest few here, so "Your lists" and the stats stay close. The rest is behind "See all".
     val previewBooks = ShelfSort.RecentlyAdded.apply(allBooks).take(ShelfPreviewCount)
-    val favorites = favoriteTitles()
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -82,17 +84,23 @@ fun MyListsScreen(
                     onSelect = { selectedTabIndex = it },
                 )
             }
-            if (allBooks.isEmpty()) {
-                item {
-                    Text(
-                        stringResource(R.string.shelf_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            when (shelves) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item {
+                    LoadFailedMessage(stringResource(R.string.load_shelves_failed), onRetryClick = onRetryClick)
+                }
+                is LoadState.Ready -> if (allBooks.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.shelf_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-            items(previewBooks, key = { it.title }) { book ->
-                ShelfBookCard(book, isFavorite = book.title in favorites, onClick = { onBookClick(book.title) })
+            items(previewBooks, key = { it.isbn }) { book ->
+                ShelfBookCard(book, onClick = { onBookClick(book.isbn) })
             }
             // Only when there's more than the preview shows.
             if (allBooks.size > previewBooks.size) {
@@ -172,19 +180,23 @@ private val CustomListTileHeight = 80.dp
 internal fun ListBookCard(
     title: String,
     author: String,
-    status: ListStatus,
+    // Whether the book can be borrowed now. null = not shown (the shelves don't check that yet).
+    status: ListStatus?,
     onClick: () -> Unit,
     // A full heart for books on Favorites, an empty one for the rest.
     isFavorite: Boolean = false,
     extraBadge: String? = null,
     // When the book was put on the list; shown after the author, e.g. "Stanisław Lem · added 5 days ago".
     addedDaysAgo: Int? = null,
+    // Full address of the cover. null = the gray box.
+    coverUrl: String? = null,
 ) {
     AppCard(onClick = onClick) {
         BookRow(
             title = title,
             subtitle = if (addedDaysAgo == null) author else
                 "$author · ${pluralStringResource(R.plurals.added_days_ago, addedDaysAgo, addedDaysAgo)}",
+            coverUrl = coverUrl,
             trailing = {
                 Icon(
                     painter = painterResource(if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
@@ -192,24 +204,34 @@ internal fun ListBookCard(
                     tint = MaterialTheme.colorScheme.error,
                 )
             },
-        ) {
-            StatusTag(
-                text = stringResource(status.label),
-                dotColor = status.color,
-                backgroundColor = status.background,
-                textColor = status.color,
-            )
-            if (extraBadge != null) {
-                Text(
-                    text = extraBadge,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .background(PlaceholderGray, CircleShape)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
-        }
+            // Only with a tag to show – an empty row would leave a gap under the author.
+            chips = if (status == null && extraBadge == null) null else {
+                { ListBookChips(status, extraBadge) }
+            },
+        )
+    }
+}
+
+// The tags under the author: whether the book can be borrowed, and e.g. "Notify me".
+@Composable
+private fun RowScope.ListBookChips(status: ListStatus?, extraBadge: String?) {
+    if (status != null) {
+        StatusTag(
+            text = stringResource(status.label),
+            dotColor = status.color,
+            backgroundColor = status.background,
+            textColor = status.color,
+        )
+    }
+    if (extraBadge != null) {
+        Text(
+            text = extraBadge,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .background(PlaceholderGray, CircleShape)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        )
     }
 }
 
@@ -329,10 +351,13 @@ private fun YearPicker(selected: Int, years: List<Int>, onSelect: (Int) -> Unit)
     }
 }
 
-private val mostBorrowed: List<Pair<String, Int>> = emptyList()
+// One of the user's books and how many times others borrowed it.
+private data class BorrowedBook(val isbn: String, val title: String, val count: Int)
+
+private val mostBorrowed: List<BorrowedBook> = emptyList()
 
 @Composable
-private fun MostBorrowedCard(onBookClick: (title: String) -> Unit) {
+private fun MostBorrowedCard(onBookClick: (isbn: String) -> Unit) {
     // TODO: from the server – the user's books others borrowed most. Empty until then, and the card is hidden.
     val items = mostBorrowed
 
@@ -340,13 +365,13 @@ private fun MostBorrowedCard(onBookClick: (title: String) -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.stats_most_borrowed), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            items.forEachIndexed { index, (title, count) ->
+            items.forEachIndexed { index, (isbn, title, count) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         // Rounded, so the gray flash on tap doesn't have square corners.
                         .clip(ButtonShape)
-                        .clickable { onBookClick(title) }
+                        .clickable { onBookClick(isbn) }
                         .padding(vertical = 4.dp),
                 ) {
                     Text("${index + 1}. $title", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))

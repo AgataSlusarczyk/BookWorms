@@ -87,6 +87,7 @@ fun MyListDetailsScreen(
                     onClick = { onBookClick(book.isbn) },
                     // Someone has it now, so the user can ask to hear when it's back.
                     extraBadge = if (status == ListStatus.Borrowed) stringResource(R.string.badge_notify_me) else null,
+                    coverUrl = book.coverUrl,
                 )
             }
         }

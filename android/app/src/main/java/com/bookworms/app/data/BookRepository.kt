@@ -24,6 +24,7 @@ class BookRepository(
     private val api: BooksApi = ApiClient.books,
     private val copies: CopiesApi = ApiClient.copies,
     private val loans: LoansRepository = LoansRepository(),
+    private val shelf: ShelfRepository = ShelfRepository(),
 ) {
 
     // Books whose title, author or ISBN contains the query. An empty query gives the newest books.
@@ -44,9 +45,16 @@ class BookRepository(
         val loggedIn = Session.token != null
         val own = async { if (loggedIn) copies.myCopies().filter { it.book.id == book.id } else emptyList() }
         val others = async { if (loggedIn) loans.bookCopies(book.id) else null }
+        val shelfState = async { if (loggedIn) shelf.state(book.id) else ShelfState() }
         val mine = own.await()
+        val state = shelfState.await()
         book.withReviews(reviews.await())
-            .copy(ownCopies = mine.size, myDescription = mine.firstNotNullOfOrNull { it.description })
+            .copy(
+                ownCopies = mine.size,
+                myDescription = mine.firstNotNullOfOrNull { it.description },
+                isFavorite = state.favorite,
+                readingStatus = state.status,
+            )
             .withCopies(others.await())
     }
 

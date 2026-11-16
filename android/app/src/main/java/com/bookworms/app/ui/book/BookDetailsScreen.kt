@@ -75,10 +75,9 @@ import com.bookworms.app.ui.theme.PlaceholderGray
 @Composable
 fun BookDetailsScreen(
     book: BookDetails,
-    isFavorite: Boolean,
-    readingStatus: ReadingStatus,
     onFavoriteClick: () -> Unit,
-    onReadingStatusChange: (ReadingStatus) -> Unit,
+    // null = the user took the status back by tapping the one already picked.
+    onReadingStatusChange: (ReadingStatus?) -> Unit,
     // stars = 1–5, or null when the user takes the rating back.
     onRatingChange: (stars: Int?) -> Unit,
     onSendRequest: (BookCopy) -> Unit,
@@ -151,7 +150,7 @@ fun BookDetailsScreen(
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
     ) {
         TopActions(
-            isFavorite = isFavorite,
+            isFavorite = book.isFavorite,
             showUserActions = !isGuest && !offline,
             onBackClick = onBackClick,
             onFavoriteClick = onFavoriteClick,
@@ -183,7 +182,7 @@ fun BookDetailsScreen(
             GuestLoginCard(onLoginClick = onLoginClick)
         } else {
             SectionLabel(stringResource(R.string.reading_status_label))
-            ReadingStatusSelector(selected = readingStatus, onSelect = onReadingStatusChange)
+            ReadingStatusSelector(selected = book.readingStatus, onSelect = onReadingStatusChange)
 
             Spacer(Modifier.height(16.dp))
 
@@ -490,13 +489,14 @@ private fun BookHeader(book: BookDetails, showRatings: Boolean = true) {
 
 // Three buttons joined together; the picked one is white.
 @Composable
-private fun ReadingStatusSelector(selected: ReadingStatus, onSelect: (ReadingStatus) -> Unit) {
+// Nothing is picked at first. Tapping the picked one again takes it back (onSelect(null)).
+private fun ReadingStatusSelector(selected: ReadingStatus?, onSelect: (ReadingStatus?) -> Unit) {
     val options = ReadingStatus.entries
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, status ->
             SegmentedButton(
                 selected = status == selected,
-                onClick = { onSelect(status) },
+                onClick = { onSelect(if (status == selected) null else status) },
                 // Rounded corners only on the outer ends of the row.
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 // No check mark, the white fill already shows which one is picked.
@@ -860,8 +860,6 @@ private fun BookDetailsScreenPreview() {
     BookWormsTheme {
         BookDetailsScreen(
             book = sampleBookDetails,
-            isFavorite = false,
-            readingStatus = ReadingStatus.IN_PROGRESS,
             onFavoriteClick = {},
             onReadingStatusChange = {},
             onRatingChange = {},

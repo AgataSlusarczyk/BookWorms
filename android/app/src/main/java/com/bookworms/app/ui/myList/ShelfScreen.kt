@@ -33,22 +33,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
+import com.bookworms.app.data.LoadState
+import com.bookworms.app.ui.components.LoadFailedMessage
+import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.SectionHeader
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
-// All books on Favorites, Want to read or Read, opened with "See all" on My lists.
+// All books on one shelf (Favorites, Want to read, Reading or Read), opened with "See all" on My lists.
 @Composable
-fun ShelfScreen(
+internal fun ShelfScreen(
     shelf: Shelf,
-    // Gets the book's title – the sample books here have no ISBN yet.
-    onBookClick: (title: String) -> Unit,
+    onBookClick: (isbn: String) -> Unit,
     onBackClick: () -> Unit,
+    // The books on each shelf, from the server.
+    shelves: LoadState<Map<Shelf, List<ShelfBook>>> = LoadState.Ready(emptyMap()),
+    onRetryClick: () -> Unit = {},
 ) {
     var sort by rememberSaveable { mutableStateOf(ShelfSort.RecentlyAdded) }
-    val books = sort.apply(shelf.books())
-    val favorites = favoriteTitles()
+    val books = sort.apply((shelves as? LoadState.Ready)?.data?.get(shelf).orEmpty())
 
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -63,35 +67,43 @@ fun ShelfScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            item { ShelfHeader(bookCount = books.size, sort = sort, onSortChange = { sort = it }) }
-            if (books.isEmpty()) {
-                item {
-                    Text(
-                        stringResource(R.string.shelf_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            when (shelves) {
+                LoadState.Loading -> item { LoadingIndicator() }
+                LoadState.Failed -> item {
+                    LoadFailedMessage(stringResource(R.string.load_shelves_failed), onRetryClick = onRetryClick)
+                }
+                is LoadState.Ready -> {
+                    item { ShelfHeader(bookCount = books.size, sort = sort, onSortChange = { sort = it }) }
+                    if (books.isEmpty()) {
+                        item {
+                            Text(
+                                stringResource(R.string.shelf_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
-            items(books, key = { it.title }) { book ->
-                ShelfBookCard(book, isFavorite = book.title in favorites, onClick = { onBookClick(book.title) })
+            items(books, key = { it.isbn }) { book ->
+                ShelfBookCard(book, onClick = { onBookClick(book.isbn) })
             }
         }
     }
 }
 
 // A book on a shelf – used both on My lists and here.
+// TODO: whether the book can be borrowed in the user's groups (Available / Borrowed) – not shown yet.
 @Composable
-internal fun ShelfBookCard(book: ShelfBook, isFavorite: Boolean, onClick: () -> Unit) {
+internal fun ShelfBookCard(book: ShelfBook, onClick: () -> Unit) {
     ListBookCard(
         title = book.title,
         author = book.author,
-        status = book.status,
+        status = null,
         onClick = onClick,
-        isFavorite = isFavorite,
-        // Someone has it now, so the user can ask to hear when it's back.
-        extraBadge = if (book.status == ListStatus.Borrowed) stringResource(R.string.badge_notify_me) else null,
+        isFavorite = book.isFavorite,
         addedDaysAgo = book.addedDaysAgo,
+        coverUrl = book.coverUrl,
     )
 }
 
