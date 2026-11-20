@@ -16,13 +16,17 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// The Chat tab of Group details. New messages come live while the tab is on screen (stayConnected).
+// The group's chat. Shared by Group details (the newest message on the "Group chat" card) and the chat
+// screen, where new messages come live (stayConnected).
 internal class ChatViewModel(
     private val groupId: String,
     private val repository: ChatRepository = ChatRepository(),
@@ -31,6 +35,17 @@ internal class ChatViewModel(
     // The newest first – the list is drawn from the bottom up.
     private val _messages = MutableStateFlow<LoadState<List<ChatMessage>>>(LoadState.Loading)
     val messages: StateFlow<LoadState<List<ChatMessage>>> = _messages.asStateFlow()
+
+    // The newest message, for the "Group chat" card. Ready(null) = the chat is empty.
+    val lastMessage: StateFlow<LoadState<ChatMessage?>> = _messages
+        .map { messages ->
+            when (messages) {
+                is LoadState.Ready -> LoadState.Ready(messages.data.firstOrNull())
+                LoadState.Loading -> LoadState.Loading
+                LoadState.Failed -> LoadState.Failed
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, LoadState.Loading)
 
     // false = the live stream is (re)connecting, so new messages may come late.
     private val _connected = MutableStateFlow(false)
@@ -53,10 +68,7 @@ internal class ChatViewModel(
     // true = the chat's first message is on screen, there's nothing older.
     private var reachedStart = false
 
-    init {
-        refresh()
-    }
-
+    // Group details calls it each time it shows up, so the card has the newest message.
     fun refresh() {
         if (_messages.value !is LoadState.Ready) _messages.value = LoadState.Loading
         viewModelScope.launch {

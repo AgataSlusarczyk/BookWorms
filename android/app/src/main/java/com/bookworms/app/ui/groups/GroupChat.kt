@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,8 +46,10 @@ import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.auth.Session
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.authFieldColors
+import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -60,10 +65,31 @@ private val EarlierTime = DateTimeFormatter.ofPattern("dd.MM HH:mm")
 // How close to the oldest message on screen the next older page starts loading.
 private const val LoadOlderAhead = 5
 
-// The Chat tab of Group details, with its live connection: open while the tab is on screen and the app
-// is in front, closed when the user looks elsewhere – so a phone in a pocket keeps no connection open.
+// The group's chat on its own screen, opened from the "Group chat" card on Group details.
 @Composable
-internal fun GroupChat(viewModel: ChatViewModel, modifier: Modifier = Modifier) {
+internal fun GroupChatScreen(groupName: String, viewModel: ChatViewModel, onBackClick: () -> Unit) {
+    Scaffold(
+        // Transparent, so the misted picture behind the whole screen shows through.
+        modifier = Modifier.mistedBackground(),
+        containerColor = Color.Transparent,
+        topBar = { AppTopBar(title = groupName, onBackClick = onBackClick) },
+    ) { padding ->
+        GroupChat(
+            viewModel,
+            // The text field at the bottom stays above the keyboard.
+            Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .fillMaxSize(),
+        )
+    }
+}
+
+// The chat with its live connection: open while the chat is on screen and the app is in front,
+// closed when the user looks elsewhere – so a phone in a pocket keeps no connection open.
+@Composable
+private fun GroupChat(viewModel: ChatViewModel, modifier: Modifier = Modifier) {
     val messages by viewModel.messages.collectAsState()
     val connected by viewModel.connected.collectAsState()
     val loadingOlder by viewModel.loadingOlder.collectAsState()
@@ -174,7 +200,8 @@ private fun MessageList(messages: List<ChatMessage>, myId: String?, loadingOlder
         // Index 0 (the newest) at the bottom.
         reverseLayout = true,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        // Bottom: a few messages sit right above the text field, not at the top of an empty screen.
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom),
         modifier = Modifier.fillMaxSize(),
     ) {
         itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
