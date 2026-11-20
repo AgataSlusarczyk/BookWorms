@@ -2,6 +2,7 @@ package com.bookworms.server.common
 
 import com.bookworms.server.auth.JwtProperties
 import com.nimbusds.jose.jwk.source.ImmutableSecret
+import jakarta.servlet.DispatcherType
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -29,6 +30,9 @@ class SecurityConfig {
 			.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
 			.authorizeHttpRequests {
 				it.requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
+				// The rest of an answer that keeps going (the chat's live stream). The request itself was checked
+				// when it came in – this only lets the server finish writing to it.
+				it.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
 				// Who in my groups has a book – only for group members, so it's checked before the public catalog below.
 				it.requestMatchers(HttpMethod.GET, "/books/*/copies").authenticated()
 				// The public catalog: people browse books before they have an account.

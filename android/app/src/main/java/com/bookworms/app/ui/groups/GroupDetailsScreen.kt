@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -63,6 +65,7 @@ import java.time.format.DateTimeFormatter
 private enum class GroupTab(val label: Int) {
     Books(R.string.tab_group_books),
     Members(R.string.tab_group_members),
+    Chat(R.string.tab_group_chat),
 }
 
 private val JoinedDate = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -82,6 +85,8 @@ internal fun GroupDetailsScreen(
     onRemoveMember: (GroupMember) -> Unit,
     onLeaveClick: () -> Unit,
     onBackClick: () -> Unit,
+    // The Chat tab's content (GroupChat). It fills the space under the tabs.
+    chat: @Composable (Modifier) -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     // Who the "Remove from group?" dialog asks about (their id), or null when it's closed.
@@ -109,6 +114,26 @@ internal fun GroupDetailsScreen(
             )
         },
     ) { padding ->
+        // The chat takes the whole screen under the tabs, with its text field at the bottom – above the keyboard.
+        if (GroupTab.entries[selectedTab] == GroupTab.Chat) {
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .consumeWindowInsets(padding)
+                    .imePadding()
+                    .fillMaxSize(),
+            ) {
+                Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
+                    SegmentedTabs(
+                        tabs = GroupTab.entries.map { stringResource(it.label) },
+                        selectedIndex = selectedTab,
+                        onSelect = { selectedTab = it },
+                    )
+                }
+                chat(Modifier.weight(1f))
+            }
+            return@Scaffold
+        }
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -154,6 +179,7 @@ internal fun GroupDetailsScreen(
                         onRemove = { memberToRemove = member.id },
                     )
                 }
+                GroupTab.Chat -> Unit
             }
 
             item {
@@ -360,6 +386,7 @@ private fun GroupDetailsScreenPreview() {
             onRemoveMember = {},
             onLeaveClick = {},
             onBackClick = {},
+            chat = {},
         )
     }
 }

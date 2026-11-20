@@ -3,6 +3,7 @@ package com.bookworms.server.common
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
@@ -10,6 +11,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.multipart.MultipartException
 import org.springframework.web.multipart.support.MissingServletRequestPartException
@@ -60,6 +62,11 @@ class GlobalExceptionHandler {
 	fun handleDataIntegrity(ex: DataIntegrityViolationException) =
 		error(HttpStatus.CONFLICT, "CONFLICT", "Request conflicts with existing data")
 
+	// The phone closed a connection that was still open, e.g. the chat's live stream. There's nobody to answer.
+	@ExceptionHandler(AsyncRequestNotUsableException::class)
+	fun handleClientGone(ex: AsyncRequestNotUsableException) {
+	}
+
 	@ExceptionHandler(Exception::class)
 	fun handleUnexpected(ex: Exception): ResponseEntity<ErrorResponse> {
 		log.error("Unexpected error", ex)
@@ -71,5 +78,7 @@ class GlobalExceptionHandler {
 		code: String,
 		message: String,
 		fieldErrors: Map<String, String> = emptyMap(),
-	) = ResponseEntity.status(status).body(ErrorResponse(code, message, fieldErrors))
+	// Always JSON, whatever the request asked for – e.g. the chat's stream asks for text/event-stream,
+	// and without this a "not found" there would turn into "406 Not Acceptable".
+	) = ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(ErrorResponse(code, message, fieldErrors))
 }
