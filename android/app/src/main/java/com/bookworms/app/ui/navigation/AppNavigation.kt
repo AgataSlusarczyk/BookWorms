@@ -53,7 +53,9 @@ import com.bookworms.app.ui.group.copyInviteCode
 import com.bookworms.app.ui.group.inviteLink
 import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.groups.CreateGroupScreen
+import com.bookworms.app.ui.groups.ChatViewModel
 import com.bookworms.app.ui.groups.CreateGroupViewModel
+import com.bookworms.app.ui.groups.GroupChat
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupDetailsViewModel
 import com.bookworms.app.ui.groups.GroupEvent
@@ -504,6 +506,11 @@ fun AppNavigation() {
             val books by viewModel.books.collectAsState()
             val saving by viewModel.saving.collectAsState()
             HandleGroupEvents(viewModel.events, navController)
+            // Lives as long as Group details, so switching tabs keeps the messages and what's typed.
+            val chatViewModel: ChatViewModel = viewModel(entry) {
+                ChatViewModel(entry.arguments?.getString("groupId").orEmpty())
+            }
+            HandleGroupEvents(chatViewModel.events, navController)
 
             LoadStateScreen(
                 state = state,
@@ -523,6 +530,7 @@ fun AppNavigation() {
                     onRemoveMember = viewModel::removeMember,
                     onLeaveClick = viewModel::leave,
                     onBackClick = { navController.popBackStack() },
+                    chat = { modifier -> GroupChat(chatViewModel, modifier) },
                 )
             }
         }

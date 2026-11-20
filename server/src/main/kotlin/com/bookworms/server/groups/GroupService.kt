@@ -14,6 +14,7 @@ import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
 import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.users.UserRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,6 +31,7 @@ class GroupService(
 	private val copyRepository: BookCopyRepository,
 	private val visibilityRepository: CopyGroupVisibilityRepository,
 	private val borrowingRepository: BorrowingRepository,
+	private val events: ApplicationEventPublisher,
 ) {
 
 	private val random = SecureRandom()
@@ -160,6 +162,7 @@ class GroupService(
 	fun delete(userId: UUID, groupId: UUID) {
 		requireAdmin(userId, groupId)
 		groupRepository.deleteById(groupId)
+		events.publishEvent(GroupDeleted(groupId))
 	}
 
 	// The old code stops working, so people who got it but didn't join yet can't anymore.
@@ -216,6 +219,7 @@ class GroupService(
 		memberRepository.hideAllCopiesFromGroup(member.id.userId, member.id.groupId)
 		memberRepository.delete(member)
 		memberRepository.flush()
+		events.publishEvent(MemberLeftGroup(member.id.userId, member.id.groupId))
 	}
 
 	private fun membership(userId: UUID, groupId: UUID): GroupMember =

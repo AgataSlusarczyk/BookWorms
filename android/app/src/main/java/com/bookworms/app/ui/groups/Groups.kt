@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.groups
 
+import java.time.Instant
 import java.time.LocalDate
 
 // One group on the Groups list.
@@ -52,4 +53,13 @@ internal data class InvitePreview(
     val description: String,
     val memberCount: Int,
     val alreadyMember: Boolean,
+)
+
+// One message in the group's chat.
+internal data class ChatMessage(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val text: String,
+    val sentAt: Instant,
 )

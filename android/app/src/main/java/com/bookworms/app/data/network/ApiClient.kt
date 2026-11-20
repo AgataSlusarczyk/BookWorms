@@ -15,13 +15,20 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Skips fields the app doesn't know yet, so a newer server doesn't break an older app.
-    private val json = Json { ignoreUnknownKeys = true }
+    internal val json = Json { ignoreUnknownKeys = true }
 
     // A switched-off server often doesn't say no – the phone just hears nothing. So after 5 seconds
     // without a connection we give up and show what's saved on the phone (OkHttp waits 10 by default).
     private val http = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .addInterceptor(::withToken)
+        .build()
+
+    // For connections that stay open, like the group chat's live stream. The server sends something
+    // every 20 seconds, so a minute of silence means the connection is dead and the app opens a new one.
+    // Built from http, so it sends the token too and shares its connections.
+    val streams: OkHttpClient = http.newBuilder()
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
     private val retrofit = Retrofit.Builder()

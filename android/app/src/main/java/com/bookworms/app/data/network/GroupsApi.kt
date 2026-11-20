@@ -8,6 +8,7 @@ import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 // Groups on our server. Every call needs the login token.
 // Someone outside a group gets 404 (code GROUP_NOT_FOUND) for it; admin-only calls answer 403 (NOT_GROUP_ADMIN).
@@ -55,6 +56,19 @@ interface GroupsApi {
 
     @DELETE("me/groups/{id}")
     suspend fun leave(@Path("id") groupId: String): Response<Unit>
+
+    // The group's chat, the newest first. before = the id of the oldest message the app has, for the page before it.
+    // New messages come live on groups/{id}/messages/stream (see ChatRepository).
+    @GET("groups/{id}/messages")
+    suspend fun messages(
+        @Path("id") groupId: String,
+        @Query("before") before: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): List<GroupMessageDto>
+
+    // 400 for an empty message or one over 2000 characters.
+    @POST("groups/{id}/messages")
+    suspend fun sendMessage(@Path("id") groupId: String, @Body request: SendMessageDto): GroupMessageDto
 }
 
 @Serializable
@@ -118,4 +132,19 @@ data class GroupRequestDto(
 @Serializable
 data class InviteCodeDto(
     val code: String,
+)
+
+@Serializable
+data class GroupMessageDto(
+    val id: String,
+    val groupId: String,
+    val sender: PersonDto,
+    val content: String,
+    // ISO time, e.g. "2026-11-20T09:14:30.016734Z".
+    val createdAt: String,
+)
+
+@Serializable
+data class SendMessageDto(
+    val content: String,
 )

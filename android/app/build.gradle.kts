@@ -57,8 +57,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
+    // The group chat's live stream (Server-Sent Events).
+    implementation(libs.okhttp.sse)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
