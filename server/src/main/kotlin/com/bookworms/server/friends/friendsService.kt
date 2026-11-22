@@ -1,6 +1,8 @@
 package com.bookworms.server.friends
 
 import com.bookworms.server.common.ApiException
+import com.bookworms.server.copies.BookCopyRepository
+import com.bookworms.server.friends.dto.FriendBookResponse
 import com.bookworms.server.friends.dto.FriendRequestResponse
 import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.users.UserRepository
@@ -9,11 +11,12 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
-// Friends: send a request by email, accept or reject incoming ones, list and remove friends.
+// Friends: search users, send a request by email, accept or reject incoming ones, list friends and their books.
 @Service
 class FriendService(
 	private val friendshipRepository: FriendshipRepository,
 	private val userRepository: UserRepository,
+	private val copyRepository: BookCopyRepository,
 ) {
 
 	@Transactional(readOnly = true)
@@ -24,7 +27,27 @@ class FriendService(
 		val users = userRepository.findAllById(friendIds.toSet()).associateBy { it.id!! }
 		return friendIds.mapNotNull { id ->
 			val user = users[id] ?: return@mapNotNull null
-			FriendResponse(id = user.id!!, name = user.name, email = user.email)
+			FriendResponse(id = user.id!!, name = user.name, username = user.username, email = user.email)
+		}
+	}
+
+	@Transactional(readOnly = true)
+	fun listFriendBooks(userId: UUID, friendId: UUID): List<FriendBookResponse> {
+		friendshipRepository.findBetween(userId, friendId)
+			?.takeIf { it.status == FriendshipStatus.ACCEPTED }
+			?: throw ApiException(HttpStatus.NOT_FOUND, "FRIEND_NOT_FOUND", "This person isn't your friend")
+
+		return copyRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(friendId).map { copy ->
+			FriendBookResponse(
+				copyId = copy.id!!,
+				isbn = copy.book.isbn,
+				title = copy.book.title,
+				authors = copy.book.authors,
+				publishedYear = copy.book.publishedYear,
+				coverUrl = copy.book.coverUrl,
+				bookDescription = copy.book.description,
+				ownerNote = copy.description,
+			)
 		}
 	}
 
@@ -45,6 +68,29 @@ class FriendService(
 				requesterEmail = user.email,
 			)
 		}
+	}
+
+	@Transactional(readOnly = true)
+	fun searchUsers(userId: UUID, query: String): List<FriendResponse> {
+		val trimmed = query.trim()
+		if (trimmed.length < 2) return emptyList()
+
+		val excludedIds = buildSet {
+			add(userId)
+			friendshipRepository.findAllForUserWithStatus(userId, FriendshipStatus.ACCEPTED).forEach {
+				add(it.requesterId)
+				add(it.addresseeId)
+			}
+			friendshipRepository.findAllForUserWithStatus(userId, FriendshipStatus.PENDING).forEach {
+				add(it.requesterId)
+				add(it.addresseeId)
+			}
+		}
+
+		return userRepository.search(trimmed)
+			.filter { it.id !in excludedIds }
+			.take(20)
+			.map { FriendResponse(id = it.id!!, name = it.name, username = it.username, email = it.email) }
 	}
 
 	// Emails are matched in lower case. A previously rejected request can be sent again.

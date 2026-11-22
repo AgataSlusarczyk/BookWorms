@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -43,6 +44,7 @@ import com.bookworms.app.ui.components.AvatarPlaceholder
 import com.bookworms.app.ui.components.CloseTitle
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
+import com.bookworms.app.ui.groups.GroupInviteSearchSection
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
@@ -56,6 +58,7 @@ fun InviteToGroupScreen(
     modifier: Modifier = Modifier,
     // true while the new code is on its way – the button waits for it.
     saving: Boolean = false,
+    groupId: String? = null,
 ) {
     // A new code turns the old one off, so people who got it can't join anymore – worth asking first.
     var confirmNewCode by rememberSaveable { mutableStateOf(false) }
@@ -80,6 +83,7 @@ fun InviteToGroupScreen(
             .fillMaxSize()
             .mistedBackground()
             .safeDrawingPadding()
+            .imePadding()
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
     ) {
         CloseTitle(
@@ -90,51 +94,59 @@ fun InviteToGroupScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        InviteCodeCard(invite)
-
-        Spacer(Modifier.height(12.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(
-                onClick = onCopyCodeClick,
-                shape = FieldShape,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-            ) {
-                ButtonIcon(R.drawable.ic_copy)
-                Text(stringResource(R.string.copy_code))
-            }
-            Button(
-                onClick = onShareLinkClick,
-                shape = FieldShape,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-            ) {
-                ButtonIcon(R.drawable.ic_share)
-                Text(stringResource(R.string.share_link))
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-        Text(
-            text = stringResource(R.string.recently_joined),
-            style = MaterialTheme.typography.titleMedium,
-        )
-
-        Spacer(Modifier.height(8.dp))
-
         // weight(1f) = take the space that's left, so the button below stays at the bottom.
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.weight(1f),
         ) {
+            item {
+                InviteCodeCard(invite)
+            }
+
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onCopyCodeClick,
+                        shape = FieldShape,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                    ) {
+                        ButtonIcon(R.drawable.ic_copy)
+                        Text(stringResource(R.string.copy_code))
+                    }
+                    Button(
+                        onClick = onShareLinkClick,
+                        shape = FieldShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                    ) {
+                        ButtonIcon(R.drawable.ic_share)
+                        Text(stringResource(R.string.share_link))
+                    }
+                }
+            }
+
+            if (groupId != null) {
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    GroupInviteSearchSection(groupId = groupId)
+                }
+            }
+
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(R.string.recently_joined),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+
             items(recentMembers) { member ->
                 MemberCard(member)
             }

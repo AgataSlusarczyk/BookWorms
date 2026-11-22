@@ -13,8 +13,10 @@ data class SendFriendRequest(
 data class FriendResponse(
 	val id: UUID,
 	val name: String,
+	val username: String,
 	val email: String,
-)
+	val photoUrl: String? = null,
+)   
 
 data class FriendRequestResponse(
 	val id: UUID,

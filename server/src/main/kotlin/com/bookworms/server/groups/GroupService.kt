@@ -3,9 +3,11 @@ package com.bookworms.server.groups
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.BookCopyRepository
 import com.bookworms.server.copies.CopyGroupVisibilityRepository
+import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.groups.dto.GroupBookInfoResponse
 import com.bookworms.server.groups.dto.GroupBookResponse
 import com.bookworms.server.groups.dto.GroupDetailsResponse
+import com.bookworms.server.groups.dto.GroupInvitationResponse
 import com.bookworms.server.groups.dto.GroupRequest
 import com.bookworms.server.groups.dto.GroupSummaryResponse
 import com.bookworms.server.groups.dto.InvitePreviewResponse
@@ -21,12 +23,13 @@ import org.springframework.transaction.annotation.Transactional
 import java.security.SecureRandom
 import java.util.UUID
 
-// Groups: make one, join with a code, see who's in and what books it has, manage it.
+// Groups: make one, join with a code, invite users, see who's in and what books it has, manage it.
 // Someone outside a group gets "not found" for it, so nobody can poke at other people's groups.
 @Service
 class GroupService(
 	private val groupRepository: GroupRepository,
 	private val memberRepository: GroupMemberRepository,
+	private val invitationRepository: GroupInvitationRepository,
 	private val userRepository: UserRepository,
 	private val copyRepository: BookCopyRepository,
 	private val visibilityRepository: CopyGroupVisibilityRepository,
@@ -177,6 +180,81 @@ class GroupService(
 		return details(userId, groupId)
 	}
 
+	// Search users by username who are not yet members or already invited to this group.
+	@Transactional(readOnly = true)
+	fun searchInvitableUsers(userId: UUID, groupId: UUID, query: String): List<FriendResponse> {
+		requireCanInvite(userId, groupId)
+		val trimmed = query.trim()
+		if (trimmed.length < 2) return emptyList()
+
+		val excludedIds = buildSet {
+			memberRepository.findById_GroupIdOrderByJoinedAtAsc(groupId).forEach { add(it.id.userId) }
+			invitationRepository.findByGroupIdAndStatus(groupId, GroupInvitationStatus.PENDING).forEach {
+				add(it.inviteeId)
+			}
+		}
+
+		return userRepository.search(trimmed)
+			.filter { it.id !in excludedIds }
+			.take(20)
+			.map { FriendResponse(id = it.id!!, name = it.name, username = it.username, email = it.email) }
+	}
+
+	// Send a pending group invitation to another user.
+	@Transactional
+	fun inviteUser(inviterId: UUID, groupId: UUID, inviteeId: UUID) {
+		requireCanInvite(inviterId, groupId)
+		if (!userRepository.existsById(inviteeId)) {
+			throw ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found")
+		}
+		if (memberRepository.existsById(GroupMemberId(inviteeId, groupId))) {
+			throw ApiException(HttpStatus.CONFLICT, "ALREADY_MEMBER", "This person is already in the group")
+		}
+		if (invitationRepository.existsByGroupIdAndInviteeIdAndStatus(groupId, inviteeId, GroupInvitationStatus.PENDING)) {
+			throw ApiException(HttpStatus.CONFLICT, "INVITATION_EXISTS", "Invitation already pending")
+		}
+		invitationRepository.save(
+			GroupInvitation(groupId = groupId, inviterId = inviterId, inviteeId = inviteeId),
+		)
+	}
+
+	@Transactional(readOnly = true)
+	fun myInvitations(userId: UUID): List<GroupInvitationResponse> {
+		val invitations = invitationRepository.findByInviteeIdAndStatusOrderByCreatedAtDesc(
+			userId,
+			GroupInvitationStatus.PENDING,
+		)
+		if (invitations.isEmpty()) return emptyList()
+		val groups = groupRepository.findAllById(invitations.map { it.groupId }.toSet()).associateBy { it.id!! }
+		val inviterNames = names(invitations.map { it.inviterId })
+		return invitations.mapNotNull { inv ->
+			val group = groups[inv.groupId] ?: return@mapNotNull null
+			GroupInvitationResponse(
+				id = inv.id!!,
+				groupId = group.id!!,
+				groupName = group.name,
+				inviterName = inviterNames[inv.inviterId].orEmpty(),
+				createdAt = inv.createdAt,
+			)
+		}
+	}
+
+	@Transactional
+	fun acceptInvitation(userId: UUID, invitationId: UUID): GroupDetailsResponse {
+		val invitation = pendingInvitation(userId, invitationId)
+		invitation.status = GroupInvitationStatus.ACCEPTED
+		if (!memberRepository.existsById(GroupMemberId(userId, invitation.groupId))) {
+			addMember(userId, invitation.groupId, GroupRole.MEMBER)
+		}
+		return details(userId, invitation.groupId)
+	}
+
+	@Transactional
+	fun rejectInvitation(userId: UUID, invitationId: UUID) {
+		val invitation = pendingInvitation(userId, invitationId)
+		invitation.status = GroupInvitationStatus.REJECTED
+	}
+
 	@Transactional
 	fun makeAdmin(userId: UUID, groupId: UUID, memberId: UUID): GroupDetailsResponse {
 		requireAdmin(userId, groupId)
@@ -222,6 +300,12 @@ class GroupService(
 		events.publishEvent(MemberLeftGroup(member.id.userId, member.id.groupId))
 	}
 
+	private fun pendingInvitation(userId: UUID, invitationId: UUID): GroupInvitation =
+		invitationRepository.findById(invitationId)
+			.orElseThrow { ApiException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found") }
+			.takeIf { it.inviteeId == userId && it.status == GroupInvitationStatus.PENDING }
+			?: throw ApiException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found")
+
 	private fun membership(userId: UUID, groupId: UUID): GroupMember =
 		memberRepository.findById(GroupMemberId(userId, groupId)).orElseThrow {
 			ApiException(HttpStatus.NOT_FOUND, "GROUP_NOT_FOUND", "Group not found")
@@ -229,6 +313,14 @@ class GroupService(
 
 	private fun requireAdmin(userId: UUID, groupId: UUID) {
 		if (membership(userId, groupId).groupRole != GroupRole.ADMIN) {
+			throw ApiException(HttpStatus.FORBIDDEN, "NOT_GROUP_ADMIN", "Only the group's admin can do this")
+		}
+	}
+
+	private fun requireCanInvite(userId: UUID, groupId: UUID) {
+		val membership = membership(userId, groupId)
+		val group = group(groupId)
+		if (membership.groupRole != GroupRole.ADMIN && !group.membersCanInvite) {
 			throw ApiException(HttpStatus.FORBIDDEN, "NOT_GROUP_ADMIN", "Only the group's admin can do this")
 		}
 	}

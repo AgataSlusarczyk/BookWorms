@@ -48,7 +48,7 @@ private const val MinNameLength = 3
 private const val MaxNameLength = 40
 
 // Also the Edit group form: pass onDeleteClick, and the form has "Save" instead of "Create group",
-// the "Members can invite" switch and a "Delete group" button.
+// the "Members can invite" switch, user invite search and a "Delete group" button.
 @Composable
 internal fun CreateGroupScreen(
     name: String,
@@ -63,6 +63,7 @@ internal fun CreateGroupScreen(
     membersCanInvite: Boolean = false,
     onMembersCanInviteChange: (Boolean) -> Unit = {},
     onDeleteClick: (() -> Unit)? = null,
+    groupId: String? = null,
 ) {
     val isEditing = onDeleteClick != null
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
@@ -141,6 +142,11 @@ internal fun CreateGroupScreen(
                         }
                         Switch(checked = membersCanInvite, onCheckedChange = onMembersCanInviteChange)
                     }
+                }
+
+                if (groupId != null) {
+                    Spacer(Modifier.height(16.dp))
+                    GroupInviteSearchSection(groupId = groupId)
                 }
             }
 

@@ -20,12 +20,48 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
-
+import com.bookworms.server.friends.dto.FriendResponse
+import com.bookworms.server.groups.dto.GroupInvitationResponse
+import com.bookworms.server.groups.dto.InviteUserRequest
+import org.springframework.web.bind.annotation.RequestParam
 // Groups. Every address needs a token (see SecurityConfig).
 @RestController
 class GroupController(
 	private val groupService: GroupService,
 ) {
+	@GetMapping("/groups/{id}/search-users")
+	fun searchInvitableUsers(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestParam query: String,
+	): List<FriendResponse> =
+		groupService.searchInvitableUsers(jwt.userId(), id, query)
+
+	@PostMapping("/groups/{id}/invitations")
+	@ResponseStatus(HttpStatus.CREATED)
+	fun inviteUser(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestBody request: InviteUserRequest,
+	) = groupService.inviteUser(jwt.userId(), id, request.userId)
+
+	@GetMapping("/me/group-invitations")
+	fun myInvitations(@AuthenticationPrincipal jwt: Jwt): List<GroupInvitationResponse> =
+		groupService.myInvitations(jwt.userId())
+
+	@PostMapping("/me/group-invitations/{invitationId}/accept")
+	fun acceptInvitation(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable invitationId: UUID,
+	): GroupDetailsResponse =
+		groupService.acceptInvitation(jwt.userId(), invitationId)
+
+	@PostMapping("/me/group-invitations/{invitationId}/reject")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	fun rejectInvitation(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable invitationId: UUID,
+	) = groupService.rejectInvitation(jwt.userId(), invitationId)
 
 	@GetMapping("/me/groups")
 	fun myGroups(@AuthenticationPrincipal jwt: Jwt): List<GroupSummaryResponse> =

@@ -1,0 +1,449 @@
+package com.bookworms.app.ui.friends
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.bookworms.app.data.Friend
+import com.bookworms.app.data.FriendRequest
+import com.bookworms.app.data.FriendsOverview
+import com.bookworms.app.data.GroupInvitation
+import com.bookworms.app.data.network.GroupSummaryDto
+import com.bookworms.app.ui.auth.FieldShape
+import com.bookworms.app.ui.auth.authFieldColors
+import com.bookworms.app.ui.components.AppCard
+import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.ProfilePhoto
+import com.bookworms.app.ui.components.mistedBackground
+
+@Composable
+internal fun FriendsScreen(
+    overview: FriendsOverview,
+    query: String,
+    searchResults: List<Friend>,
+    busy: Boolean,
+    onQueryChange: (String) -> Unit,
+    onSendRequest: (String) -> Unit,
+    onAcceptRequest: (String) -> Unit,
+    onRejectRequest: (String) -> Unit,
+    onAcceptGroupInvitation: (String) -> Unit,
+    onRejectGroupInvitation: (String) -> Unit,
+    onFriendClick: (Friend) -> Unit,
+    onInviteFriendToGroup: (groupId: String, userId: String) -> Unit,
+    onRemoveFriend: (String) -> Unit,
+    onRetryClick: () -> Unit,
+    onBackClick: () -> Unit,
+) {
+    var friendToInvite by remember { mutableStateOf<Friend?>(null) }
+
+    Scaffold(
+        modifier = Modifier.mistedBackground(),
+        containerColor = Color.Transparent,
+        topBar = {
+            AppTopBar(
+                title = "Friends",
+                onBackClick = onBackClick,
+            )
+        },
+    ) { padding ->
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+        ) {
+            if (overview.isOffline) {
+                item {
+                    AppCard {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        ) {
+                            Text(
+                                text = "Offline mode – showing saved friends list.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = onRetryClick) {
+                                Text("Retry")
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        placeholder = { Text("Search users by username") },
+                        singleLine = true,
+                        shape = FieldShape,
+                        colors = authFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                if (query.trim().length >= 2) {
+                    item { SectionHeader("Search results") }
+                    if (searchResults.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No matching users found.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        items(searchResults, key = { "search_${it.id}" }) { user ->
+                            SearchUserCard(
+                                user = user,
+                                enabled = !busy,
+                                onAdd = { onSendRequest(user.email) },
+                            )
+                        }
+                    }
+                }
+
+                if (overview.groupInvitations.isNotEmpty()) {
+                    item {
+                        SectionHeader("Group invitations (${overview.groupInvitations.size})")
+                    }
+                    items(overview.groupInvitations, key = { "ginv_${it.id}" }) { invitation ->
+                        GroupInvitationCard(
+                            invitation = invitation,
+                            enabled = !busy,
+                            onAccept = { onAcceptGroupInvitation(invitation.id) },
+                            onReject = { onRejectGroupInvitation(invitation.id) },
+                        )
+                    }
+                }
+
+                if (overview.incomingRequests.isNotEmpty()) {
+                    item {
+                        SectionHeader("Pending friend requests (${overview.incomingRequests.size})")
+                    }
+                    items(overview.incomingRequests, key = { "req_${it.id}" }) { request ->
+                        FriendRequestCard(
+                            request = request,
+                            enabled = !busy,
+                            onAccept = { onAcceptRequest(request.id) },
+                            onReject = { onRejectRequest(request.id) },
+                        )
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Your friends (${overview.friends.size})")
+            }
+
+            if (overview.friends.isEmpty()) {
+                item {
+                    Text(
+                        text = if (overview.isOffline) {
+                            "No saved friends available offline."
+                        } else {
+                            "No friends yet. Search above to invite someone."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(overview.friends, key = { it.id }) { friend ->
+                    FriendCard(
+                        friend = friend,
+                        offline = overview.isOffline,
+                        enabled = !busy,
+                        onClick = { onFriendClick(friend) },
+                        onInviteToGroup = { friendToInvite = friend },
+                        onRemove = { onRemoveFriend(friend.id) },
+                    )
+                }
+            }
+
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+
+    friendToInvite?.let { targetFriend ->
+        InviteToGroupDialog(
+            friendName = targetFriend.name,
+            groups = overview.myGroups,
+            onSelectGroup = { groupId ->
+                friendToInvite = null
+                onInviteFriendToGroup(groupId, targetFriend.id)
+            },
+            onDismiss = { friendToInvite = null },
+        )
+    }
+}
+
+@Composable
+internal fun InviteToGroupDialog(
+    friendName: String,
+    groups: List<GroupSummaryDto>,
+    onSelectGroup: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Invite $friendName to group") },
+        text = {
+            if (groups.isEmpty()) {
+                Text("You are not in any group yet.")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    groups.forEach { group ->
+                        TextButton(
+                            onClick = { onSelectGroup(group.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = group.name,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+private fun SearchUserCard(
+    user: Friend,
+    enabled: Boolean,
+    onAdd: () -> Unit,
+) {
+    AppCard {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = user.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "@${user.username}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Button(onClick = onAdd, enabled = enabled, shape = FieldShape) {
+                Text("Add")
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupInvitationCard(
+    invitation: GroupInvitation,
+    enabled: Boolean,
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+) {
+    AppCard {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column {
+                Text(
+                    text = invitation.groupName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Invited by ${invitation.inviterName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onAccept,
+                    enabled = enabled,
+                    shape = FieldShape,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Join")
+                }
+                OutlinedButton(
+                    onClick = onReject,
+                    enabled = enabled,
+                    shape = FieldShape,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Decline")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendRequestCard(
+    request: FriendRequest,
+    enabled: Boolean,
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+) {
+    AppCard {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column {
+                Text(
+                    text = request.requesterName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = request.requesterEmail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onAccept,
+                    enabled = enabled,
+                    shape = FieldShape,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Accept")
+                }
+                OutlinedButton(
+                    onClick = onReject,
+                    enabled = enabled,
+                    shape = FieldShape,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Reject")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendCard(
+    friend: Friend,
+    offline: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onInviteToGroup: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    AppCard {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (!offline) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            ProfilePhoto(photo = null, size = 40.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = friend.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "@${friend.username}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!offline) {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }, enabled = enabled) {
+                        Text("⋮", style = MaterialTheme.typography.titleLarge)
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Invite to group") },
+                            onClick = {
+                                menuExpanded = false
+                                onInviteToGroup()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Remove friend", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                menuExpanded = false
+                                onRemove()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}

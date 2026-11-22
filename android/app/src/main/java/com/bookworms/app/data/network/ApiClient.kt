@@ -44,6 +44,7 @@ object ApiClient {
     val loans: LoansApi = retrofit.create(LoansApi::class.java)
     val groups: GroupsApi = retrofit.create(GroupsApi::class.java)
     val shelf: ShelfApi = retrofit.create(ShelfApi::class.java)
+    val friends: FriendsApi = retrofit.create(FriendsApi::class.java)
 
     // Sends the login token with every request, so the server knows who asks.
     private fun withToken(chain: Interceptor.Chain): Response {

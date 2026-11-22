@@ -1,6 +1,7 @@
 package com.bookworms.server.friends
 
 import com.bookworms.server.common.userId
+import com.bookworms.server.friends.dto.FriendBookResponse
 import com.bookworms.server.friends.dto.FriendRequestResponse
 import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.friends.dto.SendFriendRequest
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -27,9 +29,23 @@ class FriendController(
 	fun listFriends(@AuthenticationPrincipal jwt: Jwt): List<FriendResponse> =
 		friendService.listFriends(jwt.userId())
 
+	@GetMapping("/friends/{friendId}/books")
+	fun listFriendBooks(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable friendId: UUID,
+	): List<FriendBookResponse> =
+		friendService.listFriendBooks(jwt.userId(), friendId)
+
 	@GetMapping("/friends/requests")
 	fun listIncomingRequests(@AuthenticationPrincipal jwt: Jwt): List<FriendRequestResponse> =
 		friendService.listIncomingRequests(jwt.userId())
+
+	@GetMapping("/friends/search")
+	fun searchUsers(
+		@AuthenticationPrincipal jwt: Jwt,
+		@RequestParam query: String,
+	): List<FriendResponse> =
+		friendService.searchUsers(jwt.userId(), query)
 
 	@PostMapping("/friends/requests")
 	@ResponseStatus(HttpStatus.CREATED)
