@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,13 +38,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
-import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
@@ -59,13 +58,13 @@ import com.bookworms.app.ui.theme.PlaceholderGray
 import com.bookworms.app.ui.theme.StatusBlueBg
 import com.bookworms.app.ui.theme.StatusGreen
 import com.bookworms.app.ui.theme.StatusGreenBg
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 private enum class GroupTab(val label: Int) {
     Books(R.string.tab_group_books),
     Members(R.string.tab_group_members),
-    Chat(R.string.tab_group_chat),
 }
 
 private val JoinedDate = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -85,8 +84,11 @@ internal fun GroupDetailsScreen(
     onRemoveMember: (GroupMember) -> Unit,
     onLeaveClick: () -> Unit,
     onBackClick: () -> Unit,
-    // The Chat tab's content (GroupChat). It fills the space under the tabs.
-    chat: @Composable (Modifier) -> Unit,
+    // The newest message for the "Group chat" card. Ready(null) = nobody has written yet.
+    lastMessage: LoadState<ChatMessage?>,
+    // null = not known, so no message is shown as the user's own.
+    myId: String?,
+    onChatClick: () -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     // Who the "Remove from group?" dialog asks about (their id), or null when it's closed.
@@ -114,26 +116,6 @@ internal fun GroupDetailsScreen(
             )
         },
     ) { padding ->
-        // The chat takes the whole screen under the tabs, with its text field at the bottom – above the keyboard.
-        if (GroupTab.entries[selectedTab] == GroupTab.Chat) {
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .consumeWindowInsets(padding)
-                    .imePadding()
-                    .fillMaxSize(),
-            ) {
-                Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
-                    SegmentedTabs(
-                        tabs = GroupTab.entries.map { stringResource(it.label) },
-                        selectedIndex = selectedTab,
-                        onSelect = { selectedTab = it },
-                    )
-                }
-                chat(Modifier.weight(1f))
-            }
-            return@Scaffold
-        }
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -142,6 +124,8 @@ internal fun GroupDetailsScreen(
                 .fillMaxSize(),
         ) {
             item { GroupHeader(group) }
+
+            item { GroupChatCard(lastMessage, myId, onClick = onChatClick) }
 
             item {
                 SegmentedTabs(
@@ -179,7 +163,6 @@ internal fun GroupDetailsScreen(
                         onRemove = { memberToRemove = member.id },
                     )
                 }
-                GroupTab.Chat -> Unit
             }
 
             item {
@@ -252,7 +235,7 @@ internal fun GroupDetailsScreen(
 private fun GroupHeader(group: GroupDetails) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarPlaceholder(size = 56.dp)
+            ProfilePhoto(photo = group.photoUrl, size = 56.dp)
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -265,6 +248,47 @@ private fun GroupHeader(group: GroupDetails) {
         }
         if (group.description.isNotBlank()) {
             Text(group.description, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+// Opens the group's chat. Under the title: the newest message, e.g. "Ola: Who has the new Pratchett?".
+@Composable
+private fun GroupChatCard(lastMessage: LoadState<ChatMessage?>, myId: String?, onClick: () -> Unit) {
+    val preview = when (lastMessage) {
+        // Nothing while it loads or when it couldn't be loaded – the chat itself shows what went wrong.
+        LoadState.Loading, LoadState.Failed -> null
+        is LoadState.Ready -> lastMessage.data?.let { message ->
+            if (message.senderId == myId) {
+                stringResource(R.string.chat_preview_you, message.text)
+            } else {
+                // The first name is enough here, like on the mockup.
+                stringResource(R.string.chat_preview, message.senderName.substringBefore(' '), message.text)
+            }
+        } ?: stringResource(R.string.chat_preview_empty)
+    }
+    AppCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
+            Icon(painterResource(R.drawable.ic_mail), contentDescription = null, tint = BrandBlue)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.group_chat_title), style = MaterialTheme.typography.titleMedium)
+                if (preview != null) {
+                    Text(
+                        // One line: a long message would push the card down.
+                        preview.replace('\n', ' '),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -303,7 +327,7 @@ private fun GroupBookCard(book: GroupBook, onClick: (() -> Unit)?) {
 private fun MemberCard(member: GroupMember, canManage: Boolean, onMakeAdmin: () -> Unit, onRemove: () -> Unit) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-            AvatarPlaceholder()
+            ProfilePhoto(photo = member.photoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(member.name, style = MaterialTheme.typography.titleMedium)
@@ -386,7 +410,9 @@ private fun GroupDetailsScreenPreview() {
             onRemoveMember = {},
             onLeaveClick = {},
             onBackClick = {},
-            chat = {},
+            lastMessage = LoadState.Ready(ChatMessage("1", "o", "Ola Nowak", "Who has the new Pratchett?", Instant.now())),
+            myId = "a",
+            onChatClick = {},
         )
     }
 }

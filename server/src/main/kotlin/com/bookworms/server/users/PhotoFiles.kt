@@ -19,11 +19,11 @@ import javax.imageio.ImageIO
 
 @ConfigurationProperties("bookworms.photos")
 data class PhotoProperties(
-	// The folder with profile photos. Relative paths start where the server runs (server/ for bootRun).
+	// The folder with the photos of people and groups. Relative paths start where the server runs (server/ for bootRun).
 	val dir: Path,
 )
 
-// Serves the photos from bookworms.photos.dir at /photos/<file>. users.photo_url keeps that path.
+// Serves the photos from bookworms.photos.dir at /photos/<file>. users.photo_url and groups.photo_url keep that path.
 @Configuration
 @EnableConfigurationProperties(PhotoProperties::class)
 class PhotoFilesConfig(
@@ -37,7 +37,7 @@ class PhotoFilesConfig(
 	}
 }
 
-// Saves and removes the photo files. The database row is UserService's job.
+// Saves and removes the photo files. The database row is UserService's and GroupService's job.
 @Component
 class PhotoFiles(
 	private val properties: PhotoProperties,

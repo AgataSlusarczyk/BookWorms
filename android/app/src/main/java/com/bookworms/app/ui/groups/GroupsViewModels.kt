@@ -1,5 +1,8 @@
 package com.bookworms.app.ui.groups
 
+import android.content.ContentResolver
+import android.net.Uri
+import com.bookworms.app.data.InvalidPhotoException
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
@@ -149,8 +152,22 @@ internal class GroupDetailsViewModel(
         viewModelScope.launch { _books.value = load { repository.books(groupId) } }
     }
 
-    fun update(name: String, description: String, membersCanInvite: Boolean) = save {
+    // newPhoto = a photo picked on the phone, or null to keep the old one (or remove it, with removePhoto).
+    // The name and the rest are saved first, so a photo the server won't take doesn't lose them.
+    fun update(
+        name: String,
+        description: String,
+        membersCanInvite: Boolean,
+        newPhoto: Uri?,
+        removePhoto: Boolean,
+        resolver: ContentResolver,
+    ) = save(onError = { if (it is InvalidPhotoException) R.string.error_photo_invalid else R.string.error_save_failed }) {
         _group.value = LoadState.Ready(repository.update(groupId, name, description, membersCanInvite))
+        if (newPhoto != null) {
+            _group.value = LoadState.Ready(repository.changePhoto(groupId, resolver, newPhoto))
+        } else if (removePhoto) {
+            _group.value = LoadState.Ready(repository.removePhoto(groupId))
+        }
         send(GroupEvent.Saved)
     }
 

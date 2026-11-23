@@ -40,7 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
-import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.CloseTitle
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
@@ -221,7 +221,7 @@ private fun MemberCard(member: RecentMember) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(12.dp),
         ) {
-            AvatarPlaceholder()
+            ProfilePhoto(photo = member.photoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

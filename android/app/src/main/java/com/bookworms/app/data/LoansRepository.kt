@@ -110,6 +110,7 @@ private fun BookCopiesDto.toBookCopies(): BookCopies {
             BookCopy(
                 id = copy.copyId,
                 ownerName = copy.owner.name,
+                ownerPhotoUrl = serverUrl(copy.owner.photoUrl),
                 status = when {
                     copy.borrowedUntil != null ->
                         CopyStatus.Borrowed(returnBy = localDate(copy.borrowedUntil), byMe = copy.borrowedByMe, queue = queue)

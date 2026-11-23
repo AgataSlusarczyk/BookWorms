@@ -3,6 +3,7 @@ package com.bookworms.app.data.network
 import kotlinx.serialization.Serializable
 import okhttp3.MultipartBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.Multipart
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -20,6 +21,9 @@ interface ProfileApi {
     @Multipart
     @PUT("me/photo")
     suspend fun changePhoto(@Part photo: MultipartBody.Part): UserDto
+
+    @DELETE("me/photo")
+    suspend fun removePhoto(): UserDto
 }
 
 @Serializable

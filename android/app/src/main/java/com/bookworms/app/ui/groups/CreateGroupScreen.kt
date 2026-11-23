@@ -1,5 +1,6 @@
 package com.bookworms.app.ui.groups
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,14 +42,15 @@ import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.PhotoPicker
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 private const val MinNameLength = 3
 private const val MaxNameLength = 40
 
-// Also the Edit group form: pass onDeleteClick, and the form has "Save" instead of "Create group",
-// the "Members can invite" switch, user invite search and a "Delete group" button.
+// Also the Edit group form: pass onDeleteClick, and the form has the group's photo at the top,
+// "Save" instead of "Create group", the "Members can invite" switch and a "Delete group" button.
 @Composable
 internal fun CreateGroupScreen(
     name: String,
@@ -63,7 +65,12 @@ internal fun CreateGroupScreen(
     membersCanInvite: Boolean = false,
     onMembersCanInviteChange: (Boolean) -> Unit = {},
     onDeleteClick: (() -> Unit)? = null,
-    groupId: String? = null,
+    // Edit group only: the photo on the server now, and the change picked on this screen (see PhotoPicker).
+    photoUrl: String? = null,
+    newPhoto: Uri? = null,
+    photoRemoved: Boolean = false,
+    onPhotoPick: (Uri) -> Unit = {},
+    onPhotoRemove: () -> Unit = {},
 ) {
     val isEditing = onDeleteClick != null
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
@@ -90,6 +97,18 @@ internal fun CreateGroupScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
+            if (isEditing) {
+                PhotoPicker(
+                    currentUrl = photoUrl,
+                    newPhoto = newPhoto,
+                    removed = photoRemoved,
+                    onPick = onPhotoPick,
+                    onRemove = onPhotoRemove,
+                    enabled = !saving,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
             LabeledField(label = stringResource(R.string.group_name_label)) {
                 OutlinedTextField(
                     value = name,
@@ -142,11 +161,6 @@ internal fun CreateGroupScreen(
                         }
                         Switch(checked = membersCanInvite, onCheckedChange = onMembersCanInviteChange)
                     }
-                }
-
-                if (groupId != null) {
-                    Spacer(Modifier.height(16.dp))
-                    GroupInviteSearchSection(groupId = groupId)
                 }
             }
 

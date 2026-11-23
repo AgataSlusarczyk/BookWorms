@@ -41,6 +41,7 @@ class ReviewService(
 					id = review.id!!,
 					authorName = author.name,
 					authorUsername = author.username,
+					authorPhotoUrl = author.photoUrl,
 					rating = review.rating / 2,
 					content = review.content,
 					hasSpoilers = review.hasSpoilers,

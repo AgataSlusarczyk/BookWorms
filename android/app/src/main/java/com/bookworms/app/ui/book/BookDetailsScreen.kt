@@ -61,7 +61,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 import com.bookworms.app.R
 import com.bookworms.app.ui.auth.FieldShape
-import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.OfflineBanner
@@ -614,7 +614,7 @@ private fun CopyRow(
     onButtonClick: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-        AvatarPlaceholder(size = 36.dp)
+        ProfilePhoto(photo = copy.ownerPhotoUrl, size = 36.dp)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(copy.ownerName, style = MaterialTheme.typography.titleSmall)
@@ -806,7 +806,7 @@ private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(modifier = Modifier.padding(12.dp)) {
-            AvatarPlaceholder()
+            ProfilePhoto(photo = comment.authorPhotoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(

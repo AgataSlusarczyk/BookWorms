@@ -46,6 +46,11 @@ class ProfileRepository(private val api: ProfileApi = ApiClient.profile) {
         }
         Session.update(user.toCurrentUser())
     }
+
+    // Back to the gray circle, everywhere in the app.
+    suspend fun removePhoto() {
+        Session.update(api.removePhoto().toCurrentUser())
+    }
 }
 
 class InvalidProfileDataException : Exception("The server didn't accept the profile data")

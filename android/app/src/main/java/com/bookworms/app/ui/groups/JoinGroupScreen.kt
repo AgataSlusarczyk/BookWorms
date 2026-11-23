@@ -43,7 +43,7 @@ import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
-import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.ButtonShape
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
@@ -138,7 +138,7 @@ private fun FoundGroupCard(group: InvitePreview, busy: Boolean, onJoinClick: () 
     AppCard(borderColor = BrandBlue) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarPlaceholder()
+                ProfilePhoto(photo = group.photoUrl, size = 40.dp)
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

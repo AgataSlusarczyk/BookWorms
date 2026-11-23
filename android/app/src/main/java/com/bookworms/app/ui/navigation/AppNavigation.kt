@@ -55,7 +55,7 @@ import com.bookworms.app.ui.group.shareInviteLink
 import com.bookworms.app.ui.groups.CreateGroupScreen
 import com.bookworms.app.ui.groups.ChatViewModel
 import com.bookworms.app.ui.groups.CreateGroupViewModel
-import com.bookworms.app.ui.groups.GroupChat
+import com.bookworms.app.ui.groups.GroupChatScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupDetailsViewModel
 import com.bookworms.app.ui.groups.GroupEvent
@@ -140,6 +140,7 @@ private object Routes {
     // {groupId} = the group's id on the server.
     const val GROUP_DETAILS = "group_details/{groupId}"
     const val EDIT_GROUP = "edit_group/{groupId}"
+    const val GROUP_CHAT = "group_chat/{groupId}"
     // {copyId} = the copy's id on the server.
     const val MY_COPY = "my_copy/{copyId}"
     const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
@@ -167,6 +168,7 @@ private object Routes {
     fun addBooksToList(listName: String) = "add_books_to_list/${Uri.encode(listName)}"
     fun groupDetails(groupId: String) = "group_details/$groupId"
     fun editGroup(groupId: String) = "edit_group/$groupId"
+    fun groupChat(groupId: String) = "group_chat/$groupId"
     fun inviteToGroup(groupId: String) = "invite_to_group/$groupId"
     fun myCopy(copyId: String) = "my_copy/$copyId"
     fun editOwnBook(copyId: String) = "edit_own_book/$copyId"
@@ -515,11 +517,11 @@ fun AppNavigation() {
             val books by viewModel.books.collectAsState()
             val saving by viewModel.saving.collectAsState()
             HandleGroupEvents(viewModel.events, navController)
-            // Lives as long as Group details, so switching tabs keeps the messages and what's typed.
-            val chatViewModel: ChatViewModel = viewModel(entry) {
-                ChatViewModel(entry.arguments?.getString("groupId").orEmpty())
-            }
-            HandleGroupEvents(chatViewModel.events, navController)
+            val chatViewModel = chatViewModel(navController, entry)
+            val lastMessage by chatViewModel.lastMessage.collectAsState()
+            val user by Session.user.collectAsState()
+            // Each time Group details shows up, e.g. back from the chat, so the card has the newest message.
+            LaunchedEffect(Unit) { chatViewModel.refresh() }
 
             LoadStateScreen(
                 state = state,
@@ -539,9 +541,24 @@ fun AppNavigation() {
                     onRemoveMember = viewModel::removeMember,
                     onLeaveClick = viewModel::leave,
                     onBackClick = { navController.popBackStack() },
-                    chat = { modifier -> GroupChat(chatViewModel, modifier) },
+                    lastMessage = lastMessage,
+                    myId = user?.id,
+                    onChatClick = { navController.navigate(Routes.groupChat(group.id)) },
                 )
             }
+        }
+
+        composable(Routes.GROUP_CHAT) { entry ->
+            val viewModel = groupDetailsViewModel(navController, entry)
+            val state by viewModel.group.collectAsState()
+            val chatViewModel = chatViewModel(navController, entry)
+            HandleGroupEvents(chatViewModel.events, navController)
+
+            GroupChatScreen(
+                groupName = (state as? LoadState.Ready)?.data?.name.orEmpty(),
+                viewModel = chatViewModel,
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.EDIT_GROUP) { entry ->
@@ -560,20 +577,43 @@ fun AppNavigation() {
                 var name by rememberSaveable { mutableStateOf(group.name) }
                 var description by rememberSaveable { mutableStateOf(group.description) }
                 var membersCanInvite by rememberSaveable { mutableStateOf(group.membersCanInvite) }
+                // The photo change is only a draft until Save (see PhotoPicker).
+                var newPhoto by rememberSaveable { mutableStateOf<Uri?>(null) }
+                var photoRemoved by rememberSaveable { mutableStateOf(false) }
+                val resolver = LocalContext.current.contentResolver
 
                 CreateGroupScreen(
                     name = name,
-                    groupId = group.id,
                     description = description,
                     onNameChange = { name = it },
                     onDescriptionChange = { description = it },
                     // Back on Group details once the server saved it (GroupEvent.Saved).
-                    onCreateGroupClick = { viewModel.update(name, description, membersCanInvite) },
+                    onCreateGroupClick = {
+                        viewModel.update(
+                            name,
+                            description,
+                            membersCanInvite,
+                            newPhoto,
+                            removePhoto = photoRemoved && newPhoto == null && group.photoUrl != null,
+                            resolver = resolver,
+                        )
+                    },
                     onBackClick = { navController.popBackStack() },
                     saving = saving,
                     membersCanInvite = membersCanInvite,
                     onMembersCanInviteChange = { membersCanInvite = it },
                     onDeleteClick = viewModel::delete,
+                    photoUrl = group.photoUrl,
+                    newPhoto = newPhoto,
+                    photoRemoved = photoRemoved,
+                    onPhotoPick = {
+                        newPhoto = it
+                        photoRemoved = false
+                    },
+                    onPhotoRemove = {
+                        newPhoto = null
+                        photoRemoved = true
+                    },
                 )
             }
         }
@@ -613,7 +653,7 @@ fun AppNavigation() {
                 },
                 saving = state.saving,
                 saveEnabled = state.canSave,
-                onSaveClick = { newPhoto -> viewModel.save(newPhoto, resolver) },
+                onSaveClick = { newPhoto, removePhoto -> viewModel.save(newPhoto, removePhoto, resolver) },
                 onBackClick = { navController.popBackStack() },
                 photoUrl = user?.photoUrl,
             )
@@ -1062,7 +1102,7 @@ fun AppNavigation() {
                     invite = invite,
                     // The newest members first – the server sends the earliest first.
                     recentMembers = group.members.asReversed().take(RecentMembersCount).map {
-                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin)
+                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin, it.photoUrl)
                     },
                     onCopyCodeClick = { copyInviteCode(context, invite.code) },
                     onShareLinkClick = { shareInviteLink(context, invite) },
@@ -1117,6 +1157,17 @@ private fun groupDetailsViewModel(navController: NavController, entry: NavBackSt
     }
     val groupId = owner.arguments?.getString("groupId").orEmpty()
     return viewModel(owner) { GroupDetailsViewModel(groupId) }
+}
+
+// The chat's ViewModel lives with Group details too, so the chat screen and the card there share the messages,
+// and what's typed stays when the user goes back and opens the chat again.
+@Composable
+private fun chatViewModel(navController: NavController, entry: NavBackStackEntry): ChatViewModel {
+    val owner = remember(entry) {
+        if (entry.destination.route == Routes.GROUP_DETAILS) entry else navController.getBackStackEntry(Routes.GROUP_DETAILS)
+    }
+    val groupId = owner.arguments?.getString("groupId").orEmpty()
+    return viewModel(owner) { ChatViewModel(groupId) }
 }
 
 // What to do after a group change: open a group, go back, or show what went wrong.

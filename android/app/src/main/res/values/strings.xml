@@ -440,7 +440,6 @@
     <!-- %1$d = how many people wait for the admin's answer -->
     <string name="tab_group_books">Books</string>
     <string name="tab_group_members">Members</string>
-    <string name="tab_group_chat">Chat</string>
     <!-- %1$s = author, %2$s = who owns the copy -->
     <string name="book_by_owner">%1$s · from %2$s</string>
     <string name="status_borrowed_by">Borrowed by %1$s</string>
@@ -461,6 +460,11 @@
     <string name="member_options">Options for %1$s</string>
 
     <!-- Group chat -->
+    <string name="group_chat_title">Group chat</string>
+    <!-- The newest message on the Group chat card, e.g. "Ola: Who has the new Pratchett?" -->
+    <string name="chat_preview">%1$s: %2$s</string>
+    <string name="chat_preview_you">You: %1$s</string>
+    <string name="chat_preview_empty">No messages yet</string>
     <string name="chat_empty">No messages yet. Say hi to the group!</string>
     <string name="chat_message_hint">Message</string>
     <string name="chat_send">Send</string>
@@ -481,6 +485,10 @@
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="change_photo">Change photo</string>
+    <string name="remove_photo">Remove photo</string>
+    <string name="crop_photo_title">Move and zoom</string>
+    <string name="crop_photo_hint">Pinch to zoom, drag to move. What\'s in the circle stays.</string>
+    <string name="crop_photo_failed">Couldn\'t open this photo. Try another one.</string>
     <string name="username_label">Username</string>
     <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
     <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>

@@ -5,7 +5,6 @@ import com.bookworms.server.chat.dto.SendMessageRequest
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.groups.GroupMemberId
 import com.bookworms.server.groups.GroupMemberRepository
-import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.users.UserRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
@@ -13,6 +12,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.util.UUID
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 
 // The group's chat: read it page by page, write to it, and hear new messages live (see ChatHub).
 // Like the rest of a group, someone outside it gets "not found".
@@ -69,12 +70,12 @@ class ChatService(
 
 	// Adds the senders' names – all of them in one query. Someone who left the group keeps their name.
 	private fun describe(messages: List<GroupMessage>): List<GroupMessageResponse> {
-		val names = userRepository.findAllById(messages.map { it.senderId }.toSet()).associate { it.id!! to it.name }
+		val people = userRepository.people(messages.map { it.senderId }.toSet())
 		return messages.map {
 			GroupMessageResponse(
 				id = it.id!!,
 				groupId = it.groupId,
-				sender = PersonResponse(it.senderId, names[it.senderId].orEmpty()),
+				sender = people.person(it.senderId),
 				content = it.content,
 				createdAt = it.createdAt,
 			)

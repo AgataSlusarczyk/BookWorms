@@ -4,7 +4,6 @@ import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.Availability
 import com.bookworms.server.copies.BookCopy
 import com.bookworms.server.copies.CopyService
-import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.loans.dto.RequestBookResponse
 import com.bookworms.server.loans.dto.RequestResponse
 import com.bookworms.server.notifications.NotificationService
@@ -16,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 
 // Asking to borrow a book, and the owner's answer.
 // Rules:
@@ -126,8 +127,7 @@ class BorrowRequestService(
 
 	// Turns requests into answers for the app, with the people's names. viewerId = who's asking.
 	private fun describe(requests: List<BorrowRequest>, viewerId: UUID): List<RequestResponse> {
-		val names = userRepository.findAllById(requests.flatMap { listOf(it.requesterId, it.copy.ownerId) }.toSet())
-			.associate { it.id!! to it.name }
+		val people = userRepository.people(requests.flatMap { listOf(it.requesterId, it.copy.ownerId) }.toSet())
 		return requests.map { request ->
 			val copy = request.copy
 			RequestResponse(
@@ -142,8 +142,8 @@ class BorrowRequestService(
 					authors = copy.book.authors,
 					coverUrl = copy.book.coverUrl,
 				),
-				requester = PersonResponse(request.requesterId, names[request.requesterId].orEmpty()),
-				owner = PersonResponse(copy.ownerId, names[copy.ownerId].orEmpty()),
+				requester = people.person(request.requesterId),
+				owner = people.person(copy.ownerId),
 				canAccept = viewerId == copy.ownerId &&
 					request.status == RequestStatus.PENDING &&
 					copy.deletedAt == null &&
