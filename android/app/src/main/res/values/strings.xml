@@ -578,8 +578,6 @@
     <string name="friend_books_empty">No books added yet.</string>
     <string name="friend_stats_title">Statistics</string>
     <string name="friend_stats_later">Reading statistics for friends are coming later.</string>
-    <!-- %1$s = the friend's name -->
-    <string name="friend_note">%1$s\'s note</string>
     <string name="friend_request_sent">Friend request sent.</string>
     <string name="error_friend_request_failed">Couldn\'t send the friend request. Check your connection and try again.</string>
     <string name="friend_removed">Removed from friends.</string>

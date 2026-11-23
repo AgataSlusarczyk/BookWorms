@@ -25,9 +25,8 @@ data class FriendBook(
     val title: String,
     val authors: String?,
     val publishedYear: Int?,
+    // Full address of the cover, or null.
     val coverUrl: String?,
-    val bookDescription: String?,
-    val ownerNote: String?,
 )
 
 data class FriendRequest(
@@ -95,9 +94,7 @@ class FriendsRepository(
                 title = it.title,
                 authors = it.authors,
                 publishedYear = it.publishedYear,
-                coverUrl = it.coverUrl,
-                bookDescription = it.bookDescription,
-                ownerNote = it.ownerNote,
+                coverUrl = serverUrl(it.coverUrl),
             )
         }
 

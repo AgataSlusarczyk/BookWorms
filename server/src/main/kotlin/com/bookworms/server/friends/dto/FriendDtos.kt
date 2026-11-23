@@ -24,14 +24,13 @@ data class FriendRequestResponse(
 	val requesterPhotoUrl: String?,
 )
 
-// One of a friend's books, on their profile. ownerNote = what the friend wrote about their copy.
+// One of a friend's books, on their profile.
 data class FriendBookResponse(
 	val copyId: UUID,
 	val isbn: String?,
 	val title: String,
 	val authors: String?,
 	val publishedYear: Short?,
+	// A path on the server, e.g. "/covers/<file>.jpg". null = no cover.
 	val coverUrl: String?,
-	val bookDescription: String?,
-	val ownerNote: String?,
 )

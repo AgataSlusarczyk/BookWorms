@@ -15,7 +15,9 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.put
 
 // Friends: search, a request by id, accept or reject, the list, a friend's books.
 // Agata looks for people; Marek and Maja (username "ma_ja") are there to be found.
@@ -48,7 +50,10 @@ class FriendFlowTest(
 	// The other test classes share this database, so everything this test made goes away – children first.
 	@AfterEach
 	fun cleanDatabase() {
-		for (table in listOf("friendships", "group_invitations", "group_messages", "group_members", "groups", "users")) {
+		for (table in listOf(
+			"copy_group_visibility", "book_copies", "books",
+			"friendships", "group_invitations", "group_messages", "group_members", "groups", "users",
+		)) {
 			jdbc.update("delete from $table")
 		}
 	}
@@ -160,6 +165,37 @@ class FriendFlowTest(
 		mockMvc.get("/friends") { bearer(agata) }.andExpect { jsonPath("$.length()") { value(0) } }
 		mockMvc.get("/friends/$marekId/books") { bearer(agata) }.andExpect { status { isNotFound() } }
 	}
+
+	@Test
+	fun `a friend sees only the copies shown in a group, without the owner's own description`() {
+		makeFriends(agata, marek, marekId)
+		// A new copy is shown in all the owner's groups – Marek is in one.
+		mockMvc.post("/groups") { bearer(marek); json("""{"name": "Czytelnia"}""") }.andExpect { status { isCreated() } }
+		val shown = addCopy(marek, """{"title": "Solaris", "authors": "Lem", "description": "My own words"}""")
+		val hidden = addCopy(marek, """{"title": "Hidden", "authors": "Nobody"}""")
+		val lost = addCopy(marek, """{"title": "Lost", "authors": "Nobody"}""")
+		mockMvc.put("/copies/$hidden/groups") { bearer(marek); json("""{"groupIds": []}""") }
+			.andExpect { status { isOk() } }
+		mockMvc.patch("/copies/$lost") { bearer(marek); json("""{"availability": "LOST"}""") }
+			.andExpect { status { isOk() } }
+
+		mockMvc.get("/friends/$marekId/books") { bearer(agata) }.andExpect {
+			jsonPath("$.length()") { value(1) }
+			jsonPath("$[0].copyId") { value(shown) }
+			jsonPath("$[0].title") { value("Solaris") }
+			jsonPath("$[0].ownerNote") { doesNotExist() }
+			jsonPath("$[0].bookDescription") { doesNotExist() }
+		}
+	}
+
+	private fun makeFriends(asker: String, answerer: String, answererId: String) {
+		sendRequest(asker, answererId).andExpect { status { isCreated() } }
+		val requestId = field(mockMvc.get("/friends/requests") { bearer(answerer) }, "id")
+		mockMvc.post("/friends/requests/$requestId/accept") { bearer(answerer) }.andExpect { status { isNoContent() } }
+	}
+
+	private fun addCopy(token: String, body: String): String =
+		field(mockMvc.post("/me/copies") { bearer(token); json(body) }.andExpect { status { isCreated() } }, "id")
 
 	private fun sendRequest(token: String, userId: String) =
 		mockMvc.post("/friends/requests") {

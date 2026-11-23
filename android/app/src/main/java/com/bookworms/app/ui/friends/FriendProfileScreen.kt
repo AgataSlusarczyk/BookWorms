@@ -9,15 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -32,15 +29,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.bookworms.app.R
 import com.bookworms.app.data.Friend
 import com.bookworms.app.data.FriendBook
@@ -49,6 +42,7 @@ import com.bookworms.app.data.network.GroupSummaryDto
 import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
+import com.bookworms.app.ui.components.BookCover
 import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.SegmentedTabs
 import com.bookworms.app.ui.components.mistedBackground
@@ -194,7 +188,6 @@ internal fun FriendProfileScreen(
                             items(books, key = { it.copyId }) { book ->
                                 FriendBookCard(
                                     book = book,
-                                    ownerName = friend.name,
                                     onClick = book.isbn?.let { isbn -> { onBookClick(isbn) } },
                                 )
                             }
@@ -242,77 +235,36 @@ internal fun FriendProfileScreen(
     }
 }
 
+// Cover, title, author and year – like a book on Group details. A tap opens Book details (books with an ISBN).
 @Composable
-private fun FriendBookCard(
-    book: FriendBook,
-    ownerName: String,
-    onClick: (() -> Unit)?,
-) {
+private fun FriendBookCard(book: FriendBook, onClick: (() -> Unit)?) {
     AppCard {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(16.dp),
+                .padding(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.Top) {
-                if (!book.coverUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = book.coverUrl,
-                        contentDescription = book.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(width = 56.dp, height = 84.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
+            BookCover(book.coverUrl)
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val subtitle = listOfNotNull(
+                    book.authors?.takeIf { it.isNotBlank() },
+                    book.publishedYear?.toString(),
+                ).joinToString(" · ")
+                if (subtitle.isNotBlank()) {
                     Text(
-                        text = book.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    val subtitle = listOfNotNull(
-                        book.authors?.takeIf { it.isNotBlank() },
-                        book.publishedYear?.toString(),
-                    ).joinToString(" · ")
-                    if (subtitle.isNotBlank()) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (!book.bookDescription.isNullOrBlank()) {
-                        Text(
-                            text = book.bookDescription,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
-                }
-            }
-
-            if (!book.ownerNote.isNullOrBlank()) {
-                HorizontalDivider()
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = stringResource(R.string.friend_note, ownerName),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = book.ownerNote,
+                        text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

@@ -1,7 +1,9 @@
 package com.bookworms.server.friends
 
 import com.bookworms.server.common.ApiException
+import com.bookworms.server.copies.Availability
 import com.bookworms.server.copies.BookCopyRepository
+import com.bookworms.server.copies.CopyGroupVisibilityRepository
 import com.bookworms.server.friends.dto.FriendBookResponse
 import com.bookworms.server.friends.dto.FriendRequestResponse
 import com.bookworms.server.friends.dto.FriendResponse
@@ -19,6 +21,7 @@ class FriendService(
 	private val friendshipRepository: FriendshipRepository,
 	private val userRepository: UserRepository,
 	private val copyRepository: BookCopyRepository,
+	private val visibilityRepository: CopyGroupVisibilityRepository,
 ) {
 
 	@Transactional(readOnly = true)
@@ -30,13 +33,18 @@ class FriendService(
 		return friendIds.mapNotNull { id -> users[id]?.toFriend() }
 	}
 
+	// The friend's copies that are shown in at least one of their groups. A copy hidden from every group
+	// is hidden from friends too, and a lost one isn't there. The owner's own description stays private.
 	@Transactional(readOnly = true)
 	fun listFriendBooks(userId: UUID, friendId: UUID): List<FriendBookResponse> {
 		friendshipRepository.findBetween(userId, friendId)
 			?.takeIf { it.status == FriendshipStatus.ACCEPTED }
 			?: throw ApiException(HttpStatus.NOT_FOUND, "FRIEND_NOT_FOUND", "This person isn't your friend")
 
-		return copyRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(friendId).map { copy ->
+		val copies = copyRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(friendId)
+			.filter { it.availability != Availability.LOST }
+		val shown = visibilityRepository.findById_CopyIdIn(copies.map { it.id!! }).map { it.id.copyId }.toSet()
+		return copies.filter { it.id in shown }.map { copy ->
 			FriendBookResponse(
 				copyId = copy.id!!,
 				isbn = copy.book.isbn,
@@ -44,8 +52,6 @@ class FriendService(
 				authors = copy.book.authors,
 				publishedYear = copy.book.publishedYear,
 				coverUrl = copy.book.coverUrl,
-				bookDescription = copy.book.description,
-				ownerNote = copy.description,
 			)
 		}
 	}

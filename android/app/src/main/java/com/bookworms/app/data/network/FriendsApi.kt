@@ -25,9 +25,8 @@ data class FriendBookDto(
     val title: String,
     val authors: String? = null,
     val publishedYear: Int? = null,
+    // A path on the server, e.g. "/covers/<file>.jpg". null = no cover.
     val coverUrl: String? = null,
-    val bookDescription: String? = null,
-    val ownerNote: String? = null,
 )
 
 @Serializable
