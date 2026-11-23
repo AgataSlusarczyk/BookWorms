@@ -67,16 +67,20 @@ class EditProfileViewModel(private val repository: ProfileRepository = ProfileRe
 
     fun onEmailChange(email: String) = _state.update { it.copy(email = email, error = null) }
 
-    // newPhoto = a photo just picked on the phone, or null to keep the old one.
+    // newPhoto = a photo just picked on the phone, or null to keep the old one (or remove it, with removePhoto).
     // The resolver reads the photo from the phone.
-    fun save(newPhoto: Uri?, resolver: ContentResolver) {
+    fun save(newPhoto: Uri?, removePhoto: Boolean, resolver: ContentResolver) {
         val current = _state.value
         if (!current.canSave) return
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             val error = try {
                 repository.update(current.name, current.username, current.email)
-                if (newPhoto != null) repository.changePhoto(resolver, newPhoto)
+                if (newPhoto != null) {
+                    repository.changePhoto(resolver, newPhoto)
+                } else if (removePhoto) {
+                    repository.removePhoto()
+                }
                 null
             } catch (e: CancellationException) {
                 throw e

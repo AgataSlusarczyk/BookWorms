@@ -2,14 +2,12 @@ package com.bookworms.app.ui.groups
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,6 +35,7 @@ import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
 import com.bookworms.app.ui.components.SectionHeader
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.PlaceholderGray
@@ -100,6 +99,7 @@ internal fun GroupsScreen(
                             members = pluralStringResource(R.plurals.members, group.memberCount, group.memberCount),
                             role = stringResource(if (group.isAdmin) R.string.role_admin else R.string.role_member),
                             onClick = { onGroupClick(group) },
+                            photoUrl = group.photoUrl,
                         )
                     }
                 }
@@ -108,12 +108,12 @@ internal fun GroupsScreen(
     }
 }
 
-// Gray circle in place of the group picture, name, member count and the user's role on the right.
+// The group's photo (or a gray circle), name, member count and the user's role on the right.
 @Composable
-private fun GroupCard(name: String, members: String, role: String, onClick: () -> Unit) {
+private fun GroupCard(name: String, members: String, role: String, onClick: () -> Unit, photoUrl: String? = null) {
     AppCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-            Box(modifier = Modifier.size(40.dp).background(PlaceholderGray, CircleShape))
+            ProfilePhoto(photo = photoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(name, style = MaterialTheme.typography.titleMedium)

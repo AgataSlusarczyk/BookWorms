@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import com.bookworms.app.ui.theme.PlaceholderGray
 
-// The user's photo in a circle, or the gray circle when there's no photo (or while it loads).
+// A person's or a group's photo in a circle, or the gray circle when there's no photo (or while it loads).
 // photo = the full address of a photo on the server, or a Uri of one just picked on the phone, or null.
 @Composable
 fun ProfilePhoto(photo: Any?, size: Dp, modifier: Modifier = Modifier) {

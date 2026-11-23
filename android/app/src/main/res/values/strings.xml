@@ -485,6 +485,10 @@
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="change_photo">Change photo</string>
+    <string name="remove_photo">Remove photo</string>
+    <string name="crop_photo_title">Move and zoom</string>
+    <string name="crop_photo_hint">Pinch to zoom, drag to move. What\'s in the circle stays.</string>
+    <string name="crop_photo_failed">Couldn\'t open this photo. Try another one.</string>
     <string name="username_label">Username</string>
     <string name="username_hint">3–20 letters, digits, dots or underscores. Friends use it to invite you.</string>
     <string name="error_username_invalid">Use 3–20 letters, digits, dots or underscores</string>

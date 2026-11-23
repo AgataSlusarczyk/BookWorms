@@ -50,6 +50,8 @@ data class BookCopy(
     val id: String,
     val ownerName: String,
     val status: CopyStatus,
+    // Full address of the owner's photo, or null for the gray circle.
+    val ownerPhotoUrl: String? = null,
     // The user's groups the owner shares this copy with. Someone in two groups shows up in both.
     val groups: List<String>,
     // The user's request waiting for the owner's answer, or null. Its id takes it back.
@@ -84,6 +86,8 @@ data class BookComment(
     val rating: Int? = null,
     // Answers under the comment. Only group discussions have them – public comments don't.
     val replies: List<BookComment> = emptyList(),
+    // Full address of the author's photo, or null for the gray circle.
+    val authorPhotoUrl: String? = null,
 )
 
 // What one group says about the book.

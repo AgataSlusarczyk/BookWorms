@@ -109,6 +109,7 @@ private fun BookReviewsDto.toBookReviews() = BookReviews(
         BookComment(
             id = review.id,
             authorName = review.authorName,
+            authorPhotoUrl = serverUrl(review.authorPhotoUrl),
             text = text,
             daysAgo = daysSince(review.updatedAt),
             hasSpoilers = review.hasSpoilers,

@@ -58,6 +58,7 @@ data class BookReviewsDto(
 data class ReviewDto(
     val id: String,
     val authorName: String,
+    val authorPhotoUrl: String? = null,
     val rating: Int,
     // null = only stars, no words.
     val content: String? = null,

@@ -93,4 +93,5 @@ private fun GroupMessageDto.toMessage() = ChatMessage(
     senderName = sender.name,
     text = content,
     sentAt = Instant.parse(createdAt),
+    senderPhotoUrl = serverUrl(sender.photoUrl),
 )
