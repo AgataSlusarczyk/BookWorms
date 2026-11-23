@@ -1,11 +1,14 @@
 package com.bookworms.server.groups
 
 import com.bookworms.server.common.userId
+import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.groups.dto.GroupBookResponse
 import com.bookworms.server.groups.dto.GroupDetailsResponse
+import com.bookworms.server.groups.dto.GroupInvitationResponse
 import com.bookworms.server.groups.dto.GroupRequest
 import com.bookworms.server.groups.dto.GroupSummaryResponse
 import com.bookworms.server.groups.dto.InvitePreviewResponse
+import com.bookworms.server.groups.dto.InviteUserRequest
 import com.bookworms.server.groups.dto.JoinGroupRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -19,20 +22,20 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
-import com.bookworms.server.friends.dto.FriendResponse
-import com.bookworms.server.groups.dto.GroupInvitationResponse
-import com.bookworms.server.groups.dto.InviteUserRequest
-import org.springframework.web.bind.annotation.RequestParam
+
 // Groups. Every address needs a token (see SecurityConfig).
 @RestController
 class GroupController(
 	private val groupService: GroupService,
 ) {
+
+	// People to invite: by username, without members and people invited already.
 	@GetMapping("/groups/{id}/search-users")
 	fun searchInvitableUsers(
 		@AuthenticationPrincipal jwt: Jwt,

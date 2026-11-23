@@ -8,6 +8,7 @@ import com.bookworms.app.data.network.GroupDetailsDto
 import com.bookworms.app.data.network.GroupRequestDto
 import com.bookworms.app.data.network.GroupsApi
 import com.bookworms.app.data.network.InviteCodeDto
+import com.bookworms.app.data.network.InviteUserRequestDto
 import com.bookworms.app.ui.groups.GroupBook
 import com.bookworms.app.ui.groups.GroupDetails
 import com.bookworms.app.ui.groups.GroupMember
@@ -89,6 +90,17 @@ class GroupsRepository(private val api: GroupsApi = ApiClient.groups) {
 
     suspend fun leave(groupId: String) = api.leave(groupId).orThrow()
 
+    // People to invite, by their username (at least 2 letters). Members and people invited already aren't there.
+    suspend fun searchInvitable(groupId: String, query: String): List<Friend> =
+        api.searchInvitableUsers(groupId, query.trim()).map { it.toFriend() }
+
+    // Throws AlreadyInvitedException when they joined or got invited in the meantime.
+    suspend fun invite(groupId: String, userId: String) {
+        val response = api.inviteUser(groupId, InviteUserRequestDto(userId))
+        if (response.code() == 409) throw AlreadyInvitedException()
+        response.orThrow()
+    }
+
     private suspend fun <T> withCode(call: suspend () -> T): T =
         try {
             call()
@@ -106,6 +118,8 @@ class GroupsRepository(private val api: GroupsApi = ApiClient.groups) {
 }
 
 class InviteNotFoundException : Exception("No group has this code")
+
+class AlreadyInvitedException : Exception("Already in the group or invited")
 
 private fun GroupDetailsDto.toDetails() = GroupDetails(
     id = id,

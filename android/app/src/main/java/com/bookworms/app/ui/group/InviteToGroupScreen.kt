@@ -44,7 +44,6 @@ import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.CloseTitle
 import com.bookworms.app.ui.components.Pill
 import com.bookworms.app.ui.components.mistedBackground
-import com.bookworms.app.ui.groups.GroupInviteSearchSection
 import com.bookworms.app.ui.theme.BookWormsTheme
 
 @Composable
@@ -58,7 +57,8 @@ fun InviteToGroupScreen(
     modifier: Modifier = Modifier,
     // true while the new code is on its way – the button waits for it.
     saving: Boolean = false,
-    groupId: String? = null,
+    // "Invite by username" (GroupInviteSearchSection), or null to leave it out.
+    inviteSearch: (@Composable () -> Unit)? = null,
 ) {
     // A new code turns the old one off, so people who got it can't join anymore – worth asking first.
     var confirmNewCode by rememberSaveable { mutableStateOf(false) }
@@ -132,10 +132,10 @@ fun InviteToGroupScreen(
                 }
             }
 
-            if (groupId != null) {
+            if (inviteSearch != null) {
                 item {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    GroupInviteSearchSection(groupId = groupId)
+                    inviteSearch()
                 }
             }
 

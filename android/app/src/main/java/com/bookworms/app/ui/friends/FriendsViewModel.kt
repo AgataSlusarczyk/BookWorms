@@ -2,8 +2,11 @@ package com.bookworms.app.ui.friends
 
 import android.app.Application
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.bookworms.app.R
+import com.bookworms.app.data.AlreadyInvitedException
 import com.bookworms.app.data.Friend
 import com.bookworms.app.data.FriendBook
 import com.bookworms.app.data.FriendsOverview
@@ -21,7 +24,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 internal sealed interface FriendsEvent {
-    data class Message(val text: String) : FriendsEvent
+    // A short message (Toast).
+    data class Message(@StringRes val message: Int) : FriendsEvent
     data object FriendRemoved : FriendsEvent
 }
 
@@ -110,12 +114,12 @@ internal class FriendsViewModel(
             try {
                 repository.sendRequest(userId)
                 _searchResults.value = _searchResults.value.filterNot { it.id == userId }
-                _events.send(FriendsEvent.Message("Friend request sent"))
+                _events.send(FriendsEvent.Message(R.string.friend_request_sent))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w("BookWorms", "Sending friend request failed", e)
-                _events.send(FriendsEvent.Message("Could not send friend request"))
+                _events.send(FriendsEvent.Message(R.string.error_friend_request_failed))
             } finally {
                 _busy.value = false
             }
@@ -137,7 +141,7 @@ internal class FriendsViewModel(
                 throw e
             } catch (e: Exception) {
                 Log.w("BookWorms", "Removing friend failed", e)
-                _events.send(FriendsEvent.Message("Could not remove friend"))
+                _events.send(FriendsEvent.Message(R.string.error_save_failed))
             } finally {
                 _busy.value = false
             }
@@ -150,27 +154,28 @@ internal class FriendsViewModel(
         viewModelScope.launch {
             try {
                 repository.inviteToGroup(groupId, userId)
-                _events.send(FriendsEvent.Message("Group invitation sent"))
+                _events.send(FriendsEvent.Message(R.string.group_invitation_sent))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w("BookWorms", "Group invitation failed", e)
-                _events.send(FriendsEvent.Message("User is already in the group or invited"))
+                val message = if (e is AlreadyInvitedException) R.string.error_already_invited else R.string.error_invite_failed
+                _events.send(FriendsEvent.Message(message))
             } finally {
                 _busy.value = false
             }
         }
     }
 
-    fun acceptGroupInvitation(invitationId: String) = runAction("Joined group") {
+    fun acceptGroupInvitation(invitationId: String) = runAction(R.string.group_joined) {
         repository.acceptGroupInvitation(invitationId)
     }
 
-    fun rejectGroupInvitation(invitationId: String) = runAction("Invitation declined") {
+    fun rejectGroupInvitation(invitationId: String) = runAction(R.string.invitation_declined) {
         repository.rejectGroupInvitation(invitationId)
     }
 
-    private fun runAction(successMessage: String? = null, block: suspend () -> Unit) {
+    private fun runAction(@StringRes successMessage: Int? = null, block: suspend () -> Unit) {
         if (_busy.value) return
         _busy.value = true
         viewModelScope.launch {
@@ -182,7 +187,7 @@ internal class FriendsViewModel(
                 throw e
             } catch (e: Exception) {
                 Log.w("BookWorms", "Friend action failed", e)
-                _events.send(FriendsEvent.Message("Action failed"))
+                _events.send(FriendsEvent.Message(R.string.error_save_failed))
             } finally {
                 _busy.value = false
             }

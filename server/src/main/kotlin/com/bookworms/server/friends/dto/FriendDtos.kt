@@ -23,3 +23,15 @@ data class FriendRequestResponse(
 	val requesterUsername: String,
 	val requesterPhotoUrl: String?,
 )
+
+// One of a friend's books, on their profile. ownerNote = what the friend wrote about their copy.
+data class FriendBookResponse(
+	val copyId: UUID,
+	val isbn: String?,
+	val title: String,
+	val authors: String?,
+	val publishedYear: Short?,
+	val coverUrl: String?,
+	val bookDescription: String?,
+	val ownerNote: String?,
+)

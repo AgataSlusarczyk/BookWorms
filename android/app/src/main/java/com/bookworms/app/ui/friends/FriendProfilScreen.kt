@@ -35,11 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.bookworms.app.R
 import com.bookworms.app.data.Friend
 import com.bookworms.app.data.FriendBook
 import com.bookworms.app.data.LoadState
@@ -65,7 +67,7 @@ internal fun FriendProfileScreen(
 ) {
     var showInviteDialog by remember { mutableStateOf(false) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf("Books", "Stats")
+    val tabs = listOf(stringResource(R.string.tab_friend_books), stringResource(R.string.tab_friend_stats))
 
     Scaffold(
         modifier = Modifier.mistedBackground(),
@@ -102,7 +104,7 @@ internal fun FriendProfileScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "@${friend.username}",
+                            text = stringResource(R.string.username_handle, friend.username),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -118,7 +120,7 @@ internal fun FriendProfileScreen(
                                 shape = FieldShape,
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text("Invite to group")
+                                Text(stringResource(R.string.invite_title))
                             }
                             OutlinedButton(
                                 onClick = onRemoveFriend,
@@ -127,7 +129,7 @@ internal fun FriendProfileScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text("Remove")
+                                Text(stringResource(R.string.action_remove))
                             }
                         }
                     }
@@ -166,12 +168,12 @@ internal fun FriendProfileScreen(
                                         .padding(16.dp),
                                 ) {
                                     Text(
-                                        text = "Could not load books.",
+                                        text = stringResource(R.string.load_friend_books_failed),
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.weight(1f),
                                     )
                                     TextButton(onClick = onRetryBooks) {
-                                        Text("Retry")
+                                        Text(stringResource(R.string.try_again))
                                     }
                                 }
                             }
@@ -182,7 +184,7 @@ internal fun FriendProfileScreen(
                         if (books.isEmpty()) {
                             item {
                                 Text(
-                                    text = "This user hasn't added any books yet.",
+                                    text = stringResource(R.string.friend_books_empty),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 8.dp),
@@ -209,12 +211,12 @@ internal fun FriendProfileScreen(
                                 .padding(20.dp),
                         ) {
                             Text(
-                                text = "Statistics",
+                                text = stringResource(R.string.friend_stats_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = "Friend reading statistics are not implemented yet.",
+                                text = stringResource(R.string.friend_stats_later),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -303,7 +305,7 @@ private fun FriendBookCard(
                 HorizontalDivider()
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "$ownerName's note",
+                        text = stringResource(R.string.friend_note, ownerName),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )

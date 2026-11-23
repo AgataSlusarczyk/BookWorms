@@ -46,6 +46,10 @@ import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.components.LoadStateScreen
+import com.bookworms.app.ui.friends.FriendProfileScreen
+import com.bookworms.app.ui.friends.FriendsEvent
+import com.bookworms.app.ui.friends.FriendsScreen
+import com.bookworms.app.ui.friends.FriendsViewModel
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.RecentMember
@@ -58,6 +62,8 @@ import com.bookworms.app.ui.groups.CreateGroupViewModel
 import com.bookworms.app.ui.groups.GroupChatScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupInviteSearchSection
+import com.bookworms.app.ui.groups.InviteSearchViewModel
 import com.bookworms.app.ui.groups.GroupEvent
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.groups.GroupsViewModel
@@ -95,10 +101,6 @@ import com.bookworms.app.ui.profile.ProfileViewModel
 import com.bookworms.app.ui.scan.ScanIsbnScreen
 import kotlinx.coroutines.flow.Flow
 import java.time.format.DateTimeFormatter
-import com.bookworms.app.ui.friends.FriendsEvent
-import com.bookworms.app.ui.friends.FriendsScreen
-import com.bookworms.app.ui.friends.FriendsViewModel
-import com.bookworms.app.ui.friends.FriendProfileScreen
 
 // The names of the screens the app can go to.
 private object Routes {
@@ -682,15 +684,15 @@ fun AppNavigation() {
             LaunchedEffect(viewModel) {
                 viewModel.events.collect { event ->
                     when (event) {
-                        is FriendsEvent.Message -> Toast.makeText(context, event.text, Toast.LENGTH_SHORT).show()
-                        FriendsEvent.FriendRemoved -> Toast.makeText(context, "Friend removed", Toast.LENGTH_SHORT).show()
+                        is FriendsEvent.Message -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                        FriendsEvent.FriendRemoved -> Toast.makeText(context, R.string.friend_removed, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
 
             LoadStateScreen(
                 state = overview,
-                failedMessage = "Could not load friends",
+                failedMessage = stringResource(R.string.load_friends_failed),
                 onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
             ) { data ->
@@ -714,29 +716,35 @@ fun AppNavigation() {
             }
         }
 
-       composable(Routes.FRIEND_PROFILE) { entry ->
+        composable(Routes.FRIEND_PROFILE) { entry ->
             val friendId = entry.arguments?.getString("friendId").orEmpty()
             val parentEntry = remember(entry) { navController.getBackStackEntry(Routes.FRIENDS) }
             val viewModel: FriendsViewModel = viewModel(parentEntry)
             val state by viewModel.overview.collectAsState()
             val booksState by viewModel.friendBooks.collectAsState()
             val busy by viewModel.busy.collectAsState()
+            val context = LocalContext.current
 
             LaunchedEffect(friendId) {
                 viewModel.loadFriendBooks(friendId)
             }
 
+            // Friends is under this screen and not listening now, so the messages are shown here.
             LaunchedEffect(viewModel) {
                 viewModel.events.collect { event ->
-                    if (event is FriendsEvent.FriendRemoved) {
-                        navController.popBackStack()
+                    when (event) {
+                        is FriendsEvent.Message -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                        FriendsEvent.FriendRemoved -> {
+                            Toast.makeText(context, R.string.friend_removed, Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        }
                     }
                 }
             }
 
             LoadStateScreen(
                 state = state,
-                failedMessage = "Could not load friend profile",
+                failedMessage = stringResource(R.string.load_friends_failed),
                 onRetryClick = viewModel::refresh,
                 onBackClick = { navController.popBackStack() },
             ) { data ->
@@ -1083,6 +1091,13 @@ fun AppNavigation() {
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
             HandleGroupEvents(viewModel.events, navController)
+            // Its own ViewModel, on this screen only: the search starts empty each time Invite opens.
+            val search = viewModel(entry) { InviteSearchViewModel(entry.arguments?.getString("groupId").orEmpty()) }
+            val query by search.query.collectAsState()
+            val results by search.results.collectAsState()
+            val invited by search.invited.collectAsState()
+            val inviting by search.saving.collectAsState()
+            HandleGroupEvents(search.events, navController)
 
             LoadStateScreen(
                 state = state,
@@ -1098,7 +1113,6 @@ fun AppNavigation() {
                 }
                 val invite = GroupInvite(groupName = group.name, code = code, link = inviteLink(code))
                 InviteToGroupScreen(
-                    groupId = group.id,
                     invite = invite,
                     // The newest members first – the server sends the earliest first.
                     recentMembers = group.members.asReversed().take(RecentMembersCount).map {
@@ -1109,6 +1123,16 @@ fun AppNavigation() {
                     onGenerateNewCodeClick = viewModel::newInviteCode,
                     onCloseClick = { navController.popBackStack() },
                     saving = saving,
+                    inviteSearch = {
+                        GroupInviteSearchSection(
+                            query = query,
+                            results = results,
+                            invited = invited,
+                            onQueryChange = search::onQueryChange,
+                            onInviteClick = search::invite,
+                            saving = inviting,
+                        )
+                    },
                 )
             }
         }

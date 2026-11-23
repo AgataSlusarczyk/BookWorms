@@ -90,7 +90,7 @@ fun ProfileScreen(
             item {
                 ProfileMenuItem(
                     iconResId = R.drawable.ic_friends,
-                    title = "Friends",
+                    title = stringResource(R.string.menu_friends),
                     onClick = onNavigateToFriends,
                 )
             }

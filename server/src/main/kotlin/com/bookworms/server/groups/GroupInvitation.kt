@@ -11,12 +11,14 @@ import jakarta.persistence.Table
 import java.time.Instant
 import java.util.UUID
 
+// PENDING until the invited person joins (ACCEPTED) or says no (REJECTED).
 enum class GroupInvitationStatus {
 	PENDING,
 	ACCEPTED,
 	REJECTED,
 }
 
+// An invitation to a group for one user, sent by a member who can invite. See V10__create_group_invitations.
 @Entity
 @Table(name = "group_invitations")
 class GroupInvitation(

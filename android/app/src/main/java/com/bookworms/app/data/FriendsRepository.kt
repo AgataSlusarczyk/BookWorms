@@ -6,7 +6,6 @@ import com.bookworms.app.data.network.FriendDto
 import com.bookworms.app.data.network.FriendsApi
 import com.bookworms.app.data.network.GroupSummaryDto
 import com.bookworms.app.data.network.GroupsApi
-import com.bookworms.app.data.network.InviteUserRequestDto
 import com.bookworms.app.data.network.SendFriendRequestBody
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -139,12 +138,8 @@ class FriendsRepository(
         api.removeFriend(userId)
     }
 
-    suspend fun inviteToGroup(groupId: String, userId: String) {
-        val response = groupsApi.inviteUser(groupId, InviteUserRequestDto(userId))
-        if (!response.isSuccessful) {
-            throw IllegalStateException("Could not send group invitation (${response.code()})")
-        }
-    }
+    // The same as on Invite: AlreadyInvitedException when they're in the group or invited already.
+    suspend fun inviteToGroup(groupId: String, userId: String) = GroupsRepository(groupsApi).invite(groupId, userId)
 
     suspend fun acceptGroupInvitation(invitationId: String) {
         groupsApi.acceptInvitation(invitationId)
@@ -159,4 +154,4 @@ class FriendsRepository(
     }
 }
 
-private fun FriendDto.toFriend() = Friend(id, name, username, serverUrl(photoUrl))
+internal fun FriendDto.toFriend() = Friend(id, name, username, serverUrl(photoUrl))

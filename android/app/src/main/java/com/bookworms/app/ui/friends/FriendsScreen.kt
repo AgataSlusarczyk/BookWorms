@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,8 +33,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bookworms.app.R
 import com.bookworms.app.data.Friend
 import com.bookworms.app.data.FriendRequest
 import com.bookworms.app.data.FriendsOverview
@@ -71,7 +75,7 @@ internal fun FriendsScreen(
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
-                title = "Friends",
+                title = stringResource(R.string.friends_title),
                 onBackClick = onBackClick,
             )
         },
@@ -93,13 +97,13 @@ internal fun FriendsScreen(
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                         ) {
                             Text(
-                                text = "Offline mode – showing saved friends list.",
+                                text = stringResource(R.string.friends_offline),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
                             TextButton(onClick = onRetryClick) {
-                                Text("Retry")
+                                Text(stringResource(R.string.try_again))
                             }
                         }
                     }
@@ -110,7 +114,7 @@ internal fun FriendsScreen(
                     OutlinedTextField(
                         value = query,
                         onValueChange = onQueryChange,
-                        placeholder = { Text("Search users by username") },
+                        placeholder = { Text(stringResource(R.string.search_by_username)) },
                         singleLine = true,
                         shape = FieldShape,
                         colors = authFieldColors(),
@@ -119,11 +123,11 @@ internal fun FriendsScreen(
                 }
 
                 if (query.trim().length >= 2) {
-                    item { SectionHeader("Search results") }
+                    item { SectionHeader(stringResource(R.string.search_results)) }
                     if (searchResults.isEmpty()) {
                         item {
                             Text(
-                                text = "No matching users found.",
+                                text = stringResource(R.string.no_users_found),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -141,7 +145,7 @@ internal fun FriendsScreen(
 
                 if (overview.groupInvitations.isNotEmpty()) {
                     item {
-                        SectionHeader("Group invitations (${overview.groupInvitations.size})")
+                        SectionHeader(stringResource(R.string.group_invitations_header, overview.groupInvitations.size))
                     }
                     items(overview.groupInvitations, key = { "ginv_${it.id}" }) { invitation ->
                         GroupInvitationCard(
@@ -155,7 +159,7 @@ internal fun FriendsScreen(
 
                 if (overview.incomingRequests.isNotEmpty()) {
                     item {
-                        SectionHeader("Pending friend requests (${overview.incomingRequests.size})")
+                        SectionHeader(stringResource(R.string.friend_requests_header, overview.incomingRequests.size))
                     }
                     items(overview.incomingRequests, key = { "req_${it.id}" }) { request ->
                         FriendRequestCard(
@@ -169,17 +173,13 @@ internal fun FriendsScreen(
             }
 
             item {
-                SectionHeader("Your friends (${overview.friends.size})")
+                SectionHeader(stringResource(R.string.your_friends_header, overview.friends.size))
             }
 
             if (overview.friends.isEmpty()) {
                 item {
                     Text(
-                        text = if (overview.isOffline) {
-                            "No saved friends available offline."
-                        } else {
-                            "No friends yet. Search above to invite someone."
-                        },
+                        text = stringResource(if (overview.isOffline) R.string.friends_empty_offline else R.string.friends_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -223,10 +223,10 @@ internal fun InviteToGroupDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Invite $friendName to group") },
+        title = { Text(stringResource(R.string.invite_friend_title, friendName)) },
         text = {
             if (groups.isEmpty()) {
-                Text("You are not in any group yet.")
+                Text(stringResource(R.string.no_groups_to_invite))
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     groups.forEach { group ->
@@ -245,7 +245,7 @@ internal fun InviteToGroupDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -273,13 +273,13 @@ private fun SearchUserCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "@${user.username}",
+                    text = stringResource(R.string.username_handle, user.username),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Button(onClick = onAdd, enabled = enabled, shape = FieldShape) {
-                Text("Add")
+                Text(stringResource(R.string.add_friend))
             }
         }
     }
@@ -304,7 +304,7 @@ private fun GroupInvitationCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Invited by ${invitation.inviterName}",
+                    text = stringResource(R.string.invited_by, invitation.inviterName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -316,7 +316,7 @@ private fun GroupInvitationCard(
                     shape = FieldShape,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Join")
+                    Text(stringResource(R.string.action_join))
                 }
                 OutlinedButton(
                     onClick = onReject,
@@ -324,7 +324,7 @@ private fun GroupInvitationCard(
                     shape = FieldShape,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Decline")
+                    Text(stringResource(R.string.action_decline))
                 }
             }
         }
@@ -353,7 +353,7 @@ private fun FriendRequestCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "@${request.requesterUsername}",
+                        text = stringResource(R.string.username_handle, request.requesterUsername),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -366,7 +366,7 @@ private fun FriendRequestCard(
                     shape = FieldShape,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Accept")
+                    Text(stringResource(R.string.action_accept))
                 }
                 OutlinedButton(
                     onClick = onReject,
@@ -374,7 +374,7 @@ private fun FriendRequestCard(
                     shape = FieldShape,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Reject")
+                    Text(stringResource(R.string.action_reject))
                 }
             }
         }
@@ -409,7 +409,7 @@ private fun FriendCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "@${friend.username}",
+                    text = stringResource(R.string.username_handle, friend.username),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -417,21 +417,24 @@ private fun FriendCard(
             if (!offline) {
                 Box {
                     IconButton(onClick = { menuExpanded = true }, enabled = enabled) {
-                        Text("⋮", style = MaterialTheme.typography.titleLarge)
+                        Icon(
+                            painter = painterResource(R.drawable.ic_more_vert),
+                            contentDescription = stringResource(R.string.more_options),
+                        )
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Invite to group") },
+                            text = { Text(stringResource(R.string.invite_title)) },
                             onClick = {
                                 menuExpanded = false
                                 onInviteToGroup()
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Remove friend", color = MaterialTheme.colorScheme.error) },
+                            text = { Text(stringResource(R.string.remove_friend), color = MaterialTheme.colorScheme.error) },
                             onClick = {
                                 menuExpanded = false
                                 onRemove()
