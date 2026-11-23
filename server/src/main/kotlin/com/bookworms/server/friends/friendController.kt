@@ -5,7 +5,6 @@ import com.bookworms.server.friends.dto.FriendBookResponse
 import com.bookworms.server.friends.dto.FriendRequestResponse
 import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.friends.dto.SendFriendRequest
-import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -51,8 +50,8 @@ class FriendController(
 	@ResponseStatus(HttpStatus.CREATED)
 	fun sendRequest(
 		@AuthenticationPrincipal jwt: Jwt,
-		@Valid @RequestBody request: SendFriendRequest,
-	) = friendService.sendRequest(jwt.userId(), request.email)
+		@RequestBody request: SendFriendRequest,
+	) = friendService.sendRequest(jwt.userId(), request.userId)
 
 	@PostMapping("/friends/requests/{id}/accept")
 	@ResponseStatus(HttpStatus.NO_CONTENT)

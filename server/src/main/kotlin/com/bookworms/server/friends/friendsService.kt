@@ -5,13 +5,15 @@ import com.bookworms.server.copies.BookCopyRepository
 import com.bookworms.server.friends.dto.FriendBookResponse
 import com.bookworms.server.friends.dto.FriendRequestResponse
 import com.bookworms.server.friends.dto.FriendResponse
+import com.bookworms.server.users.User
 import com.bookworms.server.users.UserRepository
+import com.bookworms.server.users.searchByUsername
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
-// Friends: search users, send a request by email, accept or reject incoming ones, list friends and their books.
+// Friends: search users, send a request, accept or reject incoming ones, list friends and their books.
 @Service
 class FriendService(
 	private val friendshipRepository: FriendshipRepository,
@@ -25,10 +27,7 @@ class FriendService(
 		if (friendships.isEmpty()) return emptyList()
 		val friendIds = friendships.map { if (it.requesterId == userId) it.addresseeId else it.requesterId }
 		val users = userRepository.findAllById(friendIds.toSet()).associateBy { it.id!! }
-		return friendIds.mapNotNull { id ->
-			val user = users[id] ?: return@mapNotNull null
-			FriendResponse(id = user.id!!, name = user.name, username = user.username, email = user.email)
-		}
+		return friendIds.mapNotNull { id -> users[id]?.toFriend() }
 	}
 
 	@Transactional(readOnly = true)
@@ -65,7 +64,8 @@ class FriendService(
 				id = request.id!!,
 				requesterId = user.id!!,
 				requesterName = user.name,
-				requesterEmail = user.email,
+				requesterUsername = user.username,
+				requesterPhotoUrl = user.photoUrl,
 			)
 		}
 	}
@@ -87,20 +87,20 @@ class FriendService(
 			}
 		}
 
-		return userRepository.search(trimmed)
+		return userRepository.searchByUsername(trimmed)
 			.filter { it.id !in excludedIds }
 			.take(20)
-			.map { FriendResponse(id = it.id!!, name = it.name, username = it.username, email = it.email) }
+			.map { it.toFriend() }
 	}
 
-	// Emails are matched in lower case. A previously rejected request can be sent again.
+	// A previously rejected request can be sent again.
 	@Transactional
-	fun sendRequest(requesterId: UUID, targetEmail: String) {
-		val target = userRepository.findByEmail(targetEmail.trim().lowercase())
-			?: throw ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found")
-		val addresseeId = target.id!!
+	fun sendRequest(requesterId: UUID, addresseeId: UUID) {
 		if (addresseeId == requesterId) {
 			throw ApiException(HttpStatus.BAD_REQUEST, "CANNOT_FRIEND_SELF", "You can't add yourself as a friend")
+		}
+		if (!userRepository.existsById(addresseeId)) {
+			throw ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found")
 		}
 
 		val existing = friendshipRepository.findBetween(requesterId, addresseeId)
@@ -146,3 +146,6 @@ class FriendService(
 			.takeIf { it.addresseeId == userId && it.status == FriendshipStatus.PENDING }
 			?: throw ApiException(HttpStatus.NOT_FOUND, "FRIEND_REQUEST_NOT_FOUND", "Friend request not found")
 }
+
+// What others may see about a user: no email.
+internal fun User.toFriend() = FriendResponse(id = id!!, name = name, username = username, photoUrl = photoUrl)

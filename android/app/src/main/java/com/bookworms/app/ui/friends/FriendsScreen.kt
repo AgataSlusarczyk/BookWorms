@@ -133,7 +133,7 @@ internal fun FriendsScreen(
                             SearchUserCard(
                                 user = user,
                                 enabled = !busy,
-                                onAdd = { onSendRequest(user.email) },
+                                onAdd = { onSendRequest(user.id) },
                             )
                         }
                     }
@@ -264,6 +264,8 @@ private fun SearchUserCard(
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
+            ProfilePhoto(photo = user.photoUrl, size = 40.dp)
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = user.name,
@@ -341,17 +343,21 @@ private fun FriendRequestCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(16.dp),
         ) {
-            Column {
-                Text(
-                    text = request.requesterName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = request.requesterEmail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProfilePhoto(photo = request.requesterPhotoUrl, size = 40.dp)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = request.requesterName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "@${request.requesterUsername}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -394,7 +400,7 @@ private fun FriendCard(
                 .then(if (!offline) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            ProfilePhoto(photo = null, size = 40.dp)
+            ProfilePhoto(photo = friend.photoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

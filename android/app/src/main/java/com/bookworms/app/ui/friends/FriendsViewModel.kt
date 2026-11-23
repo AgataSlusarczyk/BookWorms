@@ -103,13 +103,13 @@ internal class FriendsViewModel(
         }
     }
 
-    fun sendRequest(email: String) {
-        if (_busy.value || email.isBlank()) return
+    fun sendRequest(userId: String) {
+        if (_busy.value) return
         _busy.value = true
         viewModelScope.launch {
             try {
-                repository.sendRequest(email)
-                _searchResults.value = _searchResults.value.filterNot { it.email.equals(email, ignoreCase = true) }
+                repository.sendRequest(userId)
+                _searchResults.value = _searchResults.value.filterNot { it.id == userId }
                 _events.send(FriendsEvent.Message("Friend request sent"))
             } catch (e: CancellationException) {
                 throw e

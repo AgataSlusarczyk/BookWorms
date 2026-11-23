@@ -9,12 +9,19 @@ interface UserRepository : JpaRepository<User, UUID> {
 	fun existsByEmail(email: String): Boolean
 	fun existsByUsername(username: String): Boolean
 
+	// Use searchByUsername, which makes the pattern.
 	@Query(
 		"""
 		select u from User u
-		where lower(u.username) like lower(concat('%', :query, '%'))
+		where lower(u.username) like :pattern escape '\'
 		order by u.username asc
 		""",
 	)
-	fun search(query: String): List<User>
+	fun findByUsernamePattern(pattern: String): List<User>
+}
+
+// Users whose username has this text in it, in any case. % and _ are just letters here, not "anything".
+fun UserRepository.searchByUsername(text: String): List<User> {
+	val escaped = text.lowercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+	return findByUsernamePattern("%$escaped%")
 }

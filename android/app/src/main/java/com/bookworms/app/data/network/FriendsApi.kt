@@ -8,12 +8,14 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+// A friend, or someone found by search. The server never sends emails here.
 @Serializable
 data class FriendDto(
     val id: String,
     val name: String,
     val username: String = "",
-    val email: String,
+    // A path on the server, e.g. "/photos/<file>.jpg". null = no photo.
+    val photoUrl: String? = null,
 )
 
 @Serializable
@@ -33,12 +35,14 @@ data class FriendRequestDto(
     val id: String,
     val requesterId: String,
     val requesterName: String,
-    val requesterEmail: String,
+    val requesterUsername: String = "",
+    val requesterPhotoUrl: String? = null,
 )
 
+// By id, from search.
 @Serializable
 data class SendFriendRequestBody(
-    val email: String,
+    val userId: String,
 )
 
 interface FriendsApi {

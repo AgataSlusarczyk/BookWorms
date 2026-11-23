@@ -1,26 +1,25 @@
 package com.bookworms.server.friends.dto
 
-import jakarta.validation.constraints.Email
-import jakarta.validation.constraints.NotBlank
 import java.util.UUID
 
+// Who to send a friend request to. By id, from search, so nobody needs to know anyone's email.
 data class SendFriendRequest(
-	@field:NotBlank
-	@field:Email
-	val email: String,
+	val userId: UUID,
 )
 
+// A friend, or someone found by search. No email: anyone could search, so it would show everyone's.
 data class FriendResponse(
 	val id: UUID,
 	val name: String,
 	val username: String,
-	val email: String,
-	val photoUrl: String? = null,
-)   
+	// A path on the server, e.g. "/photos/<file>.jpg". null = no photo.
+	val photoUrl: String?,
+)
 
 data class FriendRequestResponse(
 	val id: UUID,
 	val requesterId: UUID,
 	val requesterName: String,
-	val requesterEmail: String,
-)   
+	val requesterUsername: String,
+	val requesterPhotoUrl: String?,
+)

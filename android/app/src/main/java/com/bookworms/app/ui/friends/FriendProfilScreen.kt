@@ -94,7 +94,7 @@ internal fun FriendProfileScreen(
                             .fillMaxWidth()
                             .padding(20.dp),
                     ) {
-                        ProfilePhoto(photo = null, size = 72.dp)
+                        ProfilePhoto(photo = friend.photoUrl, size = 72.dp)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = friend.name,

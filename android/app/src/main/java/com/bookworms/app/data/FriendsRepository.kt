@@ -2,6 +2,7 @@ package com.bookworms.app.data
 
 import android.content.Context
 import com.bookworms.app.data.network.ApiClient
+import com.bookworms.app.data.network.FriendDto
 import com.bookworms.app.data.network.FriendsApi
 import com.bookworms.app.data.network.GroupSummaryDto
 import com.bookworms.app.data.network.GroupsApi
@@ -15,7 +16,8 @@ data class Friend(
     val id: String,
     val name: String,
     val username: String,
-    val email: String,
+    // Full address of their photo, or null for the gray circle.
+    val photoUrl: String? = null,
 )
 
 data class FriendBook(
@@ -33,7 +35,8 @@ data class FriendRequest(
     val id: String,
     val requesterId: String,
     val requesterName: String,
-    val requesterEmail: String,
+    val requesterUsername: String,
+    val requesterPhotoUrl: String?,
 )
 
 data class GroupInvitation(
@@ -62,11 +65,11 @@ class FriendsRepository(
     }
 
     suspend fun getOverview(): FriendsOverview {
-        val friends = api.getFriends().map { Friend(it.id, it.name, it.username, it.email) }
+        val friends = api.getFriends().map { it.toFriend() }
         saveCachedFriends(friends)
 
         val requests = api.getIncomingRequests().map {
-            FriendRequest(it.id, it.requesterId, it.requesterName, it.requesterEmail)
+            FriendRequest(it.id, it.requesterId, it.requesterName, it.requesterUsername, serverUrl(it.requesterPhotoUrl))
         }
         val groupInvitations = runCatching {
             groupsApi.myInvitations().map {
@@ -118,10 +121,10 @@ class FriendsRepository(
     }
 
     suspend fun searchUsers(query: String): List<Friend> =
-        api.searchUsers(query.trim()).map { Friend(it.id, it.name, it.username, it.email) }
+        api.searchUsers(query.trim()).map { it.toFriend() }
 
-    suspend fun sendRequest(email: String) {
-        api.sendRequest(SendFriendRequestBody(email.trim()))
+    suspend fun sendRequest(userId: String) {
+        api.sendRequest(SendFriendRequestBody(userId))
     }
 
     suspend fun acceptRequest(requestId: String) {
@@ -155,3 +158,5 @@ class FriendsRepository(
         const val KEY_FRIENDS = "cached_friends_list"
     }
 }
+
+private fun FriendDto.toFriend() = Friend(id, name, username, serverUrl(photoUrl))

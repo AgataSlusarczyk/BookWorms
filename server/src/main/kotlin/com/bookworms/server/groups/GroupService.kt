@@ -4,6 +4,7 @@ import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.BookCopyRepository
 import com.bookworms.server.copies.CopyGroupVisibilityRepository
 import com.bookworms.server.friends.dto.FriendResponse
+import com.bookworms.server.friends.toFriend
 import com.bookworms.server.groups.dto.GroupBookInfoResponse
 import com.bookworms.server.groups.dto.GroupBookResponse
 import com.bookworms.server.groups.dto.GroupDetailsResponse
@@ -16,6 +17,7 @@ import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
 import com.bookworms.server.users.PhotoFiles
 import com.bookworms.server.users.UserRepository
+import com.bookworms.server.users.searchByUsername
 import com.bookworms.server.users.people
 import com.bookworms.server.users.person
 import org.springframework.context.ApplicationEventPublisher
@@ -224,10 +226,10 @@ class GroupService(
 			}
 		}
 
-		return userRepository.search(trimmed)
+		return userRepository.searchByUsername(trimmed)
 			.filter { it.id !in excludedIds }
 			.take(20)
-			.map { FriendResponse(id = it.id!!, name = it.name, username = it.username, email = it.email) }
+			.map { it.toFriend() }
 	}
 
 	// Send a pending group invitation to another user.
