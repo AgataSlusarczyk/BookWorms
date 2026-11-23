@@ -2,18 +2,22 @@ package com.bookworms.app.ui.groups
 
 import android.content.ContentResolver
 import android.net.Uri
-import com.bookworms.app.data.InvalidPhotoException
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookworms.app.R
+import com.bookworms.app.data.AlreadyInvitedException
+import com.bookworms.app.data.Friend
 import com.bookworms.app.data.GroupsRepository
+import com.bookworms.app.data.InvalidPhotoException
 import com.bookworms.app.data.InviteNotFoundException
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.load
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -194,5 +198,51 @@ internal class GroupDetailsViewModel(
         _group.value = LoadState.Ready(repository.removeMember(groupId, member.id))
         _books.update { LoadState.Loading }
         _books.value = load { repository.books(groupId) }
+    }
+}
+
+// "Invite by username" on Invite. Searches while the user types and remembers who got invited here.
+internal class InviteSearchViewModel(
+    private val groupId: String,
+    private val repository: GroupsRepository = GroupsRepository(),
+) : SavingViewModel() {
+
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    // null = nothing to show yet (under 2 letters, or the first answer is on its way).
+    private val _results = MutableStateFlow<LoadState<List<Friend>>?>(null)
+    val results: StateFlow<LoadState<List<Friend>>?> = _results.asStateFlow()
+
+    // Invited on this screen – their button says "Invited".
+    private val _invited = MutableStateFlow<Set<String>>(emptySet())
+    val invited: StateFlow<Set<String>> = _invited.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    // Waits until the user stops typing for a moment, so not every letter goes to the server.
+    fun onQueryChange(text: String) {
+        _query.value = text
+        searchJob?.cancel()
+        if (text.trim().length < MinQueryLength) {
+            _results.value = null
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SearchDelayMillis)
+            _results.value = load { repository.searchInvitable(groupId, text) }
+        }
+    }
+
+    fun invite(user: Friend) = save(onError = {
+        if (it is AlreadyInvitedException) R.string.error_already_invited else R.string.error_invite_failed
+    }) {
+        repository.invite(groupId, user.id)
+        _invited.update { it + user.id }
+    }
+
+    private companion object {
+        const val MinQueryLength = 2
+        const val SearchDelayMillis = 300L
     }
 }

@@ -1,11 +1,14 @@
 package com.bookworms.server.groups
 
 import com.bookworms.server.common.userId
+import com.bookworms.server.friends.dto.FriendResponse
 import com.bookworms.server.groups.dto.GroupBookResponse
 import com.bookworms.server.groups.dto.GroupDetailsResponse
+import com.bookworms.server.groups.dto.GroupInvitationResponse
 import com.bookworms.server.groups.dto.GroupRequest
 import com.bookworms.server.groups.dto.GroupSummaryResponse
 import com.bookworms.server.groups.dto.InvitePreviewResponse
+import com.bookworms.server.groups.dto.InviteUserRequest
 import com.bookworms.server.groups.dto.JoinGroupRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -30,6 +34,41 @@ import java.util.UUID
 class GroupController(
 	private val groupService: GroupService,
 ) {
+
+	// People to invite: by username, without members and people invited already.
+	@GetMapping("/groups/{id}/search-users")
+	fun searchInvitableUsers(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestParam query: String,
+	): List<FriendResponse> =
+		groupService.searchInvitableUsers(jwt.userId(), id, query)
+
+	@PostMapping("/groups/{id}/invitations")
+	@ResponseStatus(HttpStatus.CREATED)
+	fun inviteUser(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestBody request: InviteUserRequest,
+	) = groupService.inviteUser(jwt.userId(), id, request.userId)
+
+	@GetMapping("/me/group-invitations")
+	fun myInvitations(@AuthenticationPrincipal jwt: Jwt): List<GroupInvitationResponse> =
+		groupService.myInvitations(jwt.userId())
+
+	@PostMapping("/me/group-invitations/{invitationId}/accept")
+	fun acceptInvitation(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable invitationId: UUID,
+	): GroupDetailsResponse =
+		groupService.acceptInvitation(jwt.userId(), invitationId)
+
+	@PostMapping("/me/group-invitations/{invitationId}/reject")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	fun rejectInvitation(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable invitationId: UUID,
+	) = groupService.rejectInvitation(jwt.userId(), invitationId)
 
 	@GetMapping("/me/groups")
 	fun myGroups(@AuthenticationPrincipal jwt: Jwt): List<GroupSummaryResponse> =

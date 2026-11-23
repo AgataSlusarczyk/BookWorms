@@ -46,6 +46,10 @@ import com.bookworms.app.ui.book.shareBook
 import com.bookworms.app.ui.browse.BrowseScreen
 import com.bookworms.app.ui.browse.BrowseViewModel
 import com.bookworms.app.ui.components.LoadStateScreen
+import com.bookworms.app.ui.friends.FriendProfileScreen
+import com.bookworms.app.ui.friends.FriendsEvent
+import com.bookworms.app.ui.friends.FriendsScreen
+import com.bookworms.app.ui.friends.FriendsViewModel
 import com.bookworms.app.ui.group.GroupInvite
 import com.bookworms.app.ui.group.InviteToGroupScreen
 import com.bookworms.app.ui.group.RecentMember
@@ -58,6 +62,8 @@ import com.bookworms.app.ui.groups.CreateGroupViewModel
 import com.bookworms.app.ui.groups.GroupChatScreen
 import com.bookworms.app.ui.groups.GroupDetailsScreen
 import com.bookworms.app.ui.groups.GroupDetailsViewModel
+import com.bookworms.app.ui.groups.GroupInviteSearchSection
+import com.bookworms.app.ui.groups.InviteSearchViewModel
 import com.bookworms.app.ui.groups.GroupEvent
 import com.bookworms.app.ui.groups.GroupsScreen
 import com.bookworms.app.ui.groups.GroupsViewModel
@@ -120,6 +126,7 @@ private object Routes {
     // Screens opened from a tab, without the bottom bar.
     const val NOTIFICATIONS = "notifications"
     const val MY_BOOKS = "my_books"
+    const val FRIENDS = "friends"
     // isbn = a book from the app to fill the form in with (none = an empty form).
     const val ADD_BOOK_MANUAL = "add_book_manual?isbn={isbn}"
     const val CREATE_GROUP = "create_group"
@@ -139,6 +146,9 @@ private object Routes {
     // {copyId} = the copy's id on the server.
     const val MY_COPY = "my_copy/{copyId}"
     const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
+    const val FRIEND_PROFILE = "friend_profile/{friendId}"
+
+    fun friendProfile(friendId: String) = "friend_profile/$friendId"
 
     fun addBookManual(isbn: String? = null) = if (isbn == null) "add_book_manual" else "add_book_manual?isbn=$isbn"
 
@@ -433,6 +443,7 @@ fun AppNavigation() {
                 onNavigate = navigateBottomBar,
                 onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToMyBooks = { navController.navigate(Routes.MY_BOOKS) },
+                onNavigateToFriends = { navController.navigate(Routes.FRIENDS) },
                 photoUrl = user?.photoUrl,
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
@@ -660,6 +671,100 @@ fun AppNavigation() {
 
         composable(Routes.NOTIFICATIONS) {
             NotificationsScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.FRIENDS) { entry ->
+            val viewModel: FriendsViewModel = viewModel(entry)
+            val overview by viewModel.overview.collectAsState()
+            val query by viewModel.query.collectAsState()
+            val searchResults by viewModel.searchResults.collectAsState()
+            val busy by viewModel.busy.collectAsState()
+            val context = LocalContext.current
+
+            LaunchedEffect(viewModel) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is FriendsEvent.Message -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                        FriendsEvent.FriendRemoved -> Toast.makeText(context, R.string.friend_removed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            LoadStateScreen(
+                state = overview,
+                failedMessage = stringResource(R.string.load_friends_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { data ->
+                FriendsScreen(
+                    overview = data,
+                    query = query,
+                    searchResults = searchResults,
+                    busy = busy,
+                    onQueryChange = viewModel::onQueryChange,
+                    onSendRequest = viewModel::sendRequest,
+                    onAcceptRequest = viewModel::accept,
+                    onRejectRequest = viewModel::reject,
+                    onAcceptGroupInvitation = viewModel::acceptGroupInvitation,
+                    onRejectGroupInvitation = viewModel::rejectGroupInvitation,
+                    onFriendClick = { friend -> navController.navigate(Routes.friendProfile(friend.id)) },
+                    onInviteFriendToGroup = viewModel::inviteToGroup,
+                    onRemoveFriend = viewModel::remove,
+                    onRetryClick = viewModel::refresh,
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
+        }
+
+        composable(Routes.FRIEND_PROFILE) { entry ->
+            val friendId = entry.arguments?.getString("friendId").orEmpty()
+            val parentEntry = remember(entry) { navController.getBackStackEntry(Routes.FRIENDS) }
+            val viewModel: FriendsViewModel = viewModel(parentEntry)
+            val state by viewModel.overview.collectAsState()
+            val booksState by viewModel.friendBooks.collectAsState()
+            val busy by viewModel.busy.collectAsState()
+            val context = LocalContext.current
+
+            LaunchedEffect(friendId) {
+                viewModel.loadFriendBooks(friendId)
+            }
+
+            // Friends is under this screen and not listening now, so the messages are shown here.
+            LaunchedEffect(viewModel) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is FriendsEvent.Message -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                        FriendsEvent.FriendRemoved -> {
+                            Toast.makeText(context, R.string.friend_removed, Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        }
+                    }
+                }
+            }
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_friends_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { data ->
+                val friend = data.friends.find { it.id == friendId }
+                if (friend == null) {
+                    CloseWhenGone(navController, entry)
+                    return@LoadStateScreen
+                }
+                FriendProfileScreen(
+                    friend = friend,
+                    myGroups = data.myGroups,
+                    booksState = booksState,
+                    busy = busy,
+                    onRetryBooks = { viewModel.loadFriendBooks(friend.id) },
+                    onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
+                    onInviteToGroup = { groupId -> viewModel.inviteToGroup(groupId, friend.id) },
+                    onRemoveFriend = { viewModel.remove(friend.id) },
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
         }
 
         composable(Routes.MY_BOOKS) { entry ->
@@ -986,6 +1091,13 @@ fun AppNavigation() {
             // Needed for the clipboard and the share menu.
             val context = LocalContext.current
             HandleGroupEvents(viewModel.events, navController)
+            // Its own ViewModel, on this screen only: the search starts empty each time Invite opens.
+            val search = viewModel(entry) { InviteSearchViewModel(entry.arguments?.getString("groupId").orEmpty()) }
+            val query by search.query.collectAsState()
+            val results by search.results.collectAsState()
+            val invited by search.invited.collectAsState()
+            val inviting by search.saving.collectAsState()
+            HandleGroupEvents(search.events, navController)
 
             LoadStateScreen(
                 state = state,
@@ -1011,6 +1123,16 @@ fun AppNavigation() {
                     onGenerateNewCodeClick = viewModel::newInviteCode,
                     onCloseClick = { navController.popBackStack() },
                     saving = saving,
+                    inviteSearch = {
+                        GroupInviteSearchSection(
+                            query = query,
+                            results = results,
+                            invited = invited,
+                            onQueryChange = search::onQueryChange,
+                            onInviteClick = search::invite,
+                            saving = inviting,
+                        )
+                    },
                 )
             }
         }

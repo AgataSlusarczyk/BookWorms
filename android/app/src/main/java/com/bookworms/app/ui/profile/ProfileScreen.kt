@@ -39,6 +39,7 @@ fun ProfileScreen(
     onNavigate: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMyBooks: () -> Unit = {},
+    onNavigateToFriends: () -> Unit = {},
     onEditProfileClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
@@ -84,6 +85,13 @@ fun ProfileScreen(
                     title = stringResource(R.string.menu_my_books),
                     trailingText = booksCount?.toString(),
                     onClick = onNavigateToMyBooks,
+                )
+            }
+            item {
+                ProfileMenuItem(
+                    iconResId = R.drawable.ic_friends,
+                    title = stringResource(R.string.menu_friends),
+                    onClick = onNavigateToFriends,
                 )
             }
             item {

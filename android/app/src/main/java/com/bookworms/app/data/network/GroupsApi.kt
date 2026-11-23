@@ -83,6 +83,27 @@ interface GroupsApi {
     // 400 for an empty message or one over 2000 characters.
     @POST("groups/{id}/messages")
     suspend fun sendMessage(@Path("id") groupId: String, @Body request: SendMessageDto): GroupMessageDto
+
+    // People to invite, by their username: at least 2 letters, up to 20 people. Members and people
+    // invited already are left out. Only for someone who can invite (403 NOT_GROUP_ADMIN otherwise).
+    @GET("groups/{id}/search-users")
+    suspend fun searchInvitableUsers(@Path("id") groupId: String, @Query("query") query: String): List<FriendDto>
+
+    // 409 when they're in the group already (ALREADY_MEMBER) or invited already (INVITATION_EXISTS).
+    // Response<Unit>, because the server answers 201 with no body.
+    @POST("groups/{id}/invitations")
+    suspend fun inviteUser(@Path("id") groupId: String, @Body request: InviteUserRequestDto): Response<Unit>
+
+    // Invitations waiting for the user's answer, newest first.
+    @GET("me/group-invitations")
+    suspend fun myInvitations(): List<GroupInvitationDto>
+
+    // Joins the group and gives it back.
+    @POST("me/group-invitations/{invitationId}/accept")
+    suspend fun acceptInvitation(@Path("invitationId") invitationId: String): GroupDetailsDto
+
+    @POST("me/group-invitations/{invitationId}/reject")
+    suspend fun rejectInvitation(@Path("invitationId") invitationId: String): Response<Unit>
 }
 
 @Serializable
@@ -166,4 +187,18 @@ data class GroupMessageDto(
 @Serializable
 data class SendMessageDto(
     val content: String,
+)
+
+@Serializable
+data class InviteUserRequestDto(
+    val userId: String,
+)
+
+@Serializable
+data class GroupInvitationDto(
+    val id: String,
+    val groupId: String,
+    val groupName: String,
+    val inviterName: String,
+    val createdAt: String,
 )
