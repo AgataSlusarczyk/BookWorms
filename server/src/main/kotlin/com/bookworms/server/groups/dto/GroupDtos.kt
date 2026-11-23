@@ -36,6 +36,8 @@ data class GroupSummaryResponse(
 	val memberCount: Long,
 	// The logged-in user's role in it.
 	val myRole: GroupRole,
+	// A path on this server, e.g. "/photos/<file>.jpg". null = no photo.
+	val photoUrl: String?,
 )
 
 // Group details: everything about one group, with its members.
@@ -50,6 +52,7 @@ data class GroupDetailsResponse(
 	// The earliest first.
 	val members: List<MemberResponse>,
 	val createdAt: Instant,
+	val photoUrl: String?,
 )
 
 data class MemberResponse(
@@ -57,6 +60,7 @@ data class MemberResponse(
 	val name: String,
 	val role: GroupRole,
 	val joinedAt: Instant,
+	val photoUrl: String?,
 )
 
 // What someone sees after typing a code, before joining.
@@ -67,6 +71,7 @@ data class InvitePreviewResponse(
 	val memberCount: Long,
 	// true = the user is in it already, so the app can just open it.
 	val alreadyMember: Boolean,
+	val photoUrl: String?,
 )
 
 // One copy in the group's library.

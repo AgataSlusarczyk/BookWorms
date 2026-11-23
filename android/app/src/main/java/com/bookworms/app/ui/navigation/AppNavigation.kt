@@ -568,6 +568,10 @@ fun AppNavigation() {
                 var name by rememberSaveable { mutableStateOf(group.name) }
                 var description by rememberSaveable { mutableStateOf(group.description) }
                 var membersCanInvite by rememberSaveable { mutableStateOf(group.membersCanInvite) }
+                // The photo change is only a draft until Save (see PhotoPicker).
+                var newPhoto by rememberSaveable { mutableStateOf<Uri?>(null) }
+                var photoRemoved by rememberSaveable { mutableStateOf(false) }
+                val resolver = LocalContext.current.contentResolver
 
                 CreateGroupScreen(
                     name = name,
@@ -575,12 +579,32 @@ fun AppNavigation() {
                     onNameChange = { name = it },
                     onDescriptionChange = { description = it },
                     // Back on Group details once the server saved it (GroupEvent.Saved).
-                    onCreateGroupClick = { viewModel.update(name, description, membersCanInvite) },
+                    onCreateGroupClick = {
+                        viewModel.update(
+                            name,
+                            description,
+                            membersCanInvite,
+                            newPhoto,
+                            removePhoto = photoRemoved && newPhoto == null && group.photoUrl != null,
+                            resolver = resolver,
+                        )
+                    },
                     onBackClick = { navController.popBackStack() },
                     saving = saving,
                     membersCanInvite = membersCanInvite,
                     onMembersCanInviteChange = { membersCanInvite = it },
                     onDeleteClick = viewModel::delete,
+                    photoUrl = group.photoUrl,
+                    newPhoto = newPhoto,
+                    photoRemoved = photoRemoved,
+                    onPhotoPick = {
+                        newPhoto = it
+                        photoRemoved = false
+                    },
+                    onPhotoRemove = {
+                        newPhoto = null
+                        photoRemoved = true
+                    },
                 )
             }
         }
@@ -620,7 +644,7 @@ fun AppNavigation() {
                 },
                 saving = state.saving,
                 saveEnabled = state.canSave,
-                onSaveClick = { newPhoto -> viewModel.save(newPhoto, resolver) },
+                onSaveClick = { newPhoto, removePhoto -> viewModel.save(newPhoto, removePhoto, resolver) },
                 onBackClick = { navController.popBackStack() },
                 photoUrl = user?.photoUrl,
             )
@@ -980,7 +1004,7 @@ fun AppNavigation() {
                     invite = invite,
                     // The newest members first – the server sends the earliest first.
                     recentMembers = group.members.asReversed().take(RecentMembersCount).map {
-                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin)
+                        RecentMember(it.name, stringResource(R.string.member_joined, it.joined.format(JoinedDate)), it.isAdmin, it.photoUrl)
                     },
                     onCopyCodeClick = { copyInviteCode(context, invite.code) },
                     onShareLinkClick = { shareInviteLink(context, invite) },

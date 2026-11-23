@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -49,6 +51,7 @@ import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 import com.bookworms.app.ui.theme.BrandBlue
@@ -61,6 +64,8 @@ import java.time.format.DateTimeFormatter
 
 private val TodayTime = DateTimeFormatter.ofPattern("HH:mm")
 private val EarlierTime = DateTimeFormatter.ofPattern("dd.MM HH:mm")
+
+private val SenderPhotoSize = 28.dp
 
 // How close to the oldest message on screen the next older page starts loading.
 private const val LoadOlderAhead = 5
@@ -216,14 +221,33 @@ private fun MessageList(messages: List<ChatMessage>, myId: String?, loadingOlder
     }
 }
 
-// The user's own messages on the right in blue, everyone else's on the left in white, with the name over them.
+// The user's own messages on the right in blue, everyone else's on the left in white, with the name over them
+// and the sender's photo next to the first one in a row.
 @Composable
 private fun MessageBubble(message: ChatMessage, mine: Boolean, showName: Boolean) {
-    Column(
-        horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = if (showName) 8.dp else 0.dp),
+    ) {
+        if (!mine) {
+            // Next to the others in the row the same space stays empty, so their bubbles line up.
+            if (showName) {
+                ProfilePhoto(photo = message.senderPhotoUrl, size = SenderPhotoSize)
+            } else {
+                Spacer(Modifier.width(SenderPhotoSize))
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+        MessageText(message, mine, showName, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun MessageText(message: ChatMessage, mine: Boolean, showName: Boolean, modifier: Modifier) {
+    Column(
+        horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+        modifier = modifier,
     ) {
         if (showName) {
             Text(

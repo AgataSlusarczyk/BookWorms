@@ -31,6 +31,9 @@ class Group(
 	// Set by the admin: can ordinary members see the code and invite others too?
 	var membersCanInvite: Boolean = false
 
+	// A path on this server, e.g. "/photos/<file>.jpg", or null when the group has no photo.
+	var photoUrl: String? = null
+
 	val createdAt: Instant = Instant.now()
 }
 

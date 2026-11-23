@@ -13,6 +13,7 @@ data class RecentMember(
     // When they joined, e.g. "Joined 11.11.2026".
     val joined: String,
     val isAdmin: Boolean = false,
+    val photoUrl: String? = null,
 )
 
 // TODO: a real link that opens the app, once the app has a domain. For now the code is what counts.

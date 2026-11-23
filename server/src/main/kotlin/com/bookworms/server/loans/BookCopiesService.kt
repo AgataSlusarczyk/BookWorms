@@ -10,11 +10,12 @@ import com.bookworms.server.groups.GroupRepository
 import com.bookworms.server.loans.dto.BookCopiesResponse
 import com.bookworms.server.loans.dto.GroupNameResponse
 import com.bookworms.server.loans.dto.OthersCopyResponse
-import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.users.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 
 // "Who has it" on Book details: who in my groups has this book, can I borrow it, and did I already ask.
 // My own copies aren't here – the app counts them from my books.
@@ -57,7 +58,7 @@ class BookCopiesService(
 		val myRequests = requestRepository.findByRequesterIdAndStatusOrderByCreatedAtDesc(userId, RequestStatus.PENDING)
 			.associate { it.copy.id!! to it.id!! }
 		val myQueues = queueRepository.findById_UserIdOrderByCreatedAtAsc(userId).associateBy { it.id.copyId }
-		val names = userRepository.findAllById(copies.map { it.ownerId }.toSet()).associate { it.id!! to it.name }
+		val people = userRepository.people(copies.map { it.ownerId }.toSet())
 
 		return BookCopiesResponse(
 			groups = groups,
@@ -65,7 +66,7 @@ class BookCopiesService(
 				val loan = loans[copy.id]
 				OthersCopyResponse(
 					copyId = copy.id!!,
-					owner = PersonResponse(copy.ownerId, names[copy.ownerId].orEmpty()),
+					owner = people.person(copy.ownerId),
 					// In the order of my groups, so the app shows them the same way everywhere.
 					groupIds = myGroupIds.filter { it in groupsOfCopy.getValue(copy.id!!) },
 					availability = copy.availability,

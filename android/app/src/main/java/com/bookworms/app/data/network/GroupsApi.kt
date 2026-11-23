@@ -1,12 +1,16 @@
 package com.bookworms.app.data.network
 
 import kotlinx.serialization.Serializable
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -38,6 +42,16 @@ interface GroupsApi {
 
     @PATCH("groups/{id}")
     suspend fun update(@Path("id") groupId: String, @Body request: GroupRequestDto): GroupDetailsDto
+
+    // Admin only. The photo as a file in a form, in the part called "photo", like the profile photo.
+    // 400 when it isn't a picture, 413 when it's too big. The old photo is removed.
+    @Multipart
+    @PUT("groups/{id}/photo")
+    suspend fun changePhoto(@Path("id") groupId: String, @Part photo: MultipartBody.Part): GroupDetailsDto
+
+    // Admin only.
+    @DELETE("groups/{id}/photo")
+    suspend fun removePhoto(@Path("id") groupId: String): GroupDetailsDto
 
     // Response<Unit>, because the server answers 204 with no body.
     @DELETE("groups/{id}")
@@ -79,6 +93,8 @@ data class GroupSummaryDto(
     val memberCount: Int,
     // ADMIN or MEMBER.
     val myRole: String,
+    // A path on the server, e.g. "/photos/<file>.jpg". null = no photo.
+    val photoUrl: String? = null,
 )
 
 @Serializable
@@ -91,6 +107,7 @@ data class GroupDetailsDto(
     // null when the user can't invite.
     val inviteCode: String? = null,
     val members: List<MemberDto> = emptyList(),
+    val photoUrl: String? = null,
 )
 
 @Serializable
@@ -99,6 +116,7 @@ data class MemberDto(
     val name: String,
     val role: String,
     val joinedAt: String,
+    val photoUrl: String? = null,
 )
 
 @Serializable
@@ -108,6 +126,7 @@ data class InvitePreviewDto(
     val description: String? = null,
     val memberCount: Int,
     val alreadyMember: Boolean = false,
+    val photoUrl: String? = null,
 )
 
 @Serializable

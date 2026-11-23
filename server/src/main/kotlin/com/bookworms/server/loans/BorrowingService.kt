@@ -3,7 +3,6 @@ package com.bookworms.server.loans
 import com.bookworms.server.common.ApiException
 import com.bookworms.server.copies.Availability
 import com.bookworms.server.loans.dto.LoanResponse
-import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.loans.dto.RequestBookResponse
 import com.bookworms.server.notifications.NotificationService
 import com.bookworms.server.notifications.NotificationType
@@ -13,6 +12,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 
 // Books that are lent out right now, and giving them back.
 // Only the owner marks a book as returned – they're the one who got it back.
@@ -56,8 +57,7 @@ class BorrowingService(
 
 	// Turns loans into answers for the app, with the people's names.
 	private fun describe(borrowings: List<Borrowing>): List<LoanResponse> {
-		val names = userRepository.findAllById(borrowings.flatMap { listOf(it.borrowerId, it.copy.ownerId) }.toSet())
-			.associate { it.id!! to it.name }
+		val people = userRepository.people(borrowings.flatMap { listOf(it.borrowerId, it.copy.ownerId) }.toSet())
 		return borrowings.map { borrowing ->
 			val copy = borrowing.copy
 			LoanResponse(
@@ -73,8 +73,8 @@ class BorrowingService(
 					authors = copy.book.authors,
 					coverUrl = copy.book.coverUrl,
 				),
-				borrower = PersonResponse(borrowing.borrowerId, names[borrowing.borrowerId].orEmpty()),
-				owner = PersonResponse(copy.ownerId, names[copy.ownerId].orEmpty()),
+				borrower = people.person(borrowing.borrowerId),
+				owner = people.person(copy.ownerId),
 			)
 		}
 	}

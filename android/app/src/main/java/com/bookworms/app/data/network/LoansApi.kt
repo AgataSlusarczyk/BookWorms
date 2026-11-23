@@ -143,4 +143,6 @@ data class LoanBookDto(
 data class PersonDto(
     val id: String,
     val name: String,
+    // A path on the server, e.g. "/photos/<file>.jpg". null = no photo (and in copies saved by older versions).
+    val photoUrl: String? = null,
 )

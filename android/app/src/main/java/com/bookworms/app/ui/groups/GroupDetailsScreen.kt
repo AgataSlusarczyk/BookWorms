@@ -45,7 +45,7 @@ import com.bookworms.app.R
 import com.bookworms.app.data.LoadState
 import com.bookworms.app.ui.components.AppCard
 import com.bookworms.app.ui.components.AppTopBar
-import com.bookworms.app.ui.components.AvatarPlaceholder
+import com.bookworms.app.ui.components.ProfilePhoto
 import com.bookworms.app.ui.components.BookRow
 import com.bookworms.app.ui.components.LoadFailedMessage
 import com.bookworms.app.ui.components.LoadingIndicator
@@ -235,7 +235,7 @@ internal fun GroupDetailsScreen(
 private fun GroupHeader(group: GroupDetails) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarPlaceholder(size = 56.dp)
+            ProfilePhoto(photo = group.photoUrl, size = 56.dp)
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -327,7 +327,7 @@ private fun GroupBookCard(book: GroupBook, onClick: (() -> Unit)?) {
 private fun MemberCard(member: GroupMember, canManage: Boolean, onMakeAdmin: () -> Unit, onRemove: () -> Unit) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-            AvatarPlaceholder()
+            ProfilePhoto(photo = member.photoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(member.name, style = MaterialTheme.typography.titleMedium)

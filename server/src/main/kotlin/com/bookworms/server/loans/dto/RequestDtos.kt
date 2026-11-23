@@ -37,4 +37,6 @@ data class RequestBookResponse(
 data class PersonResponse(
 	val id: UUID,
 	val name: String,
+	// A path on this server, e.g. "/photos/<file>.jpg", or null when they have no photo.
+	val photoUrl: String? = null,
 )

@@ -9,6 +9,7 @@ import com.bookworms.server.groups.dto.InvitePreviewResponse
 import com.bookworms.server.groups.dto.JoinGroupRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -16,9 +17,12 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
 
 // Groups. Every address needs a token (see SecurityConfig).
@@ -61,6 +65,20 @@ class GroupController(
 		@Valid @RequestBody request: GroupRequest,
 	): GroupDetailsResponse =
 		groupService.update(jwt.userId(), id, request)
+
+	// Admin only. The photo as a file in a form, in the part called "photo" – like the profile photo.
+	@PutMapping("/groups/{id}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+	fun changePhoto(
+		@AuthenticationPrincipal jwt: Jwt,
+		@PathVariable id: UUID,
+		@RequestPart("photo") photo: MultipartFile,
+	): GroupDetailsResponse =
+		photo.inputStream.use { groupService.changePhoto(jwt.userId(), id, it) }
+
+	// Admin only.
+	@DeleteMapping("/groups/{id}/photo")
+	fun removePhoto(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): GroupDetailsResponse =
+		groupService.removePhoto(jwt.userId(), id)
 
 	// Admin only.
 	@DeleteMapping("/groups/{id}")

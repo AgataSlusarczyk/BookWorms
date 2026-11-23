@@ -1,9 +1,6 @@
 package com.bookworms.app.ui.profile
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +39,7 @@ import com.bookworms.app.ui.auth.FieldShape
 import com.bookworms.app.ui.auth.LabeledField
 import com.bookworms.app.ui.auth.authFieldColors
 import com.bookworms.app.ui.components.AppTopBar
-import com.bookworms.app.ui.components.ProfilePhoto
+import com.bookworms.app.ui.components.PhotoPicker
 import com.bookworms.app.ui.components.mistedBackground
 import com.bookworms.app.ui.theme.BookWormsTheme
 
@@ -62,18 +59,15 @@ fun EditProfileScreen(
     saving: Boolean,
     saveEnabled: Boolean,
     // newPhoto = the photo picked on this screen, or null when the user didn't pick one.
-    onSaveClick: (newPhoto: Uri?) -> Unit,
+    // removePhoto = "Remove photo" was tapped (and no new one picked after it).
+    onSaveClick: (newPhoto: Uri?, removePhoto: Boolean) -> Unit,
     onBackClick: () -> Unit,
     // Full address of the current photo on the server, or null when there's none.
     photoUrl: String? = null,
 ) {
-    // The new photo is only a draft until Save, so Back leaves the old one.
+    // The photo change is only a draft until Save, so Back leaves the old photo.
     var newPhoto by rememberSaveable { mutableStateOf<Uri?>(null) }
-    // The phone's own photo picker. It needs no permission, because the user picks the photo themselves.
-    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
-        // null = the user closed the picker without choosing anything.
-        if (picked != null) newPhoto = picked
-    }
+    var photoRemoved by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
         modifier = Modifier.mistedBackground(),
@@ -92,10 +86,19 @@ fun EditProfileScreen(
                 .padding(20.dp),
         ) {
             // The same circle as in Profile, only bigger.
-            ProfilePhoto(photo = newPhoto ?: photoUrl, size = 96.dp)
-            TextButton(onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                Text(stringResource(R.string.change_photo))
-            }
+            PhotoPicker(
+                currentUrl = photoUrl,
+                newPhoto = newPhoto,
+                removed = photoRemoved,
+                onPick = {
+                    newPhoto = it
+                    photoRemoved = false
+                },
+                onRemove = {
+                    newPhoto = null
+                    photoRemoved = true
+                },
+            )
 
             Spacer(Modifier.height(8.dp))
 
@@ -134,7 +137,7 @@ fun EditProfileScreen(
             Spacer(Modifier.height(8.dp))
 
             Button(
-                onClick = { onSaveClick(newPhoto) },
+                onClick = { onSaveClick(newPhoto, photoRemoved && newPhoto == null && photoUrl != null) },
                 // Only once every field is filled in correctly.
                 enabled = saveEnabled,
                 shape = FieldShape,
@@ -200,7 +203,7 @@ private fun EditProfileScreenPreview() {
             errorMessage = null,
             saving = false,
             saveEnabled = true,
-            onSaveClick = {},
+            onSaveClick = { _, _ -> },
             onBackClick = {},
         )
     }

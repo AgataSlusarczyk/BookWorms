@@ -37,6 +37,8 @@ data class ReviewResponse(
 	val id: UUID,
 	val authorName: String,
 	val authorUsername: String,
+	// A path on this server, e.g. "/photos/<file>.jpg", or null when the author has no photo.
+	val authorPhotoUrl: String?,
 	val rating: Int,
 	val content: String?,
 	val hasSpoilers: Boolean,

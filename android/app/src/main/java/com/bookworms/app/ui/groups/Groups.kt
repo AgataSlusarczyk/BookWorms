@@ -9,6 +9,8 @@ internal data class GroupSummary(
     val name: String,
     val memberCount: Int,
     val isAdmin: Boolean,
+    // Full address of the group's photo, or null for the gray circle.
+    val photoUrl: String? = null,
 )
 
 // Everything Group details, Edit group and Invite show.
@@ -23,6 +25,8 @@ internal data class GroupDetails(
     val inviteCode: String?,
     // The earliest first.
     val members: List<GroupMember>,
+    // Full address of the group's photo, or null for the gray circle.
+    val photoUrl: String? = null,
 )
 
 internal data class GroupMember(
@@ -30,6 +34,7 @@ internal data class GroupMember(
     val name: String,
     val isAdmin: Boolean,
     val joined: LocalDate,
+    val photoUrl: String? = null,
 )
 
 // One copy in the group's library.
@@ -53,6 +58,7 @@ internal data class InvitePreview(
     val description: String,
     val memberCount: Int,
     val alreadyMember: Boolean,
+    val photoUrl: String? = null,
 )
 
 // One message in the group's chat.
@@ -62,4 +68,5 @@ internal data class ChatMessage(
     val senderName: String,
     val text: String,
     val sentAt: Instant,
+    val senderPhotoUrl: String? = null,
 )
