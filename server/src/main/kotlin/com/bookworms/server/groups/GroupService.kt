@@ -12,12 +12,15 @@ import com.bookworms.server.groups.dto.InvitePreviewResponse
 import com.bookworms.server.groups.dto.MemberResponse
 import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.BorrowingStatus
-import com.bookworms.server.loans.dto.PersonResponse
+import com.bookworms.server.users.PhotoFiles
 import com.bookworms.server.users.UserRepository
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.io.InputStream
 import java.security.SecureRandom
 import java.util.UUID
 
@@ -31,6 +34,7 @@ class GroupService(
 	private val copyRepository: BookCopyRepository,
 	private val visibilityRepository: CopyGroupVisibilityRepository,
 	private val borrowingRepository: BorrowingRepository,
+	private val photoFiles: PhotoFiles,
 	private val events: ApplicationEventPublisher,
 ) {
 
@@ -51,6 +55,7 @@ class GroupService(
 				description = group.description,
 				memberCount = counts[group.id] ?: 0,
 				myRole = membership.groupRole,
+				photoUrl = group.photoUrl,
 			)
 		}
 	}
@@ -75,7 +80,7 @@ class GroupService(
 		val membership = membership(userId, groupId)
 		val group = group(groupId)
 		val members = memberRepository.findById_GroupIdOrderByJoinedAtAsc(groupId)
-		val names = names(members.map { it.id.userId })
+		val people = userRepository.people(members.map { it.id.userId })
 		val canInvite = membership.groupRole == GroupRole.ADMIN || group.membersCanInvite
 		return GroupDetailsResponse(
 			id = group.id!!,
@@ -85,14 +90,17 @@ class GroupService(
 			membersCanInvite = group.membersCanInvite,
 			inviteCode = if (canInvite) group.inviteCode else null,
 			members = members.map {
+				val person = people.person(it.id.userId)
 				MemberResponse(
 					id = it.id.userId,
-					name = names[it.id.userId].orEmpty(),
+					name = person.name,
 					role = it.groupRole,
 					joinedAt = it.joinedAt,
+					photoUrl = person.photoUrl,
 				)
 			},
 			createdAt = group.createdAt,
+			photoUrl = group.photoUrl,
 		)
 	}
 
@@ -105,7 +113,7 @@ class GroupService(
 		val copies = copyRepository.findByIdInAndDeletedAtIsNullOrderByCreatedAtDesc(copyIds)
 		val loans = borrowingRepository.findByCopy_IdInAndStatusNot(copies.map { it.id!! }, BorrowingStatus.RETURNED)
 			.associateBy { it.copy.id!! }
-		val names = names(copies.map { it.ownerId } + loans.values.map { it.borrowerId })
+		val people = userRepository.people(copies.map { it.ownerId } + loans.values.map { it.borrowerId })
 		return copies.map { copy ->
 			val loan = loans[copy.id]
 			GroupBookResponse(
@@ -117,9 +125,9 @@ class GroupService(
 					authors = copy.book.authors,
 					coverUrl = copy.book.coverUrl,
 				),
-				owner = PersonResponse(copy.ownerId, names[copy.ownerId].orEmpty()),
+				owner = people.person(copy.ownerId),
 				availability = copy.availability,
-				borrowedBy = loan?.let { PersonResponse(it.borrowerId, names[it.borrowerId].orEmpty()) },
+				borrowedBy = loan?.let { people.person(it.borrowerId) },
 			)
 		}
 	}
@@ -134,6 +142,7 @@ class GroupService(
 			description = group.description,
 			memberCount = memberRepository.countById_GroupId(group.id!!),
 			alreadyMember = memberRepository.existsById(GroupMemberId(userId, group.id!!)),
+			photoUrl = group.photoUrl,
 		)
 	}
 
@@ -157,11 +166,32 @@ class GroupService(
 		return details(userId, groupId)
 	}
 
-	// The members, their books in it and its discussions go with it (the database removes them).
+	// A new photo replaces the old one, whose file is removed. Admin only.
+	@Transactional
+	fun changePhoto(userId: UUID, groupId: UUID, photo: InputStream): GroupDetailsResponse {
+		requireAdmin(userId, groupId)
+		val group = group(groupId)
+		val old = group.photoUrl
+		group.photoUrl = photoFiles.save(photo)
+		photoFiles.delete(old)
+		return details(userId, groupId)
+	}
+
+	// Admin only. No photo is fine too.
+	@Transactional
+	fun removePhoto(userId: UUID, groupId: UUID): GroupDetailsResponse {
+		requireAdmin(userId, groupId)
+		val group = group(groupId)
+		photoFiles.delete(group.photoUrl)
+		group.photoUrl = null
+		return details(userId, groupId)
+	}
+
+	// The members, their books in it and its discussions go with it (the database removes them). Its photo too.
 	@Transactional
 	fun delete(userId: UUID, groupId: UUID) {
 		requireAdmin(userId, groupId)
-		groupRepository.deleteById(groupId)
+		deleteGroup(groupId)
 		events.publishEvent(GroupDeleted(groupId))
 	}
 
@@ -204,9 +234,14 @@ class GroupService(
 		removeFromGroup(membership)
 		val left = memberRepository.findById_GroupIdOrderByJoinedAtAsc(groupId)
 		when {
-			left.isEmpty() -> groupRepository.deleteById(groupId)
+			left.isEmpty() -> deleteGroup(groupId)
 			left.none { it.groupRole == GroupRole.ADMIN } -> left.first().groupRole = GroupRole.ADMIN
 		}
+	}
+
+	private fun deleteGroup(groupId: UUID) {
+		photoFiles.delete(group(groupId).photoUrl)
+		groupRepository.deleteById(groupId)
 	}
 
 	private fun addMember(userId: UUID, groupId: UUID, role: GroupRole) {
@@ -247,9 +282,6 @@ class GroupService(
 	private fun groupByCode(code: String): Group =
 		normalizeCode(code)?.let { groupRepository.findByInviteCode(it) }
 			?: throw ApiException(HttpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "No group has this code")
-
-	private fun names(userIds: Collection<UUID>): Map<UUID, String> =
-		userRepository.findAllById(userIds.toSet()).associate { it.id!! to it.name }
 
 	// 8 characters in two halves, e.g. "K7QM-3XTP". No 0/O and 1/I, so it's easy to read out loud.
 	private fun newInviteCode(): String {

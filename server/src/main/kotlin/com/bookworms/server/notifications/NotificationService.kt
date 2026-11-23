@@ -4,7 +4,6 @@ import com.bookworms.server.copies.BookCopyRepository
 import com.bookworms.server.loans.BorrowRequestRepository
 import com.bookworms.server.loans.BorrowingRepository
 import com.bookworms.server.loans.QueueRepository
-import com.bookworms.server.loans.dto.PersonResponse
 import com.bookworms.server.notifications.NotificationType.BORROW_REQUESTED
 import com.bookworms.server.notifications.NotificationType.COPY_AVAILABLE
 import com.bookworms.server.notifications.NotificationType.HANDOVER_CONFIRMED
@@ -20,6 +19,8 @@ import com.bookworms.server.users.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
+import com.bookworms.server.users.people
+import com.bookworms.server.users.person
 
 // Makes notifications when something happens to a request, a loan or a queue, and lists them.
 @Service
@@ -77,7 +78,7 @@ class NotificationService(
                 COPY_AVAILABLE -> copies[id]?.let { it.book.title to it.ownerId }
             }
         }
-        val names = userRepository.findAllById(details.values.mapNotNull { it?.second }.toSet()).associate { it.id!! to it.name }
+        val people = userRepository.people(details.values.mapNotNull { it?.second }.toSet())
 
         return notifications.mapNotNull { notification ->
             val (title, personId) = details[notification] ?: return@mapNotNull null
@@ -88,7 +89,7 @@ class NotificationService(
                 read = notification.isRead,
                 createdAt = notification.createdAt,
                 bookTitle = title,
-                person = PersonResponse(personId, names[personId].orEmpty()),
+                person = people.person(personId),
             )
         }
     }
