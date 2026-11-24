@@ -71,7 +71,7 @@ class LoanFlowTest(
 	fun cleanDatabase() {
 		for (table in listOf(
 			"notifications", "availability_watchers", "borrowings", "borrow_requests", "copy_group_visibility", "book_copies",
-			"group_members", "groups", "books", "users",
+			"group_members", "groups", "book_list_items", "book_lists", "user_book_status", "books", "users",
 		)) {
 			jdbc.update("delete from $table")
 		}
@@ -494,6 +494,52 @@ class LoanFlowTest(
 			jsonPath("$.groups.length()") { value(1) }
 			jsonPath("$.copies.length()") { value(0) }
 		}
+	}
+
+	@Test
+	fun `lists and Want to read say whether someone in the groups can lend the book`() {
+		val book = solarisBookId()
+		for (token in listOf(agata, marek, zosia)) {
+			mockMvc.put("/me/shelf/$book/status") {
+				bearer(token)
+				contentType = MediaType.APPLICATION_JSON
+				content = """{"status": "TO_READ"}"""
+			}.andExpect { status { isOk() } }
+		}
+		val list = idOf(
+			mockMvc.post("/me/lists") {
+				bearer(marek)
+				contentType = MediaType.APPLICATION_JSON
+				content = """{"name": "Sci-fi"}"""
+			}.andExpect { status { isCreated() } },
+		)
+		mockMvc.put("/me/lists/$list/books/$book") { bearer(marek) }.andExpect { status { isNoContent() } }
+
+		mockMvc.get("/me/shelf") { bearer(marek) }.andExpect { jsonPath("$[0].availability") { value("AVAILABLE") } }
+		mockMvc.get("/me/lists/$list") { bearer(marek) }.andExpect { jsonPath("$.books[0].availability") { value("AVAILABLE") } }
+		// Her own copy doesn't count, and Zosia isn't in the group.
+		mockMvc.get("/me/shelf") { bearer(agata) }.andExpect { jsonPath("$[0].availability") { doesNotExist() } }
+		mockMvc.get("/me/shelf") { bearer(zosia) }.andExpect { jsonPath("$[0].availability") { doesNotExist() } }
+
+		// Lent to Ola (already when it's accepted, before the handover): it comes back later.
+		answer(agata, idOf(send(ola)), "accept").andExpect { status { isOk() } }
+		mockMvc.get("/me/shelf") { bearer(marek) }.andExpect { jsonPath("$[0].availability") { value("BORROWED") } }
+		mockMvc.get("/me/lists/$list") { bearer(marek) }.andExpect { jsonPath("$.books[0].availability") { value("BORROWED") } }
+	}
+
+	@Test
+	fun `a book that's not available or lost has no tag on the lists`() {
+		val book = solarisBookId()
+		mockMvc.put("/me/shelf/$book/status") {
+			bearer(marek)
+			contentType = MediaType.APPLICATION_JSON
+			content = """{"status": "TO_READ"}"""
+		}.andExpect { status { isOk() } }
+
+		setAvailability("UNAVAILABLE")
+		mockMvc.get("/me/shelf") { bearer(marek) }.andExpect { jsonPath("$[0].availability") { doesNotExist() } }
+		setAvailability("LOST")
+		mockMvc.get("/me/shelf") { bearer(marek) }.andExpect { jsonPath("$[0].availability") { doesNotExist() } }
 	}
 
 	private fun solarisBookId(): String =

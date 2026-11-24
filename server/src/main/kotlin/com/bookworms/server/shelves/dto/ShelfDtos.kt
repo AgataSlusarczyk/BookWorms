@@ -1,6 +1,7 @@
 package com.bookworms.server.shelves.dto
 
 import com.bookworms.server.books.dto.BookSummaryResponse
+import com.bookworms.server.loans.BookAvailability
 import com.bookworms.server.shelves.ReadingStatus
 import jakarta.validation.constraints.NotNull
 import java.time.Instant
@@ -26,4 +27,7 @@ data class ShelfBookResponse(
 	val favorite: Boolean,
 	// When the heart was tapped. null without one.
 	val favoritedAt: Instant?,
+	// Whether someone in the user's groups can lend it. null = nobody there has it to lend.
+	// The app shows it on Want to read.
+	val availability: BookAvailability?,
 )

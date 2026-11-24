@@ -9,6 +9,7 @@ import com.bookworms.server.lists.BookListItemId
 import com.bookworms.server.lists.BookListItemRepository
 import com.bookworms.server.lists.BookListRepository
 import com.bookworms.server.lists.ListType
+import com.bookworms.server.loans.BookAvailabilityService
 import com.bookworms.server.shelves.dto.MyShelfStateResponse
 import com.bookworms.server.shelves.dto.ShelfBookResponse
 import org.springframework.data.repository.findByIdOrNull
@@ -25,6 +26,7 @@ class ShelfService(
 	private val listRepository: BookListRepository,
 	private val itemRepository: BookListItemRepository,
 	private val bookRepository: BookRepository,
+	private val availabilityService: BookAvailabilityService,
 ) {
 
 	// Every book with a heart or a status – each once, with both. The app sorts them onto the shelves.
@@ -33,7 +35,9 @@ class ShelfService(
 		val statuses = statusRepository.findById_UserIdAndDeletedAtIsNull(userId).associateBy { it.id.bookId }
 		val favorites = favoritesList(userId)?.let { itemRepository.findById_ListId(it.id!!) }.orEmpty()
 			.associateBy { it.id.bookId }
-		return bookRepository.findAllById(statuses.keys + favorites.keys).map { book ->
+		val bookIds = statuses.keys + favorites.keys
+		val availability = availabilityService.forBooks(userId, bookIds)
+		return bookRepository.findAllById(bookIds).map { book ->
 			val status = statuses[book.id]
 			val favorite = favorites[book.id]
 			ShelfBookResponse(
@@ -42,6 +46,7 @@ class ShelfService(
 				statusChangedAt = status?.updatedAt,
 				favorite = favorite != null,
 				favoritedAt = favorite?.addedAt,
+				availability = availability[book.id],
 			)
 		}
 	}

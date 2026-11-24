@@ -74,12 +74,21 @@ data class BookListItemId(
 interface BookListRepository : JpaRepository<BookList, UUID> {
 
 	fun findByOwnerIdAndType(ownerId: UUID, type: ListType): BookList?
+
+	// The user's own lists (not Favorites), newest first. Deleted ones are left out.
+	fun findByOwnerIdAndTypeAndDeletedAtIsNullOrderByCreatedAtDesc(ownerId: UUID, type: ListType): List<BookList>
+
+	// Big and small letters count as the same. Favorites counts too – the database doesn't allow that name twice either.
+	fun existsByOwnerIdAndDeletedAtIsNullAndNameIgnoreCase(ownerId: UUID, name: String): Boolean
 }
 
 interface BookListItemRepository : JpaRepository<BookListItem, BookListItemId> {
 
 	// "Id_ListId" means id.listId – the list part of the key.
 	fun findById_ListId(listId: UUID): List<BookListItem>
+
+	// The books on several lists at once.
+	fun findById_ListIdIn(listIds: Collection<UUID>): List<BookListItem>
 
 	// 0 for an empty list.
 	@Query("select coalesce(max(i.position), 0) from BookListItem i where i.id.listId = :listId")
