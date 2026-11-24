@@ -14,4 +14,9 @@ interface NotificationRepository : JpaRepository<Notification, UUID> {
     @Modifying
     @Query("update Notification n set n.isRead = true where n.userId = :userId and n.isRead = false")
     fun markAllRead(userId: UUID)
+
+    // Only the user's own one – someone else's id just changes nothing.
+    @Modifying
+    @Query("update Notification n set n.isRead = true where n.id = :id and n.userId = :userId")
+    fun markRead(id: UUID, userId: UUID)
 }

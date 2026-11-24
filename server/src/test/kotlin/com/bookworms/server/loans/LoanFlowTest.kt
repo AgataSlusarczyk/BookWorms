@@ -341,6 +341,7 @@ class LoanFlowTest(
 			jsonPath("$[0].type") { value("BORROW_REQUESTED") }
 			jsonPath("$[0].referenceId") { value(fromMarek) }
 			jsonPath("$[0].bookTitle") { value("Solaris") }
+			jsonPath("$[0].bookIsbn") { value("9788308049461") }
 			jsonPath("$[0].person.name") { value("Marek") }
 			jsonPath("$[0].read") { value(false) }
 		}
@@ -382,6 +383,7 @@ class LoanFlowTest(
 			jsonPath("$.length()") { value(1) }
 			jsonPath("$[0].type") { value("COPY_AVAILABLE") }
 			jsonPath("$[0].referenceId") { value(solaris) }
+			jsonPath("$[0].bookIsbn") { value("9788308049461") }
 			jsonPath("$[0].person.name") { value("Agata") }
 		}
 	}
@@ -394,6 +396,24 @@ class LoanFlowTest(
 
 		notifications(agata).andExpect { jsonPath("$[0].read") { value(true) } }
 		notifications(marek).andExpect { jsonPath("$[0].read") { value(false) } }
+	}
+
+	@Test
+	fun `one notification can be marked as read, only by its owner`() {
+		send(marek)
+		send(ola)
+		// The first id in the answer is a notification's own (its person comes after it).
+		val one = Regex(""""id":"([^"]+)"""").find(notifications(agata).andReturn().response.contentAsString)!!.groupValues[1]
+
+		// Someone else's notification: the same answer, but nothing changes.
+		mockMvc.post("/me/notifications/$one/read") { bearer(marek) }.andExpect { status { isNoContent() } }
+		notifications(agata).andExpect { jsonPath("$[?(@.read == true)]") { isEmpty() } }
+
+		mockMvc.post("/me/notifications/$one/read") { bearer(agata) }.andExpect { status { isNoContent() } }
+		notifications(agata).andExpect {
+			jsonPath("$[?(@.id == '$one')].read") { value(true) }
+			jsonPath("$[?(@.id != '$one')].read") { value(false) }
+		}
 	}
 
 	@Test

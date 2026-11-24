@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,8 +49,18 @@ internal fun LoansScreen(
     onBookClick: (isbn: String) -> Unit = {},
     // Someone else's book tapped while the server can't be reached – its page can't open.
     onOfflineBookClick: () -> Unit = {},
+    // A tab to switch to, e.g. Requests after a tap on "wants to borrow" in Notifications. null = stay on the last one.
+    openTab: LoansTab? = null,
+    // Called once openTab is shown, so it doesn't switch again when the user comes back later.
+    onTabOpened: () -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(openTab) {
+        if (openTab != null) {
+            selectedTabIndex = openTab.ordinal
+            onTabOpened()
+        }
+    }
     // The sent request the user wants to cancel, while the question is shown. Kept as its id, so it survives turning the phone.
     var cancelingId by rememberSaveable { mutableStateOf<String?>(null) }
     val canceling = (loans as? LoadState.Ready)?.data?.sentRequests?.find { it.id == cancelingId }

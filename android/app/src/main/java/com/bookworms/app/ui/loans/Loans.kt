@@ -3,6 +3,12 @@ package com.bookworms.app.ui.loans
 import java.time.Instant
 import java.time.LocalDate
 
+// How long a book is lent for when the owner says yes – the same as LOAN_DAYS on the server.
+internal const val LoanDays = 14
+
+// The tabs of Loans, in their order on the screen.
+internal enum class LoansTab { Borrowing, Lent, Requests }
+
 // A book that changed hands. person = who it's from (Borrowing) or who has it (Lent).
 internal data class Loan(
     val id: String,

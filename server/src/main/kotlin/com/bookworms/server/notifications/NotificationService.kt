@@ -52,7 +52,12 @@ class NotificationService(
         notificationRepository.markAllRead(userId)
     }
 
-    // Adds the book's title and the other person's name. Everything is loaded at once, not one by one.
+    @Transactional
+    fun markRead(userId: UUID, notificationId: UUID) {
+        notificationRepository.markRead(notificationId, userId)
+    }
+
+    // Adds the book's title and ISBN, and the other person's name. Everything is loaded at once, not one by one.
     private fun describe(notifications: List<Notification>): List<NotificationResponse> {
         fun idsOf(vararg types: NotificationType) = notifications.filter { it.type in types }.map { it.referenceId }
 
@@ -64,31 +69,32 @@ class NotificationService(
         ).associateBy { it.id!! }
         val copies = copyRepository.findWithBookByIdIn(idsOf(COPY_AVAILABLE)).associateBy { it.id!! }
 
-        // For each one: the book's title and who the other person is.
+        // For each one: the book and who the other person is.
         val details = notifications.associateWith { notification ->
             val id = notification.referenceId
             when (notification.type) {
                 // Sent to the owner – the other person is the one who asked.
-                BORROW_REQUESTED, REQUEST_CANCELED -> requests[id]?.let { it.copy.book.title to it.requesterId }
+                BORROW_REQUESTED, REQUEST_CANCELED -> requests[id]?.let { it.copy.book to it.requesterId }
                 // Sent to the one who asked – the other person is the owner.
-                REQUEST_ACCEPTED, REQUEST_REJECTED, REQUEST_SUPERSEDED -> requests[id]?.let { it.copy.book.title to it.copy.ownerId }
+                REQUEST_ACCEPTED, REQUEST_REJECTED, REQUEST_SUPERSEDED -> requests[id]?.let { it.copy.book to it.copy.ownerId }
                 // Sent to the one who borrowed – the other person is the owner.
-                HANDOVER_CONFIRMED, RETURN_CONFIRMED, RETURN_DUE, RETURN_OVERDUE -> borrowings[id]?.let { it.copy.book.title to it.copy.ownerId }
+                HANDOVER_CONFIRMED, RETURN_CONFIRMED, RETURN_DUE, RETURN_OVERDUE -> borrowings[id]?.let { it.copy.book to it.copy.ownerId }
 
-                COPY_AVAILABLE -> copies[id]?.let { it.book.title to it.ownerId }
+                COPY_AVAILABLE -> copies[id]?.let { it.book to it.ownerId }
             }
         }
         val people = userRepository.people(details.values.mapNotNull { it?.second }.toSet())
 
         return notifications.mapNotNull { notification ->
-            val (title, personId) = details[notification] ?: return@mapNotNull null
+            val (book, personId) = details[notification] ?: return@mapNotNull null
             NotificationResponse(
                 id = notification.id!!,
                 type = notification.type,
                 referenceId = notification.referenceId,
                 read = notification.isRead,
                 createdAt = notification.createdAt,
-                bookTitle = title,
+                bookTitle = book.title,
+                bookIsbn = book.isbn,
                 person = people.person(personId),
             )
         }

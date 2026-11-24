@@ -309,11 +309,18 @@
     <string name="just_now">Just now</string>
     <string name="asks_to_borrow">%1$s asks to borrow</string>
     <string name="asks_to_borrow_book">%1$s asks to borrow %2$s</string>
-    <string name="book_days_overdue">%1$s – %2$s days overdue</string>
-    <string name="book_available_again">%1$s from your list is available again</string>
-    <string name="automatic_reminder">%1$s • automatic reminder</string>
-    <string name="today_at_time">today, %1$s</string>
-    <string name="yesterday_at_time">yesterday, %1$s</string>
+
+    <!-- Notifications: %1$s = the other person, %2$s = the book -->
+    <string name="notification_request_accepted">%1$s agreed to lend you %2$s</string>
+    <string name="notification_request_rejected">%1$s can\'t lend you %2$s</string>
+    <string name="notification_request_canceled">%1$s doesn\'t want to borrow %2$s anymore</string>
+    <string name="notification_return_confirmed">%1$s got %2$s back</string>
+    <string name="notification_return_due">Time to give %2$s back to %1$s soon</string>
+    <string name="notification_return_overdue">%2$s should be back with %1$s already</string>
+    <string name="notification_copy_available">%2$s from %1$s can be borrowed again</string>
+    <string name="date_earlier">Earlier</string>
+    <string name="notifications_empty">No notifications yet. When someone asks for your book or answers you, you\'ll see it here.</string>
+    <string name="load_notifications_failed">Couldn\'t load your notifications. Check your connection and try again.</string>
 
     <!-- Plurals (Members) -->
     <plurals name="members">
