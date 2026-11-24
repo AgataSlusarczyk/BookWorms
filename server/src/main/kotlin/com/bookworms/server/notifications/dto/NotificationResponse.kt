@@ -14,6 +14,8 @@ data class NotificationResponse(
 	val read: Boolean,
 	val createdAt: Instant,
 	val bookTitle: String,
+	// For opening the book's page; null for a book added by hand without one.
+	val bookIsbn: String?,
 	// The other person: who asked, who answered, or whose book it is.
 	val person: PersonResponse,
 )

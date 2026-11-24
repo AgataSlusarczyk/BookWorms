@@ -48,6 +48,10 @@ class LoansRepository(private val api: LoansApi = ApiClient.loans) {
         receivedRequests = received.map { it.toBookRequest(person = it.requester.name) },
     )
 
+    // Requests to the user still waiting for an answer – for the Accept and Reject buttons on Notifications.
+    internal suspend fun receivedRequests(): List<BookRequest> =
+        api.receivedRequests().map { it.toBookRequest(person = it.requester.name) }
+
     suspend fun markReturned(loanId: String) {
         api.markReturned(loanId)
     }

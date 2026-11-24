@@ -90,8 +90,11 @@ import com.bookworms.app.ui.lists.ShelvesViewModel
 import com.bookworms.app.ui.lists.customLists
 import com.bookworms.app.ui.lists.listBooks
 import com.bookworms.app.ui.loans.LoansScreen
+import com.bookworms.app.ui.loans.LoansTab
 import com.bookworms.app.ui.loans.LoansViewModel
+import com.bookworms.app.ui.notifications.NotificationType
 import com.bookworms.app.ui.notifications.NotificationsScreen
+import com.bookworms.app.ui.notifications.NotificationsViewModel
 import com.bookworms.app.ui.profile.ChangePasswordScreen
 import com.bookworms.app.ui.profile.EditProfileError
 import com.bookworms.app.ui.profile.EditProfileScreen
@@ -183,6 +186,9 @@ fun AppNavigation() {
 
     // Switching tabs in the bottom bar: no growing pile of screens, and each tab keeps
     // its state (scroll position, selected tab) when you come back to it.
+    // The Loans tab to show next time Loans opens – set by a tap in Notifications.
+    var loansTab by remember { mutableStateOf<LoansTab?>(null) }
+
     val navigateBottomBar: (String) -> Unit = { route ->
         navController.navigate(route) {
             popUpTo(Routes.LIBRARY) { saveState = true }
@@ -381,6 +387,8 @@ fun AppNavigation() {
                 onBookClick = { isbn -> navController.navigate(Routes.bookDetails(isbn)) },
                 // The page of someone else's book comes from the server – without it there's nothing to show.
                 onOfflineBookClick = { Toast.makeText(context, R.string.offline_book_page, Toast.LENGTH_SHORT).show() },
+                openTab = loansTab,
+                onTabOpened = { loansTab = null },
             )
         }
 
@@ -670,7 +678,51 @@ fun AppNavigation() {
         }
 
         composable(Routes.NOTIFICATIONS) {
-            NotificationsScreen(onBackClick = { navController.popBackStack() })
+            val viewModel: NotificationsViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
+            val answers by viewModel.answers.collectAsState()
+            val refreshing by viewModel.refreshing.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            val context = LocalContext.current
+
+            LaunchedEffect(viewModel) {
+                viewModel.errors.collect { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+            }
+
+            NotificationsScreen(
+                state = state,
+                answers = answers,
+                refreshing = refreshing,
+                saving = saving,
+                onRefresh = viewModel::refresh,
+                onMarkAllRead = viewModel::markAllRead,
+                onAccept = viewModel::accept,
+                onReject = viewModel::reject,
+                onNotificationClick = { item ->
+                    viewModel.markRead(item.id)
+                    val bookPage = item.bookIsbn?.let { Routes.bookDetails(it) }
+                    val open = (state as? LoadState.Ready)?.data?.openRequests.orEmpty()
+                    // Which Loans tab it's about, or null when it's not about Loans.
+                    val tab = when (item.type) {
+                        // Still waiting for an answer – on Requests. Answered or taken back – nothing there anymore.
+                        NotificationType.BorrowRequested -> LoansTab.Requests.takeIf { item.referenceId in open }
+                        // The book the user is borrowing now, and when to give it back.
+                        NotificationType.RequestAccepted, NotificationType.ReturnDue, NotificationType.ReturnOverdue -> LoansTab.Borrowing
+                        else -> null
+                    }
+                    // Maybe someone else has it (rejected), or it can be asked for right away (available) – the book's page.
+                    val showBook = item.type == NotificationType.RequestRejected || item.type == NotificationType.CopyAvailable
+                    // A taken-back request and a returned book have nothing to show – the card is just marked read.
+                    when {
+                        tab != null -> {
+                            loansTab = tab
+                            navigateBottomBar(Routes.LOANS)
+                        }
+                        showBook && bookPage != null -> navController.navigate(bookPage)
+                    }
+                },
+                onBackClick = { navController.popBackStack() },
+            )
         }
 
         composable(Routes.FRIENDS) { entry ->
