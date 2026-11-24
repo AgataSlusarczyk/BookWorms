@@ -149,8 +149,12 @@ internal fun GroupDetailsScreen(
                                 )
                             }
                         }
-                        items(books.data, key = { it.copyId }) { book ->
-                            GroupBookCard(book, onClick = book.isbn?.let { isbn -> { onBookClick(isbn) } })
+                        // One card per book, like on Library: copies with the same ISBN go together.
+                        // Books typed in by hand have no ISBN, so each of them stays on its own card.
+                        val byBook = books.data.groupBy { it.isbn ?: "copy:${it.copyId}" }.values.toList()
+                        items(byBook, key = { it.first().isbn ?: it.first().copyId }) { copies ->
+                            val isbn = copies.first().isbn
+                            GroupBookCard(copies, onClick = isbn?.let { { onBookClick(it) } })
                         }
                     }
                 }
@@ -293,27 +297,43 @@ private fun GroupChatCard(lastMessage: LoadState<ChatMessage?>, myId: String?, o
     }
 }
 
-// A book someone in the group owns: blue "Borrowed by X", green "Available" or gray "Not available".
+// A book people in the group own – all its copies on one card. Under the title: whose it is ("from Ola"),
+// or how many copies there are. On the right: green "Available" when any copy can be borrowed now,
+// blue "Borrowed" when all of them are lent out ("Borrowed by X" for one copy), else gray "Not available".
 @Composable
-private fun GroupBookCard(book: GroupBook, onClick: (() -> Unit)?) {
+private fun GroupBookCard(copies: List<GroupBook>, onClick: (() -> Unit)?) {
+    val book = copies.first()
+    val borrowedBy = book.borrowedBy
     AppCard(onClick = onClick) {
         BookRow(
             title = book.title,
-            subtitle = stringResource(R.string.book_by_owner, book.author, book.owner),
+            subtitle = if (copies.size == 1) {
+                stringResource(R.string.book_by_owner, book.author, book.owner)
+            } else {
+                stringResource(
+                    R.string.book_author_copies,
+                    book.author,
+                    pluralStringResource(R.plurals.book_copies, copies.size, copies.size),
+                )
+            },
             coverUrl = book.coverUrl,
         ) {
             when {
-                book.borrowedBy != null -> StatusTag(
-                    stringResource(R.string.status_borrowed_by, book.borrowedBy),
-                    dotColor = BrandBlue,
-                    backgroundColor = StatusBlueBg,
-                    textColor = BrandBlue,
-                )
-                book.available -> StatusTag(
+                copies.any { it.available && it.borrowedBy == null } -> StatusTag(
                     stringResource(R.string.status_available),
                     dotColor = StatusGreen,
                     backgroundColor = StatusGreenBg,
                     textColor = StatusGreen,
+                )
+                copies.all { it.borrowedBy != null } -> StatusTag(
+                    if (copies.size == 1 && borrowedBy != null) {
+                        stringResource(R.string.status_borrowed_by, borrowedBy)
+                    } else {
+                        stringResource(R.string.status_borrowed)
+                    },
+                    dotColor = BrandBlue,
+                    backgroundColor = StatusBlueBg,
+                    textColor = BrandBlue,
                 )
                 else -> StatusTag(stringResource(R.string.status_not_available))
             }
@@ -397,7 +417,8 @@ private fun GroupDetailsScreenPreview() {
             ),
             books = LoadState.Ready(
                 listOf(
-                    GroupBook("c1", null, "Solaris", "Stanisław Lem", null, owner = "Ola", borrowedBy = null, available = true),
+                    GroupBook("c1", "9788308049461", "Solaris", "Stanisław Lem", null, owner = "Ola", borrowedBy = null, available = true),
+                    GroupBook("c3", "9788308049461", "Solaris", "Stanisław Lem", null, owner = "Anna", borrowedBy = "Marek", available = true),
                     GroupBook("c2", null, "Lalka", "Bolesław Prus", null, owner = "Anna", borrowedBy = "Ola", available = true),
                 ),
             ),
