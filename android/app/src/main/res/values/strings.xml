@@ -12,6 +12,7 @@
     <string name="login_button">Log in</string>
     <string name="forgot_password">Forgot password?</string>
     <string name="error_login_invalid">Wrong email or password</string>
+    <string name="error_account_blocked">This account has been blocked by an administrator.</string>
     <string name="error_server_unreachable">Couldn\'t reach the server. Check your connection and try again.</string>
     <string name="no_account">Don\'t have an account?</string>
     <string name="sign_up">Sign up</string>
@@ -593,4 +594,67 @@
     <string name="group_invitation_sent">Invitation sent.</string>
     <string name="group_joined">You joined the group.</string>
     <string name="invitation_declined">Invitation declined.</string>
+
+    <!-- Admin panel (only for system admins) -->
+    <string name="admin_panel_title">Admin panel</string>
+    <string name="admin_panel_subtitle">Users, groups, books and the action log</string>
+    <string name="admin_tab_overview">Stats</string>
+    <string name="admin_tab_users">Users</string>
+    <string name="admin_tab_groups">Groups</string>
+    <string name="admin_tab_books">Books</string>
+    <string name="admin_tab_log">Log</string>
+    <string name="admin_load_failed">Couldn\'t load this from the server.</string>
+    <string name="admin_stat_users">Users</string>
+    <string name="admin_stat_books">Books in the catalog</string>
+    <string name="admin_stat_copies">Copies</string>
+    <string name="admin_stat_groups">Groups</string>
+    <string name="admin_stat_reviews">Reviews</string>
+    <string name="admin_stat_loans">Active loans</string>
+    <plurals name="admin_blocked_count">
+        <item quantity="one">%1$d blocked</item>
+        <item quantity="other">%1$d blocked</item>
+    </plurals>
+    <string name="admin_search_users">Search by name, username or email</string>
+    <string name="admin_search_books">Search by title, author or ISBN</string>
+    <string name="admin_no_users">No accounts found.</string>
+    <string name="admin_no_groups">There are no groups yet.</string>
+    <string name="admin_no_books">No books found.</string>
+    <string name="admin_no_logs">No admin actions yet.</string>
+    <string name="admin_books_hint">Open a book to edit or delete it. Reviews are hidden on the book\'s page too.</string>
+    <!-- %1$s = date -->
+    <string name="admin_user_joined">Joined %1$s</string>
+    <string name="admin_role_admin">Admin</string>
+    <string name="admin_status_blocked">Blocked</string>
+    <string name="admin_block">Block</string>
+    <string name="admin_unblock">Unblock</string>
+    <string name="admin_block_title">Block %1$s?</string>
+    <string name="admin_block_text">They will be logged out and won\'t be able to log in until you unblock them. Their books, groups and reviews stay.</string>
+    <string name="admin_unblock_title">Unblock %1$s?</string>
+    <string name="admin_unblock_text">They will be able to log in again.</string>
+    <string name="admin_user_blocked">Account blocked.</string>
+    <string name="admin_user_unblocked">Account unblocked.</string>
+    <string name="admin_cannot_block">You can\'t block yourself or another admin.</string>
+    <!-- %1$s = person's name, %2$s = date -->
+    <string name="admin_group_created_by">Created by %1$s · %2$s</string>
+    <string name="admin_delete_group_text">The group is deleted for all %1$d members, with its chat. This can\'t be undone.</string>
+    <string name="admin_group_deleted">Group deleted.</string>
+    <string name="admin_action_failed">Couldn\'t save the change. Check your connection and try again.</string>
+    <string name="admin_log_block_user">Blocked an account</string>
+    <string name="admin_log_unblock_user">Unblocked an account</string>
+    <string name="admin_log_edit_book">Edited a book</string>
+    <string name="admin_log_delete_book">Deleted a book</string>
+    <string name="admin_log_hide_review">Hid a review</string>
+    <string name="admin_log_delete_group">Deleted a group</string>
+    <string name="admin_log_other">Other action</string>
+    <!-- Admin actions on Book details -->
+    <string name="admin_edit_book">Edit book (admin)</string>
+    <string name="admin_delete_book">Delete book (admin)</string>
+    <string name="admin_delete_book_title">Delete “%1$s” from the catalog?</string>
+    <string name="admin_delete_book_text">It disappears for everyone, together with every copy, loan request, loan, rating and place on a list. This can\'t be undone.</string>
+    <string name="admin_book_deleted">Book deleted.</string>
+    <string name="admin_book_edited">Book saved for everyone.</string>
+    <string name="admin_hide_review">Hide</string>
+    <string name="admin_hide_review_title">Hide %1$s\'s review?</string>
+    <string name="admin_hide_review_text">Nobody will see it, and its stars won\'t count in the average.</string>
+    <string name="admin_review_hidden">Review hidden.</string>
 </resources>

@@ -4,12 +4,17 @@ import kotlinx.serialization.Serializable
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PUT
 import retrofit2.http.Part
 
 // The logged-in user's own profile.
 interface ProfileApi {
+
+    // The logged-in user as the server sees them now, e.g. after an admin made them a system admin.
+    @GET("me")
+    suspend fun me(): UserDto
 
     // Sends all three fields, changed or not. Answers 409 with code EMAIL_TAKEN or USERNAME_TAKEN
     // when someone else already has them, and 400 when a field isn't accepted.

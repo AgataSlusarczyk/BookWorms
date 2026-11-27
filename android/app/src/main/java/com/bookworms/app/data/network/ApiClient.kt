@@ -46,6 +46,7 @@ object ApiClient {
     val shelf: ShelfApi = retrofit.create(ShelfApi::class.java)
     val friends: FriendsApi = retrofit.create(FriendsApi::class.java)
     val notifications: NotificationsApi = retrofit.create(NotificationsApi::class.java)
+    val admin: AdminApi = retrofit.create(AdminApi::class.java)
 
     // Sends the login token with every request, so the server knows who asks.
     private fun withToken(chain: Interceptor.Chain): Response {

@@ -3,6 +3,7 @@ package com.bookworms.app.ui.auth
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bookworms.app.data.AccountBlockedException
 import com.bookworms.app.data.AuthRepository
 import com.bookworms.app.data.InvalidCredentialsException
 import kotlinx.coroutines.CancellationException
@@ -26,6 +27,8 @@ data class LoginUiState(
 
 enum class LoginError {
     InvalidCredentials,
+    // An admin blocked the account.
+    AccountBlocked,
     ServerUnreachable,
 }
 
@@ -51,6 +54,8 @@ class LoginViewModel(private val repository: AuthRepository = AuthRepository()) 
                 throw e
             } catch (e: InvalidCredentialsException) {
                 LoginError.InvalidCredentials
+            } catch (e: AccountBlockedException) {
+                LoginError.AccountBlocked
             } catch (e: Exception) {
                 Log.w("BookWorms", "Logging in failed", e)
                 LoginError.ServerUnreachable

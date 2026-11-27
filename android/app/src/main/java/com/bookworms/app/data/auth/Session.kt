@@ -16,6 +16,9 @@ data class CurrentUser(
     val email: String,
     // Full address of the profile photo, or null when there's none.
     val photoUrl: String? = null,
+    // A system admin: Profile shows the admin panel, and Book details the admin's buttons.
+    // The server checks it again on every admin request, so this only decides what the app shows.
+    val isAdmin: Boolean = false,
 )
 
 // Who is logged in, and the token that proves it to the server.
@@ -46,7 +49,14 @@ object Session {
         // A login saved by an older app has no username – the user just logs in again.
         if (savedToken != null && id != null && name != null && username != null && email != null) {
             token = savedToken
-            _user.value = CurrentUser(id, name, username, email, prefs.getString(KeyPhotoUrl, null))
+            _user.value = CurrentUser(
+                id,
+                name,
+                username,
+                email,
+                prefs.getString(KeyPhotoUrl, null),
+                isAdmin = prefs.getBoolean(KeyIsAdmin, false),
+            )
         }
     }
 
@@ -64,6 +74,7 @@ object Session {
             putString(KeyUsername, user.username)
             putString(KeyUserEmail, user.email)
             putString(KeyPhotoUrl, user.photoUrl)
+            putBoolean(KeyIsAdmin, user.isAdmin)
         }
         _user.value = user
     }
@@ -83,4 +94,5 @@ object Session {
     private const val KeyUsername = "username"
     private const val KeyUserEmail = "user_email"
     private const val KeyPhotoUrl = "photo_url"
+    private const val KeyIsAdmin = "is_admin"
 }

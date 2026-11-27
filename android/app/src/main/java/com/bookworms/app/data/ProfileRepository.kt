@@ -16,6 +16,12 @@ import retrofit2.HttpException
 // The logged-in user's own profile.
 class ProfileRepository(private val api: ProfileApi = ApiClient.profile) {
 
+    // Asks the server who the user is now and shows it everywhere in the app – e.g. the admin panel appears
+    // for someone who was just made an admin, without logging out and in again.
+    suspend fun refresh() {
+        Session.update(api.me().toCurrentUser())
+    }
+
     // Saves the new name, username and email, and shows them everywhere in the app (see Session).
     // Throws EmailTakenException, UsernameTakenException, InvalidProfileDataException (the server didn't accept a field),
     // and anything else when the server can't be reached.

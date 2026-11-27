@@ -32,12 +32,18 @@ class AuthRepository(private val api: AuthApi = ApiClient.auth) {
     }
 
     // Remembers the user on the phone (see Session).
-    // Throws InvalidCredentialsException for a wrong email or password, and anything else when the server can't be reached.
+    // Throws InvalidCredentialsException for a wrong email or password, AccountBlockedException when an admin blocked
+    // the account, and anything else when the server can't be reached.
     suspend fun login(email: String, password: String) {
         val response = try {
             api.login(LoginRequestDto(email = email.trim(), password = password))
         } catch (e: HttpException) {
-            throw if (e.code() == 401) InvalidCredentialsException() else e
+            throw when (e.code()) {
+                401 -> InvalidCredentialsException()
+                // The password was right, but an admin blocked the account.
+                403 -> AccountBlockedException()
+                else -> e
+            }
         }
         Session.start(
             token = response.token,
@@ -51,6 +57,8 @@ class AuthRepository(private val api: AuthApi = ApiClient.auth) {
 
 class InvalidCredentialsException : Exception("Wrong email or password")
 
+class AccountBlockedException : Exception("This account is blocked")
+
 class EmailTakenException : Exception("Email is already taken")
 
 class UsernameTakenException : Exception("Username is already taken")
@@ -60,6 +68,13 @@ internal fun takenException(e: HttpException): Exception =
     if (e.errorCode() == "USERNAME_TAKEN") UsernameTakenException() else EmailTakenException()
 
 internal fun UserDto.toCurrentUser() =
-    CurrentUser(id = id, name = name, username = username, email = email, photoUrl = serverUrl(photoUrl))
+    CurrentUser(
+        id = id,
+        name = name,
+        username = username,
+        email = email,
+        photoUrl = serverUrl(photoUrl),
+        isAdmin = role == "SYSTEM_ADMIN",
+    )
 
 class InvalidSignUpDataException : Exception("The server didn't accept the sign-up data")
