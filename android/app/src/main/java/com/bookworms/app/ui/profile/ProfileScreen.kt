@@ -45,6 +45,9 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit = {},
     // Full address of the photo on the server, or null when there's none.
     photoUrl: String? = null,
+    // A system admin gets the admin panel at the top of the menu.
+    isAdmin: Boolean = false,
+    onAdminPanelClick: () -> Unit = {},
 ) {
     Scaffold(
         // Transparent, so the misted picture behind the whole screen shows through.
@@ -79,6 +82,16 @@ fun ProfileScreen(
                 }
             }
 
+            if (isAdmin) {
+                item {
+                    ProfileMenuItem(
+                        iconResId = R.drawable.ic_admin,
+                        title = stringResource(R.string.admin_panel_title),
+                        subText = stringResource(R.string.admin_panel_subtitle),
+                        onClick = onAdminPanelClick,
+                    )
+                }
+            }
             item {
                 ProfileMenuItem(
                     iconResId = R.drawable.ic_book,
@@ -210,6 +223,6 @@ private fun ExportDataItem() {
 @Composable
 private fun ProfileScreenPreview() {
     BookWormsTheme {
-        ProfileScreen(userName = "Anna Kowalska", userEmail = "anna.kowalska@mail.com", booksCount = 24)
+        ProfileScreen(userName = "Anna Kowalska", userEmail = "anna.kowalska@mail.com", booksCount = 24, isAdmin = true)
     }
 }

@@ -58,6 +58,9 @@ class BookRepository(
             .withCopies(others.await())
     }
 
+    // Only the ratings again, e.g. after an admin hid one.
+    suspend fun reviews(bookId: String): BookReviews = api.getReviews(bookId).toBookReviews()
+
     // Only "Who has it" again, after the user asked for a copy or joined a queue.
     suspend fun copies(bookId: String): BookCopies = loans.bookCopies(bookId)
 
@@ -130,6 +133,7 @@ private fun BookDetailsDto.toBookDetails(requestedIsbn: String) = BookDetails(
     author = authors.orEmpty(),
     year = publishedYear,
     pages = pageCount,
+    publisher = publisher,
     // The screen shows one genre.
     genre = genres.firstOrNull(),
     description = description,

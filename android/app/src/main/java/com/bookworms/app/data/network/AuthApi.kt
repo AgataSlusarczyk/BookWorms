@@ -46,4 +46,6 @@ data class UserDto(
     val email: String,
     // A path on our server, e.g. "/photos/<file>.jpg", or null when there's no photo.
     val photoUrl: String? = null,
+    // USER or SYSTEM_ADMIN. An older server doesn't send it – then nobody is an admin.
+    val role: String = "USER",
 )

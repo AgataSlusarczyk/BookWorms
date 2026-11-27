@@ -200,6 +200,13 @@ class GroupService(
 		events.publishEvent(GroupDeleted(groupId))
 	}
 
+	// The same, by a system admin from the admin panel – they don't have to be in the group (AdminService checks who asks).
+	@Transactional
+	fun deleteBySystemAdmin(groupId: UUID) {
+		deleteGroup(groupId)
+		events.publishEvent(GroupDeleted(groupId))
+	}
+
 	// The old code stops working, so people who got it but didn't join yet can't anymore.
 	@Transactional
 	fun newInviteCode(userId: UUID, groupId: UUID): GroupDetailsResponse {

@@ -102,6 +102,13 @@ fun BookDetailsScreen(
     // Only the header and the description – no ratings, copies, comments or buttons.
     offline: Boolean = false,
     onRetryClick: () -> Unit = {},
+    // A system admin also gets Edit book and Delete book in the ⋮ menu, and Hide under each public comment.
+    isAdmin: Boolean = false,
+    onAdminEditClick: () -> Unit = {},
+    onAdminDeleteBook: () -> Unit = {},
+    onAdminHideReview: (BookComment) -> Unit = {},
+    // true while the server answers an admin's change – its buttons wait.
+    adminBusy: Boolean = false,
 ) {
     // Which copy button was tapped, so the right question shows up. Kept as the copy's id,
     // so it survives turning the phone.
@@ -131,6 +138,34 @@ fun BookDetailsScreen(
         )
     }
 
+    // The admin's questions before something that can't be undone.
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var hidingReviewId by rememberSaveable { mutableStateOf<String?>(null) }
+    if (confirmDelete) {
+        AdminConfirmDialog(
+            title = stringResource(R.string.admin_delete_book_title, book.title),
+            text = stringResource(R.string.admin_delete_book_text),
+            confirm = stringResource(R.string.delete_action),
+            onConfirm = {
+                confirmDelete = false
+                onAdminDeleteBook()
+            },
+            onDismiss = { confirmDelete = false },
+        )
+    }
+    book.publicComments.find { it.id == hidingReviewId }?.let { comment ->
+        AdminConfirmDialog(
+            title = stringResource(R.string.admin_hide_review_title, comment.authorName),
+            text = stringResource(R.string.admin_hide_review_text),
+            confirm = stringResource(R.string.admin_hide_review),
+            onConfirm = {
+                hidingReviewId = null
+                onAdminHideReview(comment)
+            },
+            onDismiss = { hidingReviewId = null },
+        )
+    }
+
     if (showListsDialog) {
         AddToListDialog(
             lists = customLists,
@@ -157,6 +192,10 @@ fun BookDetailsScreen(
             onAddToListClick = { showListsDialog = true },
             onShareClick = onShareClick,
             onOwnBookClick = onOwnBookClick,
+            showAdminActions = isAdmin && !isGuest && !offline,
+            adminBusy = adminBusy,
+            onAdminEditClick = onAdminEditClick,
+            onAdminDeleteClick = { confirmDelete = true },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -219,6 +258,11 @@ fun BookDetailsScreen(
             onAddCommentClick = onAddCommentClick,
             onReplyClick = onReplyClick,
             onLoginClick = onLoginClick,
+            onHideClick = if (isAdmin && !isGuest && !adminBusy) {
+                { comment -> hidingReviewId = comment.id }
+            } else {
+                null
+            },
         )
     }
 }
@@ -231,6 +275,8 @@ private fun CommentsSection(
     onAddCommentClick: (groupName: String?) -> Unit,
     onReplyClick: (groupName: String, comment: BookComment) -> Unit,
     onLoginClick: () -> Unit,
+    // The admin's Hide under each public comment, or null for everyone else.
+    onHideClick: ((BookComment) -> Unit)? = null,
 ) {
     // 0 = Public, 1 and more = the groups in order. Guests only ever see Public.
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -289,7 +335,8 @@ private fun CommentsSection(
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         comments.forEach { comment ->
-            CommentCard(comment)
+            // Public comments are ratings, which an admin can hide. Group discussions aren't on the server yet.
+            CommentCard(comment, onHideClick = onHideClick?.takeIf { discussion == null }?.let { { it(comment) } })
             // Replies are only in group discussions: a bit to the right, under the comment they answer.
             if (discussion != null) {
                 comment.replies.forEach { reply ->
@@ -320,6 +367,10 @@ private fun TopActions(
     onAddToListClick: () -> Unit,
     onShareClick: () -> Unit,
     onOwnBookClick: () -> Unit,
+    showAdminActions: Boolean = false,
+    adminBusy: Boolean = false,
+    onAdminEditClick: () -> Unit = {},
+    onAdminDeleteClick: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -363,6 +414,20 @@ private fun TopActions(
                     text = { Text(stringResource(R.string.i_own_this_book)) },
                     onClick = { menuOpen = false; onOwnBookClick() },
                 )
+                // Below a line, so it's clear these change the book for everyone, not only for the admin.
+                if (showAdminActions) {
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.admin_edit_book)) },
+                        enabled = !adminBusy,
+                        onClick = { menuOpen = false; onAdminEditClick() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.admin_delete_book), color = MaterialTheme.colorScheme.error) },
+                        enabled = !adminBusy,
+                        onClick = { menuOpen = false; onAdminDeleteClick() },
+                    )
+                }
             }
         }
     }
@@ -795,7 +860,21 @@ private fun StatusDot(color: Color) {
 }
 
 @Composable
-private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
+private fun AdminConfirmDialog(title: String, text: String, confirm: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+// onHideClick = the admin's Hide in the corner, or null for everyone else.
+@Composable
+private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier, onHideClick: (() -> Unit)? = null) {
     // A comment with spoilers starts hidden; one tap shows it.
     var revealed by rememberSaveable(comment.id) { mutableStateOf(false) }
     val hidden = comment.hasSpoilers && !revealed
@@ -808,7 +887,7 @@ private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
         Row(modifier = Modifier.padding(12.dp)) {
             ProfilePhoto(photo = comment.authorPhotoUrl, size = 40.dp)
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = comment.authorName,
                     style = MaterialTheme.typography.titleSmall,
@@ -833,6 +912,11 @@ private fun CommentCard(comment: BookComment, modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (onHideClick != null) {
+                TextButton(onClick = onHideClick, contentPadding = SmallButtonPadding) {
+                    Text(stringResource(R.string.admin_hide_review), color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }

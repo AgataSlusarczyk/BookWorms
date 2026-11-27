@@ -1,6 +1,7 @@
 package com.bookworms.server.common
 
 import com.bookworms.server.auth.JwtProperties
+import com.bookworms.server.users.UserRepository
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import jakarta.servlet.DispatcherType
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -15,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtEncoder
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
@@ -24,7 +26,7 @@ import javax.crypto.spec.SecretKeySpec
 class SecurityConfig {
 
 	@Bean
-	fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
+	fun securityFilterChain(http: HttpSecurity, userRepository: UserRepository): SecurityFilterChain =
 		http
 			.csrf { it.disable() }
 			.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -42,6 +44,8 @@ class SecurityConfig {
 				it.anyRequest().authenticated()
 			}
 			.oauth2ResourceServer { it.jwt { } }
+			// Right after the token is read, so a blocked user's token stops working at once.
+			.addFilterAfter(BlockedUserFilter(userRepository), BearerTokenAuthenticationFilter::class.java)
 			.build()
 
 	@Bean

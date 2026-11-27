@@ -12,6 +12,8 @@ data class BookDetails(
     // The server may not know these, so they're null then and the screen leaves them out.
     val year: Int?,
     val pages: Int?,
+    // Only for the admin's Edit book form – the screen doesn't show it.
+    val publisher: String? = null,
     // A genre code from the server, e.g. "SCI_FI" – genreName() turns it into a name.
     val genre: String?,
     // The catalog's description – the same for everyone.

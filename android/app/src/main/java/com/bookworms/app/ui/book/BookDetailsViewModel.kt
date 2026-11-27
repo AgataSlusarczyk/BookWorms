@@ -3,6 +3,7 @@ package com.bookworms.app.ui.book
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bookworms.app.data.AdminRepository
 import com.bookworms.app.data.BookRepository
 import com.bookworms.app.data.CannotAnswerException
 import com.bookworms.app.data.CopyChangedException
@@ -15,11 +16,15 @@ import com.bookworms.app.data.load
 import com.bookworms.app.data.loadOrSaved
 import com.bookworms.app.data.withCopies
 import com.bookworms.app.data.withReviews
+import com.bookworms.app.ui.library.BookForm
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -30,6 +35,7 @@ class BookDetailsViewModel(
     private val loans: LoansRepository = LoansRepository(),
     private val myBooks: MyBooksRepository = MyBooksRepository(),
     private val shelf: ShelfRepository = ShelfRepository(),
+    private val admin: AdminRepository = AdminRepository(),
 ) : ViewModel() {
 
     private val _book = MutableStateFlow<LoadState<BookDetails>>(LoadState.Loading)
@@ -55,15 +61,60 @@ class BookDetailsViewModel(
     private val _copyMessage = MutableStateFlow<CopyMessage?>(null)
     val copyMessage: StateFlow<CopyMessage?> = _copyMessage.asStateFlow()
 
+    // true while the server answers an admin's change (edit, delete, hide). The buttons wait until then.
+    private val _adminBusy = MutableStateFlow(false)
+    val adminBusy: StateFlow<Boolean> = _adminBusy.asStateFlow()
+
+    // What happened to an admin's change. Each one is handled once (Book details, or Edit book on top of it).
+    private val _adminEvents = Channel<AdminBookEvent>(Channel.BUFFERED)
+    val adminEvents: Flow<AdminBookEvent> = _adminEvents.receiveAsFlow()
+
     init {
         refresh()
     }
 
     fun refresh() {
         _book.value = LoadState.Loading
+        viewModelScope.launch { reload() }
+    }
+
+    // Without the server, the user's own books still open – from the copy of My books on the phone.
+    private suspend fun reload() {
+        _book.value = loadOrSaved(saved = { myBooks.savedBookDetails(isbn) }) { repository.details(isbn) }
+    }
+
+    // Admin only: changes the book for everyone. The page loads again with the new details.
+    internal fun editBook(form: BookForm) = adminChange(AdminBookEvent.Edited) { book ->
+        admin.editBook(book.id, form)
+        reload()
+    }
+
+    // Admin only: the book is gone for everyone, with its copies, loans and ratings. The screen closes.
+    fun deleteBook() = adminChange(AdminBookEvent.Deleted) { book -> admin.deleteBook(book.id) }
+
+    // Admin only: nobody sees the review anymore, and it no longer counts in the average.
+    fun hideReview(reviewId: String) = adminChange(AdminBookEvent.ReviewHidden) { book ->
+        admin.hideReview(reviewId)
+        val reviews = repository.reviews(book.id)
+        updateBook { it.withReviews(reviews) }
+    }
+
+    private fun adminChange(success: AdminBookEvent, call: suspend (BookDetails) -> Unit) {
+        val book = (_book.value as? LoadState.Ready)?.data ?: return
+        if (_adminBusy.value) return
+        _adminBusy.value = true
         viewModelScope.launch {
-            // Without the server, the user's own books still open – from the copy of My books on the phone.
-            _book.value = loadOrSaved(saved = { myBooks.savedBookDetails(isbn) }) { repository.details(isbn) }
+            val event = try {
+                call(book)
+                success
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("BookWorms", "An admin change of the book failed", e)
+                AdminBookEvent.Failed
+            }
+            _adminBusy.value = false
+            _adminEvents.send(event)
         }
     }
 
@@ -183,6 +234,20 @@ class BookDetailsViewModel(
 
     private fun updateBook(change: (BookDetails) -> BookDetails) =
         _book.update { state -> if (state is LoadState.Ready) LoadState.Ready(change(state.data)) else state }
+}
+
+// What happened to an admin's change of the book.
+sealed interface AdminBookEvent {
+    // Edit book was saved – back to Book details, which already shows the new details.
+    data object Edited : AdminBookEvent
+
+    // The book is gone – Book details closes.
+    data object Deleted : AdminBookEvent
+
+    data object ReviewHidden : AdminBookEvent
+
+    // The server couldn't be reached, or said no.
+    data object Failed : AdminBookEvent
 }
 
 // Said in a short message after a tap on a copy's button.

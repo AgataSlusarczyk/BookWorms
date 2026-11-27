@@ -30,6 +30,9 @@ import com.bookworms.app.data.LoadState
 import com.bookworms.app.data.isOffline
 import com.bookworms.app.data.isSavedCopy
 import com.bookworms.app.data.auth.Session
+import com.bookworms.app.ui.admin.AdminScreen
+import com.bookworms.app.ui.admin.AdminTab
+import com.bookworms.app.ui.admin.AdminViewModel
 import com.bookworms.app.ui.auth.ForgotPasswordScreen
 import com.bookworms.app.ui.auth.LoginError
 import com.bookworms.app.ui.auth.LoginScreen
@@ -38,6 +41,7 @@ import com.bookworms.app.ui.auth.RegisterError
 import com.bookworms.app.ui.auth.RegisterScreen
 import com.bookworms.app.ui.auth.RegisterViewModel
 import com.bookworms.app.ui.book.AddCommentScreen
+import com.bookworms.app.ui.book.AdminBookEvent
 import com.bookworms.app.ui.book.BookDetailsScreen
 import com.bookworms.app.ui.book.BookDetailsViewModel
 import com.bookworms.app.ui.book.CopyMessage
@@ -72,6 +76,7 @@ import com.bookworms.app.ui.groups.JoinGroupViewModel
 import com.bookworms.app.ui.library.AddBookEvent
 import com.bookworms.app.ui.library.AddBookManualScreen
 import com.bookworms.app.ui.library.AddBookViewModel
+import com.bookworms.app.ui.library.BookForm
 import com.bookworms.app.ui.library.LibraryScreen
 import com.bookworms.app.ui.library.LibraryViewModel
 import com.bookworms.app.ui.library.MyBooksEvent
@@ -150,6 +155,10 @@ private object Routes {
     const val MY_COPY = "my_copy/{copyId}"
     const val EDIT_OWN_BOOK = "edit_own_book/{copyId}"
     const val FRIEND_PROFILE = "friend_profile/{friendId}"
+    // Only for a system admin (see CurrentUser.isAdmin). The server checks it again on every request.
+    const val ADMIN = "admin"
+    // Opened from Book details' ⋮ menu – edits the book under it, for everyone.
+    const val ADMIN_EDIT_BOOK = "admin_edit_book"
 
     fun friendProfile(friendId: String) = "friend_profile/$friendId"
 
@@ -240,6 +249,7 @@ fun AppNavigation() {
                 onPasswordChange = viewModel::onPasswordChange,
                 errorMessage = when (state.error) {
                     LoginError.InvalidCredentials -> stringResource(R.string.error_login_invalid)
+                    LoginError.AccountBlocked -> stringResource(R.string.error_account_blocked)
                     LoginError.ServerUnreachable -> stringResource(R.string.error_server_unreachable)
                     null -> null
                 },
@@ -455,6 +465,8 @@ fun AppNavigation() {
                 photoUrl = user?.photoUrl,
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePasswordClick = { navController.navigate(Routes.CHANGE_PASSWORD) },
+                isAdmin = user?.isAdmin == true,
+                onAdminPanelClick = { navController.navigate(Routes.ADMIN) },
                 onLogoutClick = {
                     AuthRepository().logout()
                     navController.navigate(Routes.LOGIN) {
@@ -463,6 +475,77 @@ fun AppNavigation() {
                     }
                 },
             )
+        }
+
+        composable(Routes.ADMIN) {
+            val viewModel: AdminViewModel = viewModel()
+            var tab by rememberSaveable { mutableStateOf(AdminTab.Overview) }
+            val stats by viewModel.stats.collectAsState()
+            val users by viewModel.users.collectAsState()
+            val userQuery by viewModel.userQuery.collectAsState()
+            val groups by viewModel.groups.collectAsState()
+            val books by viewModel.books.collectAsState()
+            val bookQuery by viewModel.bookQuery.collectAsState()
+            val logs by viewModel.logs.collectAsState()
+            val busyId by viewModel.busyId.collectAsState()
+            val context = LocalContext.current
+
+            // Each time a tab opens, and when the panel shows up again (e.g. after deleting a book on Book details).
+            LaunchedEffect(tab) { viewModel.refresh(tab) }
+            LaunchedEffect(viewModel) {
+                viewModel.messages.collect { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+            }
+
+            AdminScreen(
+                tab = tab,
+                onTabChange = { tab = it },
+                stats = stats,
+                users = users,
+                userQuery = userQuery,
+                onUserQueryChange = viewModel::onUserQueryChange,
+                groups = groups,
+                books = books,
+                bookQuery = bookQuery,
+                onBookQueryChange = viewModel::onBookQueryChange,
+                logs = logs,
+                busyId = busyId,
+                onSetBlocked = viewModel::setBlocked,
+                onDeleteGroup = viewModel::deleteGroup,
+                onBookClick = { book -> navController.navigate(Routes.bookDetails(book.isbn)) },
+                onRetryClick = { viewModel.refresh(tab) },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.ADMIN_EDIT_BOOK) { entry ->
+            val viewModel = bookDetailsViewModel(navController, entry)
+            val state by viewModel.book.collectAsState()
+            val saving by viewModel.adminBusy.collectAsState()
+            HandleAdminBookEvents(viewModel.adminEvents, navController)
+
+            LoadStateScreen(
+                state = state,
+                failedMessage = stringResource(R.string.load_book_failed),
+                onRetryClick = viewModel::refresh,
+                onBackClick = { navController.popBackStack() },
+            ) { book ->
+                AddBookManualScreen(
+                    // Editing never shows the scanner – the ISBN of a saved book doesn't change.
+                    onScanIsbnClick = {},
+                    onBackClick = { navController.popBackStack() },
+                    // Back on Book details once the server saved it (AdminBookEvent.Edited).
+                    onSaveClick = viewModel::editBook,
+                    editing = BookForm(
+                        title = book.title,
+                        author = book.author,
+                        isbn = book.isbn.filter { it.isDigit() || it == 'X' },
+                        publisher = book.publisher.orEmpty(),
+                        year = book.year,
+                        description = book.description.orEmpty(),
+                    ),
+                    saving = saving,
+                )
+            }
         }
 
         composable(Routes.CREATE_LIST) {
@@ -1015,6 +1098,8 @@ fun AppNavigation() {
             // Loads the book, its ratings and who has it from the server. Group discussions aren't there yet.
             val viewModel = viewModel { BookDetailsViewModel(isbn) }
             val state by viewModel.book.collectAsState()
+            val adminBusy by viewModel.adminBusy.collectAsState()
+            HandleAdminBookEvents(viewModel.adminEvents, navController)
             val ratingFailed by viewModel.ratingFailed.collectAsState()
             val busyCopy by viewModel.busyCopy.collectAsState()
             val copyMessage by viewModel.copyMessage.collectAsState()
@@ -1079,6 +1164,11 @@ fun AppNavigation() {
                     onRetryClick = viewModel::refresh,
                     // Login is at the bottom of the pile (under Browse), so we go back down to it.
                     onLoginClick = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
+                    isAdmin = user?.isAdmin == true,
+                    onAdminEditClick = { navController.navigate(Routes.ADMIN_EDIT_BOOK) },
+                    onAdminDeleteBook = viewModel::deleteBook,
+                    onAdminHideReview = { comment -> viewModel.hideReview(comment.id) },
+                    adminBusy = adminBusy,
                 )
             }
         }
@@ -1233,6 +1323,39 @@ private fun groupDetailsViewModel(navController: NavController, entry: NavBackSt
     }
     val groupId = owner.arguments?.getString("groupId").orEmpty()
     return viewModel(owner) { GroupDetailsViewModel(groupId) }
+}
+
+// Edit book (admin) works on the Book details under it, so saving shows the new details there right away.
+@Composable
+private fun bookDetailsViewModel(navController: NavController, entry: NavBackStackEntry): BookDetailsViewModel {
+    val owner = remember(entry) { navController.getBackStackEntry(Routes.BOOK_DETAILS) }
+    val isbn = owner.arguments?.getString("isbn").orEmpty()
+    return viewModel(owner) { BookDetailsViewModel(isbn) }
+}
+
+// What to do after an admin's change of a book: close the screen, or say what happened (a short Toast).
+@Composable
+private fun HandleAdminBookEvents(events: Flow<AdminBookEvent>, navController: NavController) {
+    val context = LocalContext.current
+    LaunchedEffect(events) {
+        events.collect { event ->
+            val message = when (event) {
+                // From Edit book back to Book details.
+                AdminBookEvent.Edited -> {
+                    navController.popBackStack()
+                    R.string.admin_book_edited
+                }
+                // The book's page has nothing to show anymore.
+                AdminBookEvent.Deleted -> {
+                    navController.popBackStack()
+                    R.string.admin_book_deleted
+                }
+                AdminBookEvent.ReviewHidden -> R.string.admin_review_hidden
+                AdminBookEvent.Failed -> R.string.admin_action_failed
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 }
 
 // The chat's ViewModel lives with Group details too, so the chat screen and the card there share the messages,
